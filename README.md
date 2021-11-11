@@ -1,1 +1,1 @@
-Beanstalk protocol off-chain tooling
+Beanstalk Protocol off-chain tooling
