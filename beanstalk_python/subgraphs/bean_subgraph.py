@@ -12,6 +12,10 @@ BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v0.0.10'
 
 FIELDS_PLACEHOLDER = 'FIELDS'
 
+# Names of common graph fields.
+PRICE_FIELD = 'price'
+LAST_PEG_CROSS_FIELD = 'lastCross'
+
 # NOTE(funderberker): Delete this before merege.
 """
 I came up with three approaches to implement graph calls in python. All are kind of lame.
@@ -28,28 +32,32 @@ I came up with three approaches to implement graph calls in python. All are kind
 
 class BeanSqlClient(object):
 
+    # TODO(funderberker): Configurable timeout. Also for beanstalk subgraph.
     def __init__(self):
         transport = AIOHTTPTransport(url=BEAN_GRAPH_ENDPOINT)
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=10)
 
-    def current_bean_price(self):
+    async def current_bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
-        return self.get_bean_field('price')
+        return await self.get_bean_field(PRICE_FIELD)
 
-    def last_peg_cross(self):
+    async def last_peg_cross(self):
         """Returns a timestamp of the last time the peg was crossed."""
-        return int(self.get_bean_field('lastCross'))
+        return int(await self.get_bean_field(LAST_PEG_CROSS_FIELD))
 
-    def get_bean_field(self, field):
+    async def get_bean_field(self, field):
         """Get a single field from the bean object."""
-        return self.get_bean_fields(fields=[field])[field]
+        return (await self.get_bean_fields(fields=[field]))[field]
 
-    def get_bean_fields(self, fields=['price']):
+    async def get_bean_fields(self, fields=[PRICE_FIELD]):
         """Retrieve the specified fields for the bean token.
 
         Args:
             fields: an array of strings specifying which fields should be retried.
+        
+        Returns:
+            dict containing all request field:value pairs.
 
         Raises:
             gql.transport.exceptions.TransportQueryError: Invalid field name provided.
@@ -71,15 +79,17 @@ class BeanSqlClient(object):
 
         # Create gql query and execute.
         # Note that there is always only 1 bean item returned.
-        return self._execute(query_str)['beans'][0]
+        return (await self._execute(query_str))['beans'][0]
 
-    def _execute(self, query_str):
+    async def _execute(self, query_str):
         """Convert query string into a gql query and execute query."""
         query = gql(query_str)
+
+        # TODO(funderberker): Configure max # of retries and raise custom exception on fail.  Also for beanstalk subgraph.
         while True:
             logging.info(f'Bean GraphQL query:\n{query_str}')
             try:
-                result = self._client.execute(query)
+                result = await self._client.execute_async(query)
                 break
             except asyncio.exceptions.TimeoutError:
                 logging.warning('Timeout error on Bean GraphQL access. Retrying...')
