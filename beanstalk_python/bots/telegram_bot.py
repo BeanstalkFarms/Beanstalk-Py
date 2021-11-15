@@ -65,11 +65,7 @@ class TelegramBot(object):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-    try:
-        bot = TelegramBot()
-        bot.start_monitoring()
-        bot.tele_bot.infinity_polling()
-    except KeyboardInterrupt:
-        logging.warning('Interrupt detected. Exiting gracefully...')
-    finally:
-        bot.stop()
+    bot = TelegramBot()
+    bot.start_monitoring()
+    bot.tele_bot.infinity_polling()
+    bot.stop()

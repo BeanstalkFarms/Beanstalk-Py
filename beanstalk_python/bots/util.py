@@ -1,7 +1,8 @@
 from enum import Enum
 import logging
 
-from beanstalk_python.subgraphs import bean_subgraph, PRICE_FIELD, LAST_PEG_CROSS_FIELD
+from beanstalk_python.subgraphs.bean_subgraph import (
+    BeanSqlClient, PRICE_FIELD, LAST_PEG_CROSS_FIELD)
 
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
@@ -30,7 +31,7 @@ class PegCrossMonitor():
 
     def __init__(self):
         self.last_known_cross = 0
-        self.bean_subgraph_client = bean_subgraph.BeanSqlClient()
+        self.bean_subgraph_client = BeanSqlClient()
 
     async def check_for_peg_cross(self):
         """
@@ -45,10 +46,10 @@ class PegCrossMonitor():
         last_cross = int(result[LAST_PEG_CROSS_FIELD])
         price = result[PRICE_FIELD]
 
-        # For testing.
-        import random
-        self.last_known_cross = 1
-        price = random.uniform(0.5, 1.5)
+        # # For testing.
+        # import random
+        # self.last_known_cross = 1
+        # price = random.uniform(0.5, 1.5)
 
         if not self.last_known_cross:
             logging.info('Peg cross timestamp initialized with last peg cross = '
