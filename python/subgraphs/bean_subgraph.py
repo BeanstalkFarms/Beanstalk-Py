@@ -16,7 +16,7 @@ FIELDS_PLACEHOLDER = 'FIELDS'
 PRICE_FIELD = 'price'
 LAST_PEG_CROSS_FIELD = 'lastCross'
 
-# NOTE(funderberker): Delete this before merege.
+# NOTE(funderberker): Delete this before merge.
 """
 I came up with three approaches to implement graph calls in python. All are kind of lame.
 1. Write the query strings directly into the methods

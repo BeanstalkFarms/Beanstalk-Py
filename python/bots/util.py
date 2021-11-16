@@ -1,7 +1,7 @@
 from enum import Enum
 import logging
 
-from beanstalk_python.subgraphs.bean_subgraph import (
+from subgraphs.bean_subgraph import (
     BeanSqlClient, PRICE_FIELD, LAST_PEG_CROSS_FIELD)
 
 # There is a built in assumption that we will update at least once per
