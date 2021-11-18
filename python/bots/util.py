@@ -36,15 +36,19 @@ class PegCrossMonitor():
     async def check_for_peg_cross(self):
         """
         Check to see if the peg has been crossed since the last known timestamp of the caller.
-        Note that this assumes that block time > period of subgraph checks.
+        Assumes that block time > period of subgraph checks.
+
+        Note that this call can take over 10 seconds due to graph access delays.
 
         Returns:
             PegCrossType
         """
         cross_type = PegCrossType.NO_CROSS
+
+        # Get latest data from subgraph. May take 10+ seconds.
         result = await self.bean_subgraph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
         last_cross = int(result[LAST_PEG_CROSS_FIELD])
-        price = result[PRICE_FIELD]
+        price = float(result[PRICE_FIELD])
 
         # # For testing.
         # import random

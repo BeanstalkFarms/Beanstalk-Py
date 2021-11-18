@@ -40,7 +40,7 @@ class BeanSqlClient(object):
 
     async def current_bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
-        return await self.get_bean_field(PRICE_FIELD)
+        return await float(self.get_bean_field(PRICE_FIELD))
 
     async def last_peg_cross(self):
         """Returns a timestamp of the last time the peg was crossed."""
@@ -57,7 +57,7 @@ class BeanSqlClient(object):
             fields: an array of strings specifying which fields should be retried.
         
         Returns:
-            dict containing all request field:value pairs.
+            dict containing all request field:value pairs (fields and values are strings).
 
         Raises:
             gql.transport.exceptions.TransportQueryError: Invalid field name provided.
@@ -93,6 +93,8 @@ class BeanSqlClient(object):
                 break
             except asyncio.exceptions.TimeoutError:
                 logging.warning('Timeout error on Bean GraphQL access. Retrying...')
+            except Exception as e:
+                logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
         logging.info(f'GraphQL result:\n{result}')
         return result
 

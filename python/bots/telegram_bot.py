@@ -6,8 +6,8 @@ import time
 
 import telebot
 
-from beanstalk_python.subgraphs import bean_subgraph
-from beanstalk_python.bots import util
+from subgraphs import bean_subgraph
+from bots import util
 
 
 TELE_CHAT_ID = "-1001655547288"  # Bot channel
