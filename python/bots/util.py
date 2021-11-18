@@ -60,15 +60,13 @@ class PegCrossMonitor():
         if not self.last_known_cross:
             logging.info('Peg cross timestamp initialized with last peg cross = '
                          f'{last_cross}')
-            self.last_known_cross = last_cross
-            return cross_type
-
-        if last_cross > self.last_known_cross:
-            if price >= 1.0:
-                logging.info('Price crossed above peg.')
-                cross_type = PegCrossType.CROSS_ABOVE
-            else:
-                logging.info('Price crossed below peg.')
-                cross_type = PegCrossType.CROSS_BELOW
+        else:
+            if last_cross > self.last_known_cross:
+                if price >= 1.0:
+                    logging.info('Price crossed above peg.')
+                    cross_type = PegCrossType.CROSS_ABOVE
+                else:
+                    logging.info('Price crossed below peg.')
+                    cross_type = PegCrossType.CROSS_BELOW
         self.last_known_cross = last_cross
         return cross_type
