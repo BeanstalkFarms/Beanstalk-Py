@@ -1,0 +1,4 @@
+pyTelegramBotAPI>=4.0
+discord.py>=1.7
+gql[aiohttp]>=3.0.0b0
+
