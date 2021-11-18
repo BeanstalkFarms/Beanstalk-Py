@@ -38,7 +38,9 @@ class PegCrossMonitor():
         Check to see if the peg has been crossed since the last known timestamp of the caller.
         Assumes that block time > period of subgraph checks.
 
-        Note that this call can take over 10 seconds due to graph access delays.
+        Note that this call can take over 10 seconds due to graph access delays. If an access
+        takes longer than two blocks it is possible to miss a cross (only the latest cross)
+        will be reported.
 
         Returns:
             PegCrossType
@@ -68,5 +70,5 @@ class PegCrossMonitor():
             else:
                 logging.info('Price crossed below peg.')
                 cross_type = PegCrossType.CROSS_BELOW
-
+        self.last_known_cross = last_cross
         return cross_type

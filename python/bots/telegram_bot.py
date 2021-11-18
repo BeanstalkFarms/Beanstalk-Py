@@ -52,8 +52,14 @@ class TelegramBot(object):
 
         Note that this assumes that block time > period of subgraph checks.
         """
+        min_update_time = 0
         while self._threads_active:
-            time.sleep(1 / util.PEG_UPDATE_FREQUENCY)
+            # Attempt to check as quickly as the graph allows, but no faster than set frequency.
+            if not time.now() > min_update_time:
+                time.sleep(1)
+                continue
+            min_update_time = time.now() + 1 / util.PEG_UPDATE_FREQUENCY
+            
             cross_type = asyncio.run(
                 self._peg_cross_monitor.check_for_peg_cross())
             if cross_type != util.PegCrossType.NO_CROSS:
