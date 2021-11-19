@@ -147,14 +147,14 @@ class SunriseMonitor():
             # Wait until the eligible for a sunrise.
             self._wait_until_expected_sunrise()
             # Once the sunrise is complete, get the season stats.
-            last_season_stats, current_season_stats = self._block_and_get_seasons_stats()
+            current_season_stats, last_season_stats = self._block_and_get_seasons_stats()
             # Report season summary to users.
             if current_season_stats:
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats))
 
             # # For testing.
-            # last_season_stats, current_season_stats = self.beanstalk_graph_client.seasons_stats()
+            # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # self.message_function(self.season_summary_string(last_season_stats, current_season_stats))
             # time.sleep(5)
 
@@ -173,11 +173,13 @@ class SunriseMonitor():
 
         Repeatedly makes graph calls to check sunrise status.
         """
+        # TODO(funderberker): Put in max number of checks here before giving up and wait for
+        # next sunrise.
         while self._threads_active:
-            last_season_stats, current_season_stats = self.beanstalk_graph_client.seasons_stats()
+            current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             if self.current_season_id != current_season_stats['id']:
                 self.current_season_id = current_season_stats['id']
-                return last_season_stats, current_season_stats
+                return current_season_stats, last_season_stats
             time.sleep(SUNRISE_CHECK_PERIOD)
         return None, None
 
