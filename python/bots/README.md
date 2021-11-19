@@ -1,7 +1,7 @@
 # Bots
 Several bots will be implemented here which will collect and disseminate data through community channels (Telegram, Discord, Twitter).
 
-Each bot will be implemented in Python and containerized using Docker. They will collect data from the Beanstalk subgraphs and/or the Ethereum chain and may maintain a small amount of persistent state in local storage. Each bot will be implemented in such a way that it can serve all necessary output channels.
+Each bot will be implemented in Python. They will collect data from the Beanstalk graphs and/or the Ethereum chain and may maintain a small amount of persistent state in local storage. Each bot will be implemented in such a way that it can serve all necessary output channels.
 
 ## Communication Channels
 

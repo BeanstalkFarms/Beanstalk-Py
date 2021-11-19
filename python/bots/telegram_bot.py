@@ -6,7 +6,6 @@ import time
 
 import telebot
 
-from subgraphs import bean_subgraph
 from bots import util
 
 

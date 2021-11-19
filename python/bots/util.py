@@ -5,9 +5,8 @@ import logging
 import threading
 import time
 
-from subgraphs.bean_subgraph import (
-    BeanSqlClient, PRICE_FIELD, LAST_PEG_CROSS_FIELD)
-from subgraphs.beanstalk_subgraph import BeanstalkSqlClient, TIMESTAMP_FIELD
+from data_access.graphs import (
+    BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD, TIMESTAMP_FIELD)
 
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
@@ -26,7 +25,7 @@ class PegCrossType(Enum):
 # NOTE(funderberker): Fidelity can be improved by reading through list of crosses and taking
 # all since the last known cross. Return list of cross types.
 class PegCrossMonitor():
-    """Monitor bean subgraph for peg crosses and send out messages on detection."""
+    """Monitor bean graph for peg crosses and send out messages on detection."""
     def __init__(self, message_function):
         self.message_function = message_function
         self.bean_graph_client = BeanSqlClient()
@@ -46,11 +45,11 @@ class PegCrossMonitor():
         self._crossing_thread.join(1 / PEG_UPDATE_FREQUENCY * 10)
         self.message_function('Peg monitoring stopped.')
 
-    # NOTE(funderberker): subgraph implementation of cross data will change soon.
+    # NOTE(funderberker): graph implementation of cross data will change soon.
     def _monitor_for_cross(self):
         """Continuously monitor for BEAN price crossing the peg.
 
-        Note that this assumes that block time > period of subgraph checks.
+        Note that this assumes that block time > period of graph checks.
         """
         min_update_time = 0
         while self._threads_active:
@@ -70,7 +69,7 @@ class PegCrossMonitor():
     def _check_for_peg_cross(self):
         """
         Check to see if the peg has been crossed since the last known timestamp of the caller.
-        Assumes that block time > period of subgraph checks.
+        Assumes that block time > period of graph checks.
 
         Note that this call can take over 10 seconds due to graph access delays. If an access
         takes longer than two blocks it is possible to miss a cross (only the latest cross)
@@ -81,7 +80,7 @@ class PegCrossMonitor():
         """
         cross_type = PegCrossType.NO_CROSS
 
-        # Get latest data from subgraph. May take 10+ seconds.
+        # Get latest data from graph. May take 10+ seconds.
         result = self.bean_graph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
         last_cross = int(result[LAST_PEG_CROSS_FIELD])
         price = float(result[PRICE_FIELD])
@@ -192,7 +191,7 @@ class SunriseMonitor():
             f'Season {last_season_stats["id"]} is complete!\n'
             f'The **price** is ${round_str(current_season_stats["price"], 3)}\n'
             f'The **weather** is {current_season_stats["weather"]}\n'
-            # Soil will be added in future subgraph iterations. Can get through on chain functions if we want more immediately.
+            # Soil will be added in future graph iterations. Can get through on chain functions if we want more immediately.
             # f'There is {season_stats[""]} **soil** available\n'
             f'\n'
             f'{round_str(newFarmableBeans + newHarvestableBeans)} beans were **minted**\n'
