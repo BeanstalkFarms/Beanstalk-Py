@@ -16,9 +16,9 @@ FIELDS_PLACEHOLDER = 'FIELDS'
 
 TIMESTAMP_FIELD = 'timestamp'
 
-DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newPods', 'harvestedPods',
+DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
                          'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
-                         'newWithdrawnLP', 'newBoughtBeans', 'newSoldBeans']
+                         'newWithdrawnLP', 'newPods']
 
 class BeanstalkSqlClient(object):
 

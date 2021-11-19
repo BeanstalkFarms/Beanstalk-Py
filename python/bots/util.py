@@ -15,6 +15,9 @@ PEG_UPDATE_FREQUENCY = 0.1  # hz
 
 SEASON_DURATION = 3600 # seconds
 
+# How long to wait between checks for a sunrise when we expect a new season to begin.
+SUNRISE_CHECK_PERIOD = 5
+
 class PegCrossType(Enum):
     NO_CROSS = 0
     CROSS_ABOVE = 1
@@ -115,3 +118,98 @@ class PegCrossMonitor():
             return 'Peg not crossed.'
 
 
+
+
+class SunriseMonitor():
+    def __init__(self, message_function):
+        self.message_function = message_function
+        self.beanstalk_subgraph_client = BeanstalkSqlClient()
+
+        # Initialize season ID to last completed season.
+        self.last_season_id = self.beanstalk_subgraph_client.last_season_stat('id')
+
+        self._threads_active = False
+        self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
+
+    def start(self):
+        logging.info('Starting sunrise monitoring thread...')
+        self._threads_active = True
+        self._sunrise_thread.start()
+        self.message_function('Sunrise monitoring started.')
+
+    def stop(self):
+        logging.info('Stopping sunrise monitoring thread...')
+        self._threads_active = False
+        self._sunrise_thread.join(SUNRISE_CHECK_PERIOD * 3)
+        self.message_function('Sunrise monitoring stopped.')
+
+    def _monitor_for_sunrise(self):
+        while self._threads_active:
+            # Wait until the eligible for a sunrise.
+            self._wait_until_expected_sunrise()
+            # Once the sunrise is complete, get the season stats.
+            season_stats = self._block_and_get_season_stats()
+            # Report season summary to users.
+            if self._threads_active:
+                self.message_function(self.season_summary_string(season_stats))
+            
+            # # For testing.
+            # season_stats = self.beanstalk_subgraph_client.last_season_stats()
+            # print(self.season_summary_string(season_stats))
+            # time.sleep(5)
+
+    def _wait_until_expected_sunrise(self):
+        """Wait until beanstalk is eligible for a sunrise call.
+        
+        Assumes sunrise timing cycle beings with Unix Epoch (1/1/1970 00:00:00 UTC).
+        This is not exact since we do not bother with syncing local and graph time.
+        """
+        expected_sunrise_ready = time.time() + time.time() % SEASON_DURATION
+        while self._threads_active and time.time() < expected_sunrise_ready:
+            time.sleep(0.5)
+
+    def _block_and_get_season_stats(self):
+        """Blocks until sunrise is complete, then returns stats of completed season.
+
+        Repeatedly makes graph calls to check sunrise status.
+        """
+        while self._threads_active:
+            season_stats = self.beanstalk_subgraph_client.last_season_stats()
+            if self.last_season_id != season_stats['id']:
+                self.last_season_id = season_stats['id']
+                return season_stats
+            time.sleep(SUNRISE_CHECK_PERIOD)
+
+
+    def season_summary_string(self, season_stats):
+        return (
+            f'One more season complete!\n'
+            f'The *price* is {season_stats["price"]}\n'
+            f'The *weather* is {season_stats["weather"]}\n'
+            # f'There is {season_stats[""]} *soil* available\n'
+            f'\n'
+            # f'{season_stats[""]} beans were *minted*\n'
+            f'{season_stats["newFarmableBeans"]} beans are newly *farmable*\n'
+            f'{season_stats["newHarvestablePods"]} pods are newly *harvestable*\n'
+            f'\n'
+            f'{season_stats["newDepositedBeans"]} beans were deposited into the silo\n' # Field appears to be unpopulated
+            f'{season_stats["newWithdrawnBeans"]} beans were withdrawn from the silo\n' # Field appears to be unpopulated
+            f'{season_stats["newDepositedLP"]} LP was deposited into the silo\n' # Field appears to be unpopulated
+            f'{season_stats["newWithdrawnLP"]} LP was withdrawn from the silo\n' # Field appears to be unpopulated
+            f'{season_stats[""]} pods were sowed' # newPods fields is not what I expected
+        )
+
+if __name__ == '__main__':
+    """Quick test and demonstrate functionality."""
+    logging.basicConfig(level=logging.INFO)
+
+    sunrise_monitor = SunriseMonitor(print)
+    sunrise_monitor.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+
+    sunrise_monitor.stop()
