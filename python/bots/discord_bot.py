@@ -20,6 +20,9 @@ class DiscordClient(discord.Client):
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg)
         self.peg_cross_monitor.start()
 
+        self.sunrise_monitor = util.SunriseMonitor(self.send_msg)
+        self.sunrise_monitor.start()
+
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
 
@@ -61,3 +64,4 @@ if __name__ == '__main__':
     discord_client = DiscordClient()
     discord_client.run(TOKEN)
     discord_client.peg_cross_monitor.stop()
+    discord_client.sunrise_monitor.stop()

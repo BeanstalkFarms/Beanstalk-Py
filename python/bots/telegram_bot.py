@@ -22,11 +22,15 @@ class TelegramBot(object):
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg)
         self.peg_cross_monitor.start()
 
+        self.sunrise_monitor = util.SunriseMonitor(self.send_msg)
+        self.sunrise_monitor.start()
+
     def send_msg(self, text):
         self.tele_bot.send_message(chat_id=TELE_CHAT_ID, text=text)
 
     def stop(self):
         self.peg_cross_monitor.stop()
+        self.sunrise_monitor.stop()
     
 
 if __name__ == '__main__':

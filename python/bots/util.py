@@ -196,7 +196,7 @@ class SunriseMonitor():
             f'{season_stats["newWithdrawnBeans"]} beans were withdrawn from the silo\n' # Field appears to be unpopulated
             f'{season_stats["newDepositedLP"]} LP was deposited into the silo\n' # Field appears to be unpopulated
             f'{season_stats["newWithdrawnLP"]} LP was withdrawn from the silo\n' # Field appears to be unpopulated
-            f'{season_stats[""]} pods were sowed' # newPods fields is not what I expected
+            # f'{season_stats[""]} pods were sowed' # newPods fields is not what I expected
         )
 
 if __name__ == '__main__':
