@@ -17,7 +17,7 @@ class TelegramBot(object):
 
     def __init__(self):
         self.tele_bot = telebot.TeleBot(
-            os.environ.get('TELE_BOT_KEY'), parse_mode=None)
+            os.environ.get('TELE_BOT_KEY'), parse_mode='Markdown')
         
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg)
         self.peg_cross_monitor.start()

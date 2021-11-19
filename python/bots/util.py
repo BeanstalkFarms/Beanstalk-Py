@@ -29,7 +29,7 @@ class PegCrossMonitor():
     """Monitor bean subgraph for peg crosses and send out messages on detection."""
     def __init__(self, message_function):
         self.message_function = message_function
-        self.bean_subgraph_client = BeanSqlClient()
+        self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = 0
         self._threads_active = False
         self._crossing_thread = threading.Thread(target=self._monitor_for_cross)
@@ -82,7 +82,7 @@ class PegCrossMonitor():
         cross_type = PegCrossType.NO_CROSS
 
         # Get latest data from subgraph. May take 10+ seconds.
-        result = self.bean_subgraph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
+        result = self.bean_graph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
         last_cross = int(result[LAST_PEG_CROSS_FIELD])
         price = float(result[PRICE_FIELD])
 
@@ -123,10 +123,10 @@ class PegCrossMonitor():
 class SunriseMonitor():
     def __init__(self, message_function):
         self.message_function = message_function
-        self.beanstalk_subgraph_client = BeanstalkSqlClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
 
         # Initialize season ID to last completed season.
-        self.last_season_id = self.beanstalk_subgraph_client.last_season_stat('id')
+        self.current_season_id = self.beanstalk_graph_client.current_season_stat('id')
 
         self._threads_active = False
         self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
@@ -148,14 +148,15 @@ class SunriseMonitor():
             # Wait until the eligible for a sunrise.
             self._wait_until_expected_sunrise()
             # Once the sunrise is complete, get the season stats.
-            season_stats = self._block_and_get_season_stats()
+            last_season_stats, current_season_stats = self._block_and_get_seasons_stats()
             # Report season summary to users.
-            if self._threads_active:
-                self.message_function(self.season_summary_string(season_stats))
-            
+            if current_season_stats:
+                self.message_function(self.season_summary_string(
+                    last_season_stats, current_season_stats))
+
             # # For testing.
-            # season_stats = self.beanstalk_subgraph_client.last_season_stats()
-            # print(self.season_summary_string(season_stats))
+            # last_season_stats, current_season_stats = self.beanstalk_graph_client.seasons_stats()
+            # self.message_function(self.season_summary_string(last_season_stats, current_season_stats))
             # time.sleep(5)
 
     def _wait_until_expected_sunrise(self):
@@ -166,38 +167,49 @@ class SunriseMonitor():
         """
         expected_sunrise_ready = time.time() + time.time() % SEASON_DURATION
         while self._threads_active and time.time() < expected_sunrise_ready:
-            time.sleep(0.5)
+            time.sleep(1)
 
-    def _block_and_get_season_stats(self):
-        """Blocks until sunrise is complete, then returns stats of completed season.
+    def _block_and_get_seasons_stats(self):
+        """Blocks until sunrise is complete, then returns stats of current and previous season.
 
         Repeatedly makes graph calls to check sunrise status.
         """
         while self._threads_active:
-            season_stats = self.beanstalk_subgraph_client.last_season_stats()
-            if self.last_season_id != season_stats['id']:
-                self.last_season_id = season_stats['id']
-                return season_stats
+            last_season_stats, current_season_stats = self.beanstalk_graph_client.seasons_stats()
+            if self.current_season_id != current_season_stats['id']:
+                self.current_season_id = current_season_stats['id']
+                return last_season_stats, current_season_stats
             time.sleep(SUNRISE_CHECK_PERIOD)
+        return None, None
 
 
-    def season_summary_string(self, season_stats):
+    def season_summary_string(self, last_season_stats, current_season_stats):
+        newFarmableBeans = float(current_season_stats["newFarmableBeans"])
+        newHarvestableBeans = float(current_season_stats["newHarvestablePods"])
+        last_weather = float(last_season_stats["weather"])
+        newPods = float(last_season_stats["newPods"])
         return (
-            f'One more season complete!\n'
-            f'The *price* is {season_stats["price"]}\n'
-            f'The *weather* is {season_stats["weather"]}\n'
-            # f'There is {season_stats[""]} *soil* available\n'
+            f'Season {last_season_stats["id"]} is complete!\n'
+            f'The **price** is ${round_str(current_season_stats["price"], 3)}\n'
+            f'The **weather** is {current_season_stats["weather"]}\n'
+            # Soil will be added in future subgraph iterations. Can get through on chain functions if we want more immediately.
+            # f'There is {season_stats[""]} **soil** available\n'
             f'\n'
-            # f'{season_stats[""]} beans were *minted*\n'
-            f'{season_stats["newFarmableBeans"]} beans are newly *farmable*\n'
-            f'{season_stats["newHarvestablePods"]} pods are newly *harvestable*\n'
+            f'{round_str(newFarmableBeans + newHarvestableBeans)} beans were **minted**\n'
+            f'{round_str(newFarmableBeans)} beans are newly **farmable**\n'
+            f'{round_str(newHarvestableBeans)} pods are newly **harvestable**\n'
             f'\n'
-            f'{season_stats["newDepositedBeans"]} beans were deposited into the silo\n' # Field appears to be unpopulated
-            f'{season_stats["newWithdrawnBeans"]} beans were withdrawn from the silo\n' # Field appears to be unpopulated
-            f'{season_stats["newDepositedLP"]} LP was deposited into the silo\n' # Field appears to be unpopulated
-            f'{season_stats["newWithdrawnLP"]} LP was withdrawn from the silo\n' # Field appears to be unpopulated
-            # f'{season_stats[""]} pods were sowed' # newPods fields is not what I expected
+            f'{round_str(last_season_stats["newDepositedBeans"])} beans were deposited into the silo\n'
+            # f'{round_str(last_season_stats[""])} beans were farmed into the silo\n'
+            f'{round_str(last_season_stats["newWithdrawnBeans"])} beans were withdrawn from the silo\n'
+            f'{round_str(last_season_stats["newDepositedLP"])} LP was deposited into the silo\n'
+            f'{round_str(last_season_stats["newWithdrawnLP"])} LP was withdrawn from the silo\n'
+            f'{round_str(newPods / (1 + last_weather/100))} beans were sowed'
         )
+
+def round_str(string, precision=2):
+    """Round a string float to requested precision."""
+    return f'{float(string):.{precision}f}'
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
