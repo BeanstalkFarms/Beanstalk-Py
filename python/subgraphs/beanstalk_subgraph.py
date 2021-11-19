@@ -28,7 +28,10 @@ class BeanstalkSqlClient(object):
             transport=transport, fetch_schema_from_transport=False, execute_timeout=10)
 
 
-    async def last_season_stats(self, fields=DEFAULT_SEASON_FIELDS):
+    def last_season_stat(self, field):
+        self.last_season_stats([field])[field]
+
+    def last_season_stats(self, fields=DEFAULT_SEASON_FIELDS):
         """Retrieve the specified data for the most recently completed season.
 
         Args:
@@ -53,7 +56,7 @@ class BeanstalkSqlClient(object):
         query_str = query_str[:fields_index_start] + ' '.join(fields) + query_str[fields_index_end:]
 
         # Create gql query and execute.
-        return (await util.execute(self._client, query_str))['seasons'][0]
+        return util.execute(self._client, query_str)['seasons'][0]
 
 
 if __name__ == '__main__':

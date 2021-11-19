@@ -16,6 +16,7 @@ class DiscordClient(discord.Client):
         super().__init__()
 
         self.msg_queue = []
+
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg)
         self.peg_cross_monitor.start()
 
@@ -28,7 +29,6 @@ class DiscordClient(discord.Client):
 
 
     async def on_ready(self):
-        logging.info('Logged on as', str(self.user))
         self.channel = discord_client.get_channel(DISCORD_CHANNEL_ID)
         logging.info("Discord channel is " + str(self.channel))
 

@@ -27,19 +27,19 @@ class BeanSqlClient(object):
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=10)
 
-    async def current_bean_price(self):
+    def current_bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
-        return float(await self.get_bean_field(PRICE_FIELD))
+        return float(self.get_bean_field(PRICE_FIELD))
 
-    async def last_peg_cross(self):
+    def last_peg_cross(self):
         """Returns a timestamp of the last time the peg was crossed."""
-        return int(await self.get_bean_field(LAST_PEG_CROSS_FIELD))
+        return int(self.get_bean_field(LAST_PEG_CROSS_FIELD))
 
-    async def get_bean_field(self, field):
+    def get_bean_field(self, field):
         """Get a single field from the bean object."""
-        return (await self.get_bean_fields(fields=[field]))[field]
+        return self.get_bean_fields(fields=[field])[field]
 
-    async def get_bean_fields(self, fields=[PRICE_FIELD]):
+    def get_bean_fields(self, fields=[PRICE_FIELD]):
         """Retrieve the specified fields for the bean token.
 
         Args:
@@ -68,7 +68,7 @@ class BeanSqlClient(object):
 
         # Create gql query and execute.
         # Note that there is always only 1 bean item returned.
-        return (await util.execute(self._client, query_str))['beans'][0]
+        return util.execute(self._client, query_str)['beans'][0]
 
 
 if __name__ == '__main__':
@@ -79,4 +79,4 @@ if __name__ == '__main__':
     print(f'Price: {asyncio.run(client.current_bean_price())}')
     print(f'Last peg cross: {asyncio.run(client.last_peg_cross())}')
     print(f'Total Supply (USD): {asyncio.run(client.get_bean_field("totalSupplyUSD"))}')
-    print(asyncio.run(client.get_bean_fields(['id', 'totalCrosses'])))
+    print(client.get_bean_fields(['id', 'totalCrosses']))

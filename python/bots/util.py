@@ -25,9 +25,9 @@ class PegCrossType(Enum):
 class PegCrossMonitor():
     """Monitor bean subgraph for peg crosses and send out messages on detection."""
     def __init__(self, message_function):
-        self.last_known_cross = 0
-        self.bean_subgraph_client = BeanSqlClient()
         self.message_function = message_function
+        self.bean_subgraph_client = BeanSqlClient()
+        self.last_known_cross = 0
         self._threads_active = False
         self._crossing_thread = threading.Thread(target=self._monitor_for_cross)
 
@@ -49,7 +49,7 @@ class PegCrossMonitor():
 
         Note that this assumes that block time > period of subgraph checks.
         """
-        min_update_time = time.time() + 1
+        min_update_time = 0
         while self._threads_active:
             # Attempt to check as quickly as the graph allows, but no faster than set frequency.
             if not time.time() > min_update_time:
@@ -57,14 +57,14 @@ class PegCrossMonitor():
                 continue
             min_update_time = time.time() + 1 / PEG_UPDATE_FREQUENCY
             
-            cross_type = asyncio.run(self._check_for_peg_cross())
+            cross_type = self._check_for_peg_cross()
             if cross_type != PegCrossType.NO_CROSS:
                 output_str = PegCrossMonitor.peg_cross_string(cross_type)
                 self.message_function(output_str)
                 logging.info(output_str)
 
 
-    async def _check_for_peg_cross(self):
+    def _check_for_peg_cross(self):
         """
         Check to see if the peg has been crossed since the last known timestamp of the caller.
         Assumes that block time > period of subgraph checks.
@@ -79,7 +79,7 @@ class PegCrossMonitor():
         cross_type = PegCrossType.NO_CROSS
 
         # Get latest data from subgraph. May take 10+ seconds.
-        result = await self.bean_subgraph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
+        result = self.bean_subgraph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
         last_cross = int(result[LAST_PEG_CROSS_FIELD])
         price = float(result[PRICE_FIELD])
 
