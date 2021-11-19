@@ -4,7 +4,9 @@ import logging
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-# Reduce log spam from the gql package
+from subgraphs import util
+
+# Reduce log spam from the gql package.
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
@@ -15,19 +17,6 @@ FIELDS_PLACEHOLDER = 'FIELDS'
 # Names of common graph fields.
 PRICE_FIELD = 'price'
 LAST_PEG_CROSS_FIELD = 'lastCross'
-
-# NOTE(funderberker): Delete this before merge.
-"""
-I came up with three approaches to implement graph calls in python. All are kind of lame.
-1. Write the query strings directly into the methods
-    - ugly maintaining of plain string blocks in code
-    - will be hard to maintain / update with changes to graphql interface
-2. Write the query strings into graphql files
-    - sourcing the files when importing this module does not appear possible
-    - kind of ugly because so many files and also method intention name duplication all the way through
-3. Use the DSL lib https://github.com/graphql-python/gql/commit/44803d436d0cca7972acf999eccaed61ced820ae#diff-864bb4222a8ae3d7ebab9d62686f86721c29c9fe8f883d42c70e0875f66e213f
-    - Makes the code less readable, obscures the graphql syntax, heavy handed, seems intended for complex calls
-"""
 
 
 class BeanSqlClient(object):
@@ -40,7 +29,7 @@ class BeanSqlClient(object):
 
     async def current_bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
-        return await float(self.get_bean_field(PRICE_FIELD))
+        return float(await self.get_bean_field(PRICE_FIELD))
 
     async def last_peg_cross(self):
         """Returns a timestamp of the last time the peg was crossed."""
@@ -79,29 +68,15 @@ class BeanSqlClient(object):
 
         # Create gql query and execute.
         # Note that there is always only 1 bean item returned.
-        return (await self._execute(query_str))['beans'][0]
-
-    async def _execute(self, query_str):
-        """Convert query string into a gql query and execute query."""
-        query = gql(query_str)
-
-        # TODO(funderberker): Configure max # of retries and raise custom exception on fail.  Also for beanstalk subgraph.
-        while True:
-            logging.info(f'Bean GraphQL query:\n{query_str}')
-            try:
-                result = await self._client.execute_async(query)
-                break
-            except asyncio.exceptions.TimeoutError:
-                logging.warning('Timeout error on Bean GraphQL access. Retrying...')
-            except Exception as e:
-                logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
-        logging.info(f'GraphQL result:\n{result}')
-        return result
+        return (await util.execute(self._client, query_str))['beans'][0]
 
 
 if __name__ == '__main__':
+    """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
 
     client = BeanSqlClient()
-    print(client.current_bean_price())
-    print(client.last_peg_cross())
+    print(f'Price: {asyncio.run(client.current_bean_price())}')
+    print(f'Last peg cross: {asyncio.run(client.last_peg_cross())}')
+    print(f'Total Supply (USD): {asyncio.run(client.get_bean_field("totalSupplyUSD"))}')
+    print(asyncio.run(client.get_bean_fields(['id', 'totalCrosses'])))

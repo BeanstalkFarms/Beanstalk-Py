@@ -15,27 +15,32 @@ class DiscordClient(discord.Client):
     def __init__(self):
         super().__init__()
 
-        self.peg_cross_monitor = util.PegCrossMonitor()
+        self.msg_queue = []
+        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg)
+        self.peg_cross_monitor.start()
 
-        # Start the task in the background.
-        self.check_for_peg_cross.start()
-    
+        # Start the message queue sending task in the background.
+        self.send_queued_messages.start()
+
+    def send_msg(self, text):
+        """Send a message through the Discord bot."""
+        self.msg_queue.append(text)
+
+
     async def on_ready(self):
-        # logging.info('Logged on as', str(self.user))
+        logging.info('Logged on as', str(self.user))
         self.channel = discord_client.get_channel(DISCORD_CHANNEL_ID)
         logging.info("Discord channel is " + str(self.channel))
-        await self.channel.send("Starting peg cross monitoring...")
 
-    @tasks.loop(seconds=1/util.PEG_UPDATE_FREQUENCY)
-    async def check_for_peg_cross(self):
-        """Repeatedly check if the peg has been crossed."""
-        cross_type = await self.peg_cross_monitor.check_for_peg_cross()
-        if cross_type != util.PegCrossType.NO_CROSS:
-            await self.channel.send(util.peg_cross_string(cross_type))
-            logging.info(util.peg_cross_string(cross_type))
+    @tasks.loop(seconds=0.1, reconnect=True)
+    async def send_queued_messages(self):
+        """Send messages in queue."""
+        for msg in self.msg_queue:
+            await self.channel.send(msg)
+            self.msg_queue = self.msg_queue[1:]
 
-    @check_for_peg_cross.before_loop
-    async def before_peg_cross_loop(self):
+    @send_queued_messages.before_loop
+    async def before_send_queued_messages_loop(self):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
 
@@ -55,3 +60,4 @@ if __name__ == '__main__':
 
     discord_client = DiscordClient()
     discord_client.run(TOKEN)
+    discord_client.peg_cross_monitor.stop()

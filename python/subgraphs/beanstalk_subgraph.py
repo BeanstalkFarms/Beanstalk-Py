@@ -3,7 +3,9 @@ import logging
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-# Reduce log spam from the gql package
+from subgraphs import util
+
+# Reduce log spam from the gql package.
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
@@ -12,17 +14,25 @@ BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/[API_KEY]/' \
 
 FIELDS_PLACEHOLDER = 'FIELDS'
 
+TIMESTAMP_FIELD = 'timestamp'
+
+DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newPods', 'harvestedPods',
+                         'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
+                         'newWithdrawnLP', 'newBoughtBeans', 'newSoldBeans']
+
 class BeanstalkSqlClient(object):
 
     def __init__(self):
         transport = AIOHTTPTransport(url=BEANSTALK_GRAPH_ENDPOINT)
-        self._client = Client(transport=transport, fetch_schema_from_transport=False)
-        
-    def last_season_stats(self, fields=['id', 'price']):
+        self._client = Client(
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=10)
+
+
+    async def last_season_stats(self, fields=DEFAULT_SEASON_FIELDS):
         """Retrieve the specified data for the most recently completed season.
 
         Args:
-            fields: an array of strings specifying which fields should be retried.
+            fields: list of strings specifying which fields should be retried.
 
         Raises:
             gql.transport.exceptions.TransportQueryError: Invalid field name provided.
@@ -43,27 +53,12 @@ class BeanstalkSqlClient(object):
         query_str = query_str[:fields_index_start] + ' '.join(fields) + query_str[fields_index_end:]
 
         # Create gql query and execute.
-        return self._execute(query_str)['seasons'][0]
-
-
-    def _execute(self, query_str):
-        """Convert query string into a gql query and execute query."""
-        query = gql(query_str)
-        while True:
-            logging.info(f'Beanstalk GraphQL query:\n{str(query)}')
-            try:
-                result = self._client.execute(query)
-                break
-            except asyncio.exceptions.TimeoutError:
-                logging.warning('Timeout error on Beanstalk GraphQL access. Retrying...')
-        logging.info(f'GraphQL result:\n{result}')
-        return result
+        return (await util.execute(self._client, query_str))['seasons'][0]
 
 
 if __name__ == '__main__':
+    """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
 
     client = BeanstalkSqlClient()
-    print(client.last_season_stats())
-
-
+    print(f'Last Season Stats:\n{asyncio.run(client.last_season_stats())}')
