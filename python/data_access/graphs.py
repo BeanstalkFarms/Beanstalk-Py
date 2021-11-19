@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
