@@ -166,7 +166,12 @@ class SunriseMonitor():
         """
         seconds_until_next_sunrise = SEASON_DURATION - time.time() % SEASON_DURATION
         sunrise_ready_timestamp = time.time() + seconds_until_next_sunrise
+        loop_count = 0
         while self._threads_active and time.time() < sunrise_ready_timestamp:
+            if loop_count % 60 == 0:
+                logging.info(f'Blindly waiting {int((sunrise_ready_timestamp - time.time())/60)} '
+                             'more minutes until expected sunrise.')
+            loop_count += 1
             time.sleep(1)
 
     def _block_and_get_seasons_stats(self):
@@ -180,8 +185,9 @@ class SunriseMonitor():
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
             if (self.current_season_id != current_season_stats['id'] and 
-                current_season_stats['timestamp'] > time.time() - SEASON_DURATION / 2):
+                int(current_season_stats['timestamp']) > time.time() - SEASON_DURATION / 2):
                 self.current_season_id = current_season_stats['id']
+                logging.info(f'New season detected with id {self.current_season_id}')
                 return current_season_stats, last_season_stats
             time.sleep(SUNRISE_CHECK_PERIOD)
         return None, None
