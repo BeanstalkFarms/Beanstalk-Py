@@ -164,8 +164,9 @@ class SunriseMonitor():
         Assumes sunrise timing cycle beings with Unix Epoch (1/1/1970 00:00:00 UTC).
         This is not exact since we do not bother with syncing local and graph time.
         """
-        expected_sunrise_ready = time.time() + time.time() % SEASON_DURATION
-        while self._threads_active and time.time() < expected_sunrise_ready:
+        seconds_until_next_sunrise = SEASON_DURATION - time.time() % SEASON_DURATION
+        sunrise_ready_timestamp = time.time() + seconds_until_next_sunrise
+        while self._threads_active and time.time() < sunrise_ready_timestamp:
             time.sleep(1)
 
     def _block_and_get_seasons_stats(self):
