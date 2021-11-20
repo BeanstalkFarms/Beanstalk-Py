@@ -124,8 +124,8 @@ class SunriseMonitor():
         self.message_function = message_function
         self.beanstalk_graph_client = BeanstalkSqlClient()
 
-        # Initialize season ID to last completed season.
-        self.current_season_id = self.beanstalk_graph_client.current_season_stat('id')
+        # Most recent season processed. Do not initialize.
+        self.current_season_id = None
 
         self._threads_active = False
         self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
@@ -178,7 +178,9 @@ class SunriseMonitor():
         # next sunrise.
         while self._threads_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
-            if self.current_season_id != current_season_stats['id']:
+            # If a new season is detected and sunrise was sufficiently recent.
+            if (self.current_season_id != current_season_stats['id'] and 
+                current_season_stats['timestamp'] > time.time() - SEASON_DURATION / 2):
                 self.current_season_id = current_season_stats['id']
                 return current_season_stats, last_season_stats
             time.sleep(SUNRISE_CHECK_PERIOD)
