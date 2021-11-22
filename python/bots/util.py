@@ -6,16 +6,17 @@ import threading
 import time
 
 from data_access.graphs import (
-    BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD, TIMESTAMP_FIELD)
+    BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
 PEG_UPDATE_FREQUENCY = 0.1  # hz
-
+# The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600 # seconds
-
+# Amount of time to wait after detecting a cross before checking for next cross.
+CROSS_COOLDOWN = 120 # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
-SUNRISE_CHECK_PERIOD = 5
+SUNRISE_CHECK_PERIOD = 10
 
 class PegCrossType(Enum):
     NO_CROSS = 0
@@ -64,6 +65,14 @@ class PegCrossMonitor():
                 output_str = PegCrossMonitor.peg_cross_string(cross_type)
                 self.message_function(output_str)
                 logging.info(output_str)
+
+                # Delay additional checks for crosses by some amount of time. Due to the long
+                # graph access times we cannot reliably catch all crosses in this implementation.
+                # Soon the implementation of crosses in the graph will be updated such that
+                # processing all crosses is trivial, for now we accept that we have limited
+                # fidelity and do not attempt to convey all of the very rapid crosses that may
+                # occur when price is holding near peg.
+                time.sleep(CROSS_COOLDOWN)
 
 
     def _check_for_peg_cross(self):
