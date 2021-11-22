@@ -9,14 +9,16 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
-BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v0.0.10'
+BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v0.0.11'
 BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/[API_KEY]/' \
                           'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 
 FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
                          'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
-                         'newWithdrawnLP', 'newPods']
+                         'newWithdrawnLP', 'newPods'
+                         # , 'soil'
+                         ]
 
 # Names of common graph fields.
 PRICE_FIELD = 'price'

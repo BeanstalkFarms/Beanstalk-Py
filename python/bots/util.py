@@ -211,8 +211,7 @@ class SunriseMonitor():
             f'Season {last_season_stats["id"]} is complete!\n'
             f'The **price** is ${round_str(current_season_stats["price"], 3)}\n'
             f'The **weather** is {current_season_stats["weather"]}\n'
-            # Soil will be added in future graph iterations. Can get through on chain functions if we want more immediately.
-            # f'There is {season_stats[""]} **soil** available\n'
+            # f'There is {current_season_stats["soil"]} **soil** available\n' # Coming in graph version 1.1.10
             f'\n'
             f'{round_str(newFarmableBeans + newHarvestableBeans)} beans were **minted**\n'
             f'{round_str(newFarmableBeans)} beans are newly **farmable**\n'
