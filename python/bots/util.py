@@ -31,19 +31,19 @@ class PegCrossMonitor():
         self.message_function = message_function
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = 0
-        self._threads_active = False
+        self._thread_active = False
         self._crossing_thread = threading.Thread(target=self._monitor_for_cross)
 
     def start(self):
         logging.info('Starting peg monitoring thread...')
-        self._threads_active = True
+        self._thread_active = True
         self._crossing_thread.start()
         self.message_function('Peg monitoring started.')
 
     def stop(self):
         logging.info('Stopping peg monitoring thread...')
-        self._threads_active = False
-        self._crossing_thread.join(1 / PEG_UPDATE_FREQUENCY * 10)
+        self._thread_active = False
+        self._crossing_thread.join(10 / PEG_UPDATE_FREQUENCY)
         self.message_function('Peg monitoring stopped.')
 
     # NOTE(funderberker): graph implementation of cross data will change soon.
@@ -53,7 +53,7 @@ class PegCrossMonitor():
         Note that this assumes that block time > period of graph checks.
         """
         min_update_time = 0
-        while self._threads_active:
+        while self._thread_active:
             # Attempt to check as quickly as the graph allows, but no faster than set frequency.
             if not time.time() > min_update_time:
                 time.sleep(1)
@@ -125,9 +125,6 @@ class PegCrossMonitor():
         else:
             return 'Peg not crossed.'
 
-
-
-
 class SunriseMonitor():
     def __init__(self, message_function):
         self.message_function = message_function
@@ -136,23 +133,23 @@ class SunriseMonitor():
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
-        self._threads_active = False
+        self._thread_active = False
         self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
 
     def start(self):
         logging.info('Starting sunrise monitoring thread...')
-        self._threads_active = True
+        self._thread_active = True
         self._sunrise_thread.start()
         self.message_function('Sunrise monitoring started.')
 
     def stop(self):
         logging.info('Stopping sunrise monitoring thread...')
-        self._threads_active = False
+        self._thread_active = False
         self._sunrise_thread.join(SUNRISE_CHECK_PERIOD * 3)
         self.message_function('Sunrise monitoring stopped.')
 
     def _monitor_for_sunrise(self):
-        while self._threads_active:
+        while self._thread_active:
             # Wait until the eligible for a sunrise.
             self._wait_until_expected_sunrise()
             # Once the sunrise is complete, get the season stats.
@@ -176,7 +173,7 @@ class SunriseMonitor():
         seconds_until_next_sunrise = SEASON_DURATION - time.time() % SEASON_DURATION
         sunrise_ready_timestamp = time.time() + seconds_until_next_sunrise
         loop_count = 0
-        while self._threads_active and time.time() < sunrise_ready_timestamp:
+        while self._thread_active and time.time() < sunrise_ready_timestamp:
             if loop_count % 60 == 0:
                 logging.info(f'Blindly waiting {int((sunrise_ready_timestamp - time.time())/60)} '
                              'more minutes until expected sunrise.')
@@ -190,7 +187,7 @@ class SunriseMonitor():
         """
         # TODO(funderberker): Put in max number of checks here before giving up and wait for
         # next sunrise.
-        while self._threads_active:
+        while self._thread_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
             if (self.current_season_id != current_season_stats['id'] and 

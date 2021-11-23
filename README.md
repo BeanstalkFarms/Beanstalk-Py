@@ -12,6 +12,6 @@ staging	https://git.heroku.com/beanstalk-bots-staging.git
 Updates to the code can be pushed to the Heroku app using `git push [remote_name] [local_dev_branch]:main`
 
 Environment variables need to be set in each Heroku application
-- `PYTHONPATH=/app/`
-- `DISCORD_BOT_TOKEN`
-- `TELE_BOT_KEY`
+- `PYTHONPATH=/app/Beanstalk-Tooling/python`
+- `DISCORD_BOT_TOKEN` (`DISCORD_BOT_TOKEN_PROD` for prod application)
+- `TELE_BOT_KEY` (`TELEGRAM_BOT_TOKEN_PROD` for prod application)
