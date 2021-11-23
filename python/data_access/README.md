@@ -20,7 +20,7 @@ Bean subgraph is not yet published, so it is rate limited and will take longer t
 
 https://github.com/BeanstalkFarms/Bean-Subgraph/blob/master/schema.graphql (GitHub not set up yet)
 
-https://api.studio.thegraph.com/query/6727/bean/v0.0.10 (centralized)
+https://api.studio.thegraph.com/query/6727/bean/v1.1.11 (centralized)
 
 
 ## Python Client Configuration

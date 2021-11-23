@@ -9,7 +9,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
-BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v0.0.10'
+BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v1.1.11'
 BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/[API_KEY]/' \
                           'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 
