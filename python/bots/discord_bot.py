@@ -97,13 +97,11 @@ if __name__ == '__main__':
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    discord_client = None
+    discord_client = DiscordClient(production=prod)
     try:
-        discord_client = DiscordClient(production=prod)
         discord_client.run(token)
-    except:
+    except KeyboardInterrupt:
         pass
-    finally:
-        discord_client.peg_cross_monitor.stop()
-        discord_client.sunrise_monitor.stop()
-        # discord_client.pool_monitor.stop()
+    discord_client.peg_cross_monitor.stop()
+    discord_client.sunrise_monitor.stop()
+    # discord_client.pool_monitor.stop()

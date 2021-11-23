@@ -47,11 +47,9 @@ if __name__ == '__main__':
         token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
 
-    bot = None
+    bot = TelegramBot(token=token, production=prod)
     try:
-        bot = TelegramBot(token=token, production=prod)
         bot.tele_bot.infinity_polling()
-    except:
+    except KeyboardInterrupt:
         pass
-    finally:
-        bot.stop()
+    bot.stop()
