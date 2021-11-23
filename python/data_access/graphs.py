@@ -129,10 +129,11 @@ class BeanstalkSqlClient(object):
         
 def execute(client, query_str):
     """Convert query string into a gql query and execute query."""
+    max_tries = 5
     query = gql(query_str)
 
-    # TODO(funderberker): Configure max # of retries and raise custom exception on fail.  Also for beanstalk subgraph.
-    while True:
+    try_count = 0
+    while try_count < max_tries:
         logging.info(f'GraphQL query:\n{query_str}')
         try:
             result = client.execute(query)
@@ -142,6 +143,7 @@ def execute(client, query_str):
         except Exception as e:
             logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
         time.sleep(0.5)
+        try_count += 1
     logging.info(f'GraphQL result:\n{result}')
     return result
 
