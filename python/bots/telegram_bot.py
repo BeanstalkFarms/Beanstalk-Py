@@ -46,6 +46,12 @@ if __name__ == '__main__':
     except KeyError:
         token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
-    bot = TelegramBot(token=token, production=prod)
-    bot.tele_bot.infinity_polling()
-    bot.stop()
+
+    bot = None
+    try:
+        bot = TelegramBot(token=token, production=prod)
+        bot.tele_bot.infinity_polling()
+    except:
+        pass
+    finally:
+        bot.stop()

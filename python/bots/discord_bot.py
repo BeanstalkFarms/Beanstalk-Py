@@ -96,9 +96,14 @@ if __name__ == '__main__':
     except KeyError:
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
-    discord_client = DiscordClient(production=prod)
-    discord_client.run(token)
 
-    discord_client.peg_cross_monitor.stop()
-    discord_client.sunrise_monitor.stop()
-    # discord_client.pool_monitor.stop()
+    discord_client = None
+    try:
+        discord_client = DiscordClient(production=prod)
+        discord_client.run(token)
+    except:
+        pass
+    finally:
+        discord_client.peg_cross_monitor.stop()
+        discord_client.sunrise_monitor.stop()
+        # discord_client.pool_monitor.stop()
