@@ -54,7 +54,8 @@ class PegCrossMonitor():
 
         Note that this assumes that block time > period of graph checks.
         """
-        min_update_time = 0
+        # Delay startup to protect against crash loops.
+        min_update_time = time.time() + 1
         while self._thread_active:
             # Attempt to check as quickly as the graph allows, but no faster than set frequency.
             if not time.time() > min_update_time:
