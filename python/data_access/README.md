@@ -1,6 +1,7 @@
-# Subgraphs
+# Graphs
 This package includes Python modules for interacting with Beanstalk subgraphs. There are two subgraphs: _beanstalk_ and _bean_.
 
+https://gql.readthedocs.io/en/v3.0.0b0/
 
 ## Beanstalk Subgraph
 The beanstalk subgraph tracks the complete state of Beanstalk as well as time series data for the Beanstalk Protocol.
@@ -27,3 +28,11 @@ The client is built on top of [GQL 3](https://gql.readthedocs.io/en/v3.0.0b0/). 
 
 ## Graph Data
 To see what data is available through the subgraphs go to https://lucasconstantino.github.io/graphiql-online/ and enter the API URLs above.
+
+# Ethereum Chain
+https://infura.io/docs/ethereum
+
+https://web3py.readthedocs.io/en/stable/
+
+https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371
+

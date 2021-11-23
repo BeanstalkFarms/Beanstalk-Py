@@ -7,6 +7,7 @@ import time
 
 from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
+from data_access.eth_chain import get_pair_contract_filter
 
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
@@ -225,6 +226,40 @@ class SunriseMonitor():
 def round_str(string, precision=2):
     """Round a string float to requested precision."""
     return f'{float(string):.{precision}f}'
+
+class PoolMonitor():
+    """Monitor the ETH:BEAN Uniswap V2 pool for events."""
+    def __init__(self, message_function):
+        self.message_function = message_function
+        self._pair_contract_filter = get_pair_contract_filter()
+        self._thread_active = False
+        self._pool_thread = threading.Thread(target=self._monitor_pool_events)
+
+    def start(self):
+        logging.info('Starting pool monitoring thread...')
+        self._thread_active = True
+        self._pool_thread.start()
+        self.message_function('Pool monitoring started.')
+
+    def stop(self):
+        logging.info('Stopping pool monitoring thread...')
+        self._thread_active = False
+        self._pool_thread.join(3 / EVENT_POLL_FREQUENCY)
+        self.message_function('Pool monitoring stopped.')
+
+    def _monitor_pool_events(self):
+        while self._thread_active:
+            for event in self._pair_contract_filter.get_new_entries():
+                self._handle_pair_event(event)
+            time.sleep(1/EVENT_POLL_FREQUENCY)
+
+    def _handle_pair_event(self, event):
+        logging.info(event)
+        self.message_function(self._event_to_message(event))
+    
+    def _event_to_message(self, event):
+        return f'ETH:BEAN pool interaction occurred with txn hash {event["transactionHash"]}'
+
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
