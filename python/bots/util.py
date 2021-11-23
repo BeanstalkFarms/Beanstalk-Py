@@ -1,5 +1,4 @@
 from abc import abstractmethod
-import asyncio
 from enum import Enum
 import logging
 import threading
@@ -18,6 +17,8 @@ SEASON_DURATION = 3600 # seconds
 CROSS_COOLDOWN = 120 # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 10
+# Frequency to check chain for new Uniswap V2 pool interactions.
+EVENT_POLL_FREQUENCY = 0.1
 
 class PegCrossType(Enum):
     NO_CROSS = 0
