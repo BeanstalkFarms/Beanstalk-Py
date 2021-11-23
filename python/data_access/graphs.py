@@ -143,6 +143,10 @@ def execute(client, query_str):
             return result
         except asyncio.exceptions.TimeoutError:
             logging.warning('Timeout error on Bean GraphQL access. Retrying...')
+        except RuntimeError as e:
+            logging.error(e)
+            logging.error('Main thread no longer running. Exiting.')
+            exit(1)
         except Exception as e:
             logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
         time.sleep(0.5)
