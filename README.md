@@ -15,3 +15,4 @@ Environment variables need to be set in each Heroku application
 - `PYTHONPATH=/app/Beanstalk-Tooling/python`
 - `DISCORD_BOT_TOKEN` (`DISCORD_BOT_TOKEN_PROD` for prod application)
 - `TELE_BOT_KEY` (`TELEGRAM_BOT_TOKEN_PROD` for prod application)
+- `ETH_CHAIN_API_KEY`
