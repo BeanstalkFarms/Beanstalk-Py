@@ -6,7 +6,7 @@ import time
 
 from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
-from data_access.eth_chain import get_pair_contract_filter
+# from data_access.eth_chain import get_pair_contract_filter
 
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
@@ -231,6 +231,7 @@ def round_str(string, precision=2):
 def scientific_notation(string, precision=3):
     f'{float(string):.{precision}e}'
 
+'''
 class PoolMonitor():
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
     def __init__(self, message_function):
@@ -263,7 +264,7 @@ class PoolMonitor():
     
     def _event_to_message(self, event):
         return f'ETH:BEAN pool interaction occurred with txn hash {event["transactionHash"]}'
-
+'''
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
