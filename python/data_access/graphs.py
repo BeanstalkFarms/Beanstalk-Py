@@ -16,7 +16,7 @@ BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/[API_KEY]/' \
 FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
                          'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
-                         'newWithdrawnLP', 'newPods'
+                         'newWithdrawnLP', 'newPods', 'pooledBeans', 'pooledEth', 'lp'
                          # , 'soil', 'newSoil'
                          ]
 

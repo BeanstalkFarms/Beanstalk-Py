@@ -75,6 +75,8 @@ class PegCrossMonitor():
                 # processing all crosses is trivial, for now we accept that we have limited
                 # fidelity and do not attempt to convey all of the very rapid crosses that may
                 # occur when price is holding near peg.
+                logging.info(
+                    f'Pausing peg checks for {CROSS_COOLDOWN} seconds to prevent imperfect spam.')
                 time.sleep(CROSS_COOLDOWN)
 
 
@@ -205,32 +207,40 @@ class SunriseMonitor():
         newMintedBeans = (float(current_season_stats['newFarmableBeans']) +
                           float(current_season_stats['newHarvestablePods']))
         # newSoil = float(current_season_stats['newSoil'])
+        new_deposited_lp = float(last_season_stats["newDepositedLP"])
+        new_withdrawn_lp = float(last_season_stats["newWithdrawnLP"])
+        pooled_beans = float(current_season_stats['pooledBeans'])
+        pooled_eth = float(current_season_stats['pooledEth'])
+        total_lp = float(current_season_stats['lp'])
+        bean_pool_ratio = pooled_beans / total_lp
+        eth_pool_ratio = pooled_eth / total_lp
+        deposited_bean_lp = round_str(new_deposited_lp * bean_pool_ratio)
+        deposited_eth_lp = round_str(new_deposited_lp * eth_pool_ratio)
+        withdrawn_bean_lp = round_str(new_withdrawn_lp * bean_pool_ratio)
+        withdrawn_eth_lp = round_str(new_withdrawn_lp * eth_pool_ratio)
         last_weather = float(last_season_stats['weather'])
         newPods = float(last_season_stats['newPods'])
         
-        ret_string = f'Season {last_season_stats["id"]} is complete!\n'
-        ret_string += f'The season TWAP was ${round_str(current_season_stats["price"], 3)}\n'
-        ret_string += f'The **weather** is {current_season_stats["weather"]}%\n'
-        # ret_string += f'There is {current_season_stats["soil"]} **soil** available\n' # Coming in graph version 1.1.10
+        ret_string = f'⏱ Season {last_season_stats["id"]} is complete!'
+        ret_string += f'\n💵 The TWAP last season was ${round_str(current_season_stats["price"], 3)}'
+        ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
+        # ret_string += f'\nThere is {current_season_stats["soil"]} soil available' # Coming in graph version 1.1.10
         if newMintedBeans:
-            ret_string += f'{round_str(newMintedBeans)} beans were **minted**\n'
+            ret_string += f'\n\n🌱 {round_str(newMintedBeans)} beans were minted'
         # if newSoil:
-        #     ret_string += f'{round_str(newSoil)} soil was added\n'
+        #     ret_string += f'\n\n{round_str(newSoil)} soil was added'
         ret_string += '\n'
-        ret_string += f'{round_str(last_season_stats["newDepositedBeans"])} beans deposited\n'
-        ret_string += f'{round_str(last_season_stats["newWithdrawnBeans"])} beans withdrawn\n'
-        ret_string += f'{scientific_notation(last_season_stats["newDepositedLP"])} LP deposited\n'
-        ret_string += f'{scientific_notation(last_season_stats["newWithdrawnLP"])} LP withdrawn\n'
-        ret_string += f'{round_str(newPods / (1 + last_weather/100))} beans sown'
-        ret_string += f'{round_str(newPods)} pods minted'
+        ret_string += f'\n👉 {round_str(last_season_stats["newDepositedBeans"])} beans deposited'
+        ret_string += f'\n👉 {deposited_bean_lp} beans and {deposited_eth_lp} ETH of LP deposited'
+        ret_string += f'\n👈 {round_str(last_season_stats["newWithdrawnBeans"])} beans withdrawn'
+        ret_string += f'\n👈 {withdrawn_bean_lp} beans and {withdrawn_eth_lp} ETH of LP withdrawn'
+        ret_string += f'\n🚜 {round_str(newPods / (1 + last_weather/100))} beans sown'
+        ret_string += f'\n🌾 {round_str(newPods)} pods minted'
         return ret_string
 
 def round_str(string, precision=2):
     """Round a string float to requested precision."""
     return f'{float(string):,.{precision}f}'
-
-def scientific_notation(string, precision=3):
-    f'{float(string):.{precision}e}'
 
 '''
 class PoolMonitor():
