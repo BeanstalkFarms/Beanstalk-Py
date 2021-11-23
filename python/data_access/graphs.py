@@ -126,10 +126,12 @@ class BeanstalkSqlClient(object):
         # Create gql query and execute.
         return execute(self._client, query_str)['seasons']
         
-        
+class GraphAccessException(Exception):
+    """Failed to access the graph."""
+
 def execute(client, query_str):
     """Convert query string into a gql query and execute query."""
-    max_tries = 5
+    max_tries = 10
     query = gql(query_str)
 
     try_count = 0
@@ -137,15 +139,15 @@ def execute(client, query_str):
         logging.info(f'GraphQL query:\n{query_str}')
         try:
             result = client.execute(query)
-            break
+            logging.info(f'GraphQL result:\n{result}')
+            return result
         except asyncio.exceptions.TimeoutError:
             logging.warning('Timeout error on Bean GraphQL access. Retrying...')
         except Exception as e:
             logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
         time.sleep(0.5)
         try_count += 1
-    logging.info(f'GraphQL result:\n{result}')
-    return result
+    raise GraphAccessException
 
 
 if __name__ == '__main__':
