@@ -32,7 +32,7 @@ class BeanSqlClient(object):
     def __init__(self):
         transport = AIOHTTPTransport(url=BEAN_GRAPH_ENDPOINT)
         self._client = Client(
-            transport=transport, fetch_schema_from_transport=False, execute_timeout=10)
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=30)
 
     def current_bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
@@ -149,7 +149,7 @@ def execute(client, query_str):
             exit(1)
         except Exception as e:
             logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
-        time.sleep(2)
+        time.sleep(1)
         try_count += 1
     raise GraphAccessException
 
