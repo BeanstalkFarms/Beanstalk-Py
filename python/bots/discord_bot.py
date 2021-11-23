@@ -66,6 +66,8 @@ class DiscordClient(discord.Client):
                 await self.channel_peg.send(msg)
             elif channel is self.Channel.SEASONS:
                 await self.channel_seasons.send(msg)
+            else:
+                logging.error('Unknown channel seen in msg queue: {channel}')
             self.msg_queue = self.msg_queue[1:]
 
     @send_queued_messages.before_loop

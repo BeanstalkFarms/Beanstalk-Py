@@ -17,7 +17,7 @@ FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
                          'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
                          'newWithdrawnLP', 'newPods'
-                         # , 'soil'
+                         # , 'soil', 'newSoil'
                          ]
 
 # Names of common graph fields.

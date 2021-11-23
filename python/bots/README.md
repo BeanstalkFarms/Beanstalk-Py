@@ -10,16 +10,20 @@ The Python bots will disseminate information through the various text-based comm
 Each of these applications has their own API for handling messages. We pull third-party SDKs for each to simplify interaction with the various APIs.
 
 ### Telegram
-API Documentation: https://core.telegram.org/bots/api
-Python SDK Library: https://github.com/eternnoir/pyTelegramBotAPI (GPLv2 License)
+- **beanstalk_stage_bot** https://t.me/beanstalk_stage_bot
+- **beanstalk_bot** https://t.me/beanstalk_bot
+- API Documentation: https://core.telegram.org/bots/api
+- Python SDK Library: https://github.com/eternnoir/pyTelegramBotAPI (GPLv2 License)
 
 ### Discord
-API Documentation: https://discord.com/developers/docs/intro
-Python SDK Library: https://github.com/Rapptz/discord.py (MIT License)
+- **BeanBot-Staging#0096**
+- **BeanBot#8204**
+- API Documentation: https://discord.com/developers/docs/intro
+- Python SDK Library: https://github.com/Rapptz/discord.py (MIT License)
 
 ### Twitter
-API Documentation: https://developer.twitter.com/en/docs/twitter-api
-Python SDK Library: https://github.com/bear/python-twitter (Apache License)
+- API Documentation: https://developer.twitter.com/en/docs/twitter-api
+- Python SDK Library: https://github.com/bear/python-twitter (Apache License)
 
 ## Bot List
 

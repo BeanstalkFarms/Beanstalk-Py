@@ -200,33 +200,36 @@ class SunriseMonitor():
             time.sleep(SUNRISE_CHECK_PERIOD)
         return None, None
 
-
     def season_summary_string(self, last_season_stats, current_season_stats):
-        newFarmableBeans = float(current_season_stats["newFarmableBeans"])
-        newHarvestableBeans = float(current_season_stats["newHarvestablePods"])
-        last_weather = float(last_season_stats["weather"])
-        newPods = float(last_season_stats["newPods"])
-        return (
-            f'Season {last_season_stats["id"]} is complete!\n'
-            f'The **price** is ${round_str(current_season_stats["price"], 3)}\n'
-            f'The **weather** is {current_season_stats["weather"]}\n'
-            # f'There is {current_season_stats["soil"]} **soil** available\n' # Coming in graph version 1.1.10
-            f'\n'
-            f'{round_str(newFarmableBeans + newHarvestableBeans)} beans were **minted**\n'
-            f'{round_str(newFarmableBeans)} beans are newly **farmable**\n'
-            f'{round_str(newHarvestableBeans)} pods are newly **harvestable**\n'
-            f'\n'
-            f'{round_str(last_season_stats["newDepositedBeans"])} beans were deposited into the silo\n'
-            # f'{round_str(last_season_stats[""])} beans were farmed into the silo\n'
-            f'{round_str(last_season_stats["newWithdrawnBeans"])} beans were withdrawn from the silo\n'
-            f'{round_str(last_season_stats["newDepositedLP"])} LP was deposited into the silo\n'
-            f'{round_str(last_season_stats["newWithdrawnLP"])} LP was withdrawn from the silo\n'
-            f'{round_str(newPods / (1 + last_weather/100))} beans were sowed'
-        )
+        newMintedBeans = (float(current_season_stats['newFarmableBeans']) +
+                          float(current_season_stats['newHarvestablePods']))
+        # newSoil = float(current_season_stats['newSoil'])
+        last_weather = float(last_season_stats['weather'])
+        newPods = float(last_season_stats['newPods'])
+        
+        ret_string = f'Season {last_season_stats["id"]} is complete!\n'
+        ret_string += f'The season TWAP was ${round_str(current_season_stats["price"], 3)}\n'
+        ret_string += f'The **weather** is {current_season_stats["weather"]}%\n'
+        # ret_string += f'There is {current_season_stats["soil"]} **soil** available\n' # Coming in graph version 1.1.10
+        if newMintedBeans:
+            ret_string += f'{round_str(newMintedBeans)} beans were **minted**\n'
+        # if newSoil:
+        #     ret_string += f'{round_str(newSoil)} soil was added\n'
+        ret_string += '\n'
+        ret_string += f'{round_str(last_season_stats["newDepositedBeans"])} beans deposited\n'
+        ret_string += f'{round_str(last_season_stats["newWithdrawnBeans"])} beans withdrawn\n'
+        ret_string += f'{scientific_notation(last_season_stats["newDepositedLP"])} LP deposited\n'
+        ret_string += f'{scientific_notation(last_season_stats["newWithdrawnLP"])} LP withdrawn\n'
+        ret_string += f'{round_str(newPods / (1 + last_weather/100))} beans sown'
+        ret_string += f'{round_str(newPods)} pods minted'
+        return ret_string
 
 def round_str(string, precision=2):
     """Round a string float to requested precision."""
-    return f'{float(string):.{precision}f}'
+    return f'{float(string):,.{precision}f}'
+
+def scientific_notation(string, precision=3):
+    f'{float(string):.{precision}e}'
 
 class PoolMonitor():
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
