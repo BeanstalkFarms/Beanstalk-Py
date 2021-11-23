@@ -204,8 +204,9 @@ class SunriseMonitor():
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats):
-        newMintedBeans = (float(current_season_stats['newFarmableBeans']) +
-                          float(current_season_stats['newHarvestablePods']))
+        new_farmable_beans = float(current_season_stats['newFarmableBeans'])
+        new_harvestable_pods = float(current_season_stats['newHarvestablePods'])
+        newMintedBeans = new_farmable_beans + new_harvestable_pods
         # newSoil = float(current_season_stats['newSoil'])
         new_deposited_lp = float(last_season_stats["newDepositedLP"])
         new_withdrawn_lp = float(last_season_stats["newWithdrawnLP"])
@@ -227,6 +228,8 @@ class SunriseMonitor():
         # ret_string += f'\nThere is {current_season_stats["soil"]} soil available' # Coming in graph version 1.1.10
         if newMintedBeans:
             ret_string += f'\n\n🌱 {round_str(newMintedBeans)} beans were minted'
+            ret_string += f'\n👩‍🌾 {round_str(new_farmable_beans)} beans are newly farmable'
+            ret_string += f'\n👨‍🌾 {round_str(new_harvestable_pods)} pods are newly harvestable'
         # if newSoil:
         #     ret_string += f'\n\n{round_str(newSoil)} soil was added'
         ret_string += '\n'

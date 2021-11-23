@@ -149,7 +149,7 @@ def execute(client, query_str):
             exit(1)
         except Exception as e:
             logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
-        time.sleep(0.5)
+        time.sleep(2)
         try_count += 1
     raise GraphAccessException
 
