@@ -19,10 +19,10 @@ class DiscordClient(discord.Client):
         PEG = 0
         SEASONS = 1
 
-    def __init__(self, production=False):
+    def __init__(self, prod=False):
         super().__init__()
 
-        if production:
+        if prod:
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
             logging.info('Configured as a production instance.')
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    discord_client = DiscordClient(production=prod)
+    discord_client = DiscordClient(prod=prod)
     try:
         discord_client.run(token)
     except KeyboardInterrupt:

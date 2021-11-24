@@ -6,13 +6,13 @@ import telebot
 from bots import util
 
 TELE_CHAT_ID_STAGING = "-1001655547288" # Beanstalk Bot Testing channel
-TELE_CHAT_ID_PRODUCTION = "-1770089535" # Beanstalk Tracker channel
+TELE_CHAT_ID_PRODUCTION = "-1001770089535" # Beanstalk Tracker channel
 
 class TelegramBot(object):
 
-    def __init__(self, token, production=False):
+    def __init__(self, token, prod=False):
 
-        if production:
+        if prod:
             self._chat_id = TELE_CHAT_ID_PRODUCTION
             logging.info('Configured as a production instance.')
         else:
@@ -47,7 +47,7 @@ if __name__ == '__main__':
         token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
 
-    bot = TelegramBot(token=token, production=prod)
+    bot = TelegramBot(token=token, prod=prod)
     try:
         bot.tele_bot.infinity_polling()
     except KeyboardInterrupt:
