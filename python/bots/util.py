@@ -230,10 +230,11 @@ class SunriseMonitor():
             ret_string += f'\n\n🌱 {round_str(newMintedBeans)} beans were minted'
             ret_string += f'\n👩‍🌾 {round_str(new_farmable_beans)} beans are newly farmable'
             ret_string += f'\n👨‍🌾 {round_str(new_harvestable_pods)} pods are newly harvestable'
+        else:
+            ret_string += f'\n\n🌱 No new beans were minted.'
         # if newSoil:
         #     ret_string += f'\n\n{round_str(newSoil)} soil was added'
-        ret_string += '\n'
-        ret_string += f'\n👉 {round_str(last_season_stats["newDepositedBeans"])} beans deposited'
+        ret_string += f'\n\n👉 {round_str(last_season_stats["newDepositedBeans"])} beans deposited'
         ret_string += f'\n👉 {deposited_bean_lp} beans and {deposited_eth_lp} ETH of LP deposited'
         ret_string += f'\n👈 {round_str(last_season_stats["newWithdrawnBeans"])} beans withdrawn'
         ret_string += f'\n👈 {withdrawn_bean_lp} beans and {withdrawn_eth_lp} ETH of LP withdrawn'
