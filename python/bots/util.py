@@ -227,19 +227,19 @@ class SunriseMonitor():
         ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
         # ret_string += f'\nThere is {current_season_stats["soil"]} soil available' # Coming in graph version 1.1.10
         if newMintedBeans:
-            ret_string += f'\n\n🌱 {round_str(newMintedBeans)} beans were minted'
-            ret_string += f'\n👩‍🌾 {round_str(new_farmable_beans)} beans are newly farmable'
-            ret_string += f'\n👨‍🌾 {round_str(new_harvestable_pods)} pods are newly harvestable'
+            ret_string += f'\n\n🌱 {round_str(newMintedBeans)} Beans were minted'
+            ret_string += f'\n👩‍🌾 {round_str(new_farmable_beans)} Beans are newly farmable'
+            ret_string += f'\n👨‍🌾 {round_str(new_harvestable_pods)} Pods are newly harvestable'
         else:
-            ret_string += f'\n\n🌱 No new beans were minted.'
+            ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
         #     ret_string += f'\n\n{round_str(newSoil)} soil was added'
-        ret_string += f'\n\n👉 {round_str(last_season_stats["newDepositedBeans"])} beans deposited'
-        ret_string += f'\n👉 {deposited_bean_lp} beans and {deposited_eth_lp} ETH of LP deposited'
-        ret_string += f'\n👈 {round_str(last_season_stats["newWithdrawnBeans"])} beans withdrawn'
-        ret_string += f'\n👈 {withdrawn_bean_lp} beans and {withdrawn_eth_lp} ETH of LP withdrawn'
-        ret_string += f'\n🚜 {round_str(newPods / (1 + last_weather/100))} beans sown'
-        ret_string += f'\n🌾 {round_str(newPods)} pods minted'
+        ret_string += f'\n\n👉 {round_str(last_season_stats["newDepositedBeans"])} Beans deposited'
+        ret_string += f'\n👉 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
+        ret_string += f'\n👈 {round_str(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
+        ret_string += f'\n👈 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
+        ret_string += f'\n🚜 {round_str(newPods / (1 + last_weather/100))} Beans sown'
+        ret_string += f'\n🌾 {round_str(newPods)} Pods minted'
         return ret_string
 
 def round_str(string, precision=2):
