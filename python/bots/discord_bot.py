@@ -18,6 +18,7 @@ class DiscordClient(discord.Client):
     class Channel(Enum):
         PEG = 0
         SEASONS = 1
+        POOL = 2
 
     def __init__(self, prod=False):
         super().__init__()
@@ -29,6 +30,7 @@ class DiscordClient(discord.Client):
         else:
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
 
         self.msg_queue = []
@@ -39,8 +41,8 @@ class DiscordClient(discord.Client):
         self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons)
         self.sunrise_monitor.start()
 
-        # self.pool_monitor = util.PoolMonitor(self.send_msg)
-        # self.pool_monitor.start()
+        self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
+        self.pool_monitor.start()
 
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
@@ -53,19 +55,27 @@ class DiscordClient(discord.Client):
         """Send a message through the Discord bot in the seasons channel."""
         self.msg_queue.append((self.Channel.SEASONS, text))
 
+    def send_msg_pool(self, text):
+        """Send a message through the Discord bot in the pool channel."""
+        self.msg_queue.append((self.Channel.POOL, text))
+
     async def on_ready(self):
-        self.channel_peg = discord_client.get_channel(self._chat_id_peg)
-        self.channel_seasons = discord_client.get_channel(self._chat_id_seasons)
-        logging.info(f'Discord channels are {self.channel_peg}, {self.channel_seasons}')
+        self._channel_peg = discord_client.get_channel(self._chat_id_peg)
+        self._channel_seasons = discord_client.get_channel(self._chat_id_seasons)
+        self._channel_pool = discord_client.get_channel(self._chat_id_pool)
+        logging.info(
+            f'Discord channels are {self._channel_peg}, {self._channel_seasons}, {self._channel_pool}')
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):
         """Send messages in queue."""
         for channel, msg in self.msg_queue:
             if channel is self.Channel.PEG:
-                await self.channel_peg.send(msg)
+                await self._channel_peg.send(msg)
             elif channel is self.Channel.SEASONS:
-                await self.channel_seasons.send(msg)
+                await self._channel_seasons.send(msg)
+            elif channel is self.Channel.POOL:
+                await self._channel_pool.send(msg)
             else:
                 logging.error('Unknown channel seen in msg queue: {channel}')
             self.msg_queue = self.msg_queue[1:]
@@ -104,4 +114,4 @@ if __name__ == '__main__':
         pass
     discord_client.peg_cross_monitor.stop()
     discord_client.sunrise_monitor.stop()
-    # discord_client.pool_monitor.stop()
+    discord_client.pool_monitor.stop()

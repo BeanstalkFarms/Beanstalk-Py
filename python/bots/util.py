@@ -4,9 +4,11 @@ import logging
 import threading
 import time
 
+from web3 import eth
+
 from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
-# from data_access.eth_chain import get_pair_contract_filter
+from data_access import eth_chain
 
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
@@ -215,43 +217,41 @@ class SunriseMonitor():
         total_lp = float(current_season_stats['lp'])
         bean_pool_ratio = pooled_beans / total_lp
         eth_pool_ratio = pooled_eth / total_lp
-        deposited_bean_lp = round_str(new_deposited_lp * bean_pool_ratio)
-        deposited_eth_lp = round_str(new_deposited_lp * eth_pool_ratio)
-        withdrawn_bean_lp = round_str(new_withdrawn_lp * bean_pool_ratio)
-        withdrawn_eth_lp = round_str(new_withdrawn_lp * eth_pool_ratio)
+        deposited_bean_lp = round_num(new_deposited_lp * bean_pool_ratio)
+        deposited_eth_lp = round_num(new_deposited_lp * eth_pool_ratio)
+        withdrawn_bean_lp = round_num(new_withdrawn_lp * bean_pool_ratio)
+        withdrawn_eth_lp = round_num(new_withdrawn_lp * eth_pool_ratio)
         last_weather = float(last_season_stats['weather'])
         newPods = float(last_season_stats['newPods'])
         
         ret_string = f'⏱ Season {last_season_stats["id"]} is complete!'
-        ret_string += f'\n💵 The TWAP last season was ${round_str(current_season_stats["price"], 3)}'
+        ret_string += f'\n💵 The TWAP last season was ${round_num(current_season_stats["price"], 3)}'
         ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
         # ret_string += f'\nThere is {current_season_stats["soil"]} soil available' # Coming in graph version 1.1.10
         if newMintedBeans:
-            ret_string += f'\n\n🌱 {round_str(newMintedBeans)} Beans were minted'
-            ret_string += f'\n👩‍🌾 {round_str(new_farmable_beans)} Beans are newly farmable'
-            ret_string += f'\n👨‍🌾 {round_str(new_harvestable_pods)} Pods are newly harvestable'
+            ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted'
+            ret_string += f'\n👩‍🌾 {round_num(new_farmable_beans)} Beans are newly farmable'
+            ret_string += f'\n👨‍🌾 {round_num(new_harvestable_pods)} Pods are newly harvestable'
         else:
             ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
-        #     ret_string += f'\n\n{round_str(newSoil)} soil was added'
-        ret_string += f'\n\n👉 {round_str(last_season_stats["newDepositedBeans"])} Beans deposited'
+        #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
+        ret_string += f'\n\n👉 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
         ret_string += f'\n👉 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
-        ret_string += f'\n👈 {round_str(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
+        ret_string += f'\n👈 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
         ret_string += f'\n👈 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
-        ret_string += f'\n🚜 {round_str(newPods / (1 + last_weather/100))} Beans sown'
-        ret_string += f'\n🌾 {round_str(newPods)} Pods minted'
+        ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
+        ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
         return ret_string
 
-def round_str(string, precision=2):
-    """Round a string float to requested precision."""
-    return f'{float(string):,.{precision}f}'
 
-'''
 class PoolMonitor():
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
     def __init__(self, message_function):
         self.message_function = message_function
-        self._pair_contract_filter = get_pair_contract_filter()
+        self._eth_event_client = eth_chain.EthEventClient()
+        self._eth_event_client.set_event_log_filters_pool_contract()
+        # self._pool_contract_filter = eth_chain.get_pool_contract_filter()
         self._thread_active = False
         self._pool_thread = threading.Thread(target=self._monitor_pool_events)
 
@@ -269,17 +269,47 @@ class PoolMonitor():
 
     def _monitor_pool_events(self):
         while self._thread_active:
-            for event in self._pair_contract_filter.get_new_entries():
-                self._handle_pair_event(event)
+            for event_log in self._eth_event_client.get_new_log_entries():
+                self._handle_pool_event_log(event_log)
             time.sleep(1/EVENT_POLL_FREQUENCY)
 
-    def _handle_pair_event(self, event):
-        logging.info(event)
-        self.message_function(self._event_to_message(event))
+    def _handle_pool_event_log(self, event_log):
+        """Process the pool event log.
+
+        Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
+        """
+        logging.info(event_log)
+        event_str = ''
+        # Parse possible values of interest from the event log. Not all will be populated.
+        eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
+        bean_amount = eth_chain.bean_to_float(event_log.args.get('amount1'))
+        eth_in = eth_chain.eth_to_float(event_log.args.get('amount0In'))
+        eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
+        bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
+        bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
+        if event_log.event == 'Mint':
+            event_str = f'👉 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+        elif event_log.event == 'Burn':
+            eth_out = eth_chain.eth_to_float(event_log.args.amount0)
+            bean_out = eth_chain.bean_to_float(event_log.args.amount1)
+            event_str = f'👈 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+        elif event_log.event == 'Swap':
+            if eth_in > 0:
+                event_str = f'🤝 {round_num(eth_in, 3)} ETH swapped for {round_num(bean_out)} Beans'
+            elif bean_in > 0:
+                event_str = f'🤝 {round_num(bean_in)} Beans swapped for {round_num(eth_out, 3)} ETH'
+            else:
+                logging.warning('Unexpected Swap args detected.')
+
+        logging.info(event_str)
+        self.message_function(event_str)
+        return
+
     
-    def _event_to_message(self, event):
-        return f'ETH:BEAN pool interaction occurred with txn hash {event["transactionHash"]}'
-'''
+def round_num(number, precision=2):
+    """Round a string or float to requested precision and return as a string."""
+    return f'{float(number):,.{precision}f}'
+
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
