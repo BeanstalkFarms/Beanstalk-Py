@@ -13,6 +13,7 @@ Updates to the code can be pushed to the Heroku app using `git push [remote_name
 
 Environment variables need to be set in each Heroku application
 - `PYTHONPATH=/app/Beanstalk-Tooling/python`
+- `SUBGRAPH_API_KEY`
 - `DISCORD_BOT_TOKEN` (`DISCORD_BOT_TOKEN_PROD` for prod application)
 - `TELE_BOT_KEY` (`TELEGRAM_BOT_TOKEN_PROD` for prod application)
 - `ETH_CHAIN_API_KEY`

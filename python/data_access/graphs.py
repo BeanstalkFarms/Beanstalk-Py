@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import time
 
 from gql import Client, gql
@@ -9,9 +10,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
-BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v1.1.11'
-BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/[API_KEY]/' \
-                          'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
+
 
 FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
@@ -25,6 +24,10 @@ PRICE_FIELD = 'price'
 TIMESTAMP_FIELD = 'timestamp'
 LAST_PEG_CROSS_FIELD = 'lastCross'
 
+SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
+BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v1.1.11'
+BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
+                            'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 
 class BeanSqlClient(object):
 
