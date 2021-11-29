@@ -7,7 +7,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
-BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/[API_KEY]/' \
+BEANSTALK_GRAPH_ENDPOINT = 'https://gateway.thegraph.com/api/***REMOVED***/' \
                           'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 
 FIELDS_PLACEHOLDER = 'FIELDS'
