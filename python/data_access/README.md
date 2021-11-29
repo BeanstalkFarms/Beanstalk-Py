@@ -10,7 +10,7 @@ This is very fast because it is published (decentralized) and has plenty of sign
 
 https://github.com/BeanstalkFarms/Beanstalk-Subgraph/blob/master/schema.graphql
 
-https://gateway.thegraph.com/api/[API_KEY]/subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0
+https://gateway.thegraph.com/api/[api-key]/subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0
 
 
 ## Bean Subgraph
@@ -21,7 +21,7 @@ Bean subgraph is not yet published, so it is rate limited and will take longer t
 https://github.com/BeanstalkFarms/Bean-Subgraph/blob/master/schema.graphql (GitHub not set up yet)
 
 https://api.studio.thegraph.com/query/6727/bean/v1.1.11 (centralized)
-
+https://gateway.thegraph.com/api/[api-key]/subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1
 
 ## Python Client Configuration
 The client is built on top of [GQL 3](https://gql.readthedocs.io/en/v3.0.0b0/). Underlying connections are made using HTTP through the [aiohttp](https://docs.aiohttp.org/en/stable/) library. Each subgraph has its own module.
