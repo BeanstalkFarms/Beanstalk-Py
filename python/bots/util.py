@@ -29,21 +29,24 @@ class PegCrossType(Enum):
 # all since the last known cross. Return list of cross types.
 class PegCrossMonitor():
     """Monitor bean graph for peg crosses and send out messages on detection."""
-    def __init__(self, message_function):
+    def __init__(self, message_function, prod=False):
         self.message_function = message_function
+        self.prod = prod
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = 0
         self._thread_active = False
         self._crossing_thread = threading.Thread(target=self._monitor_for_cross)
 
     def start(self):
-        logging.info('Starting peg monitoring thread...')
+        if not self.prod:
+            logging.info('Starting peg monitoring thread...')
         self._thread_active = True
         self._crossing_thread.start()
         self.message_function('Peg monitoring started.')
 
     def stop(self):
-        logging.info('Stopping peg monitoring thread...')
+        if not self.prod:
+            logging.info('Stopping peg monitoring thread...')
         self._thread_active = False
         self._crossing_thread.join(10 / PEG_UPDATE_FREQUENCY)
         self.message_function('Peg monitoring stopped.')
@@ -116,8 +119,9 @@ class PegCrossMonitor():
             return 'Peg not crossed.'
 
 class SunriseMonitor():
-    def __init__(self, message_function):
+    def __init__(self, message_function, prod=False):
         self.message_function = message_function
+        self.prod = prod
         self.beanstalk_graph_client = BeanstalkSqlClient()
 
         # Most recent season processed. Do not initialize.
@@ -127,13 +131,15 @@ class SunriseMonitor():
         self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
 
     def start(self):
-        logging.info('Starting sunrise monitoring thread...')
+        if not self.prod:
+            logging.info('Starting sunrise monitoring thread...')
         self._thread_active = True
         self._sunrise_thread.start()
         self.message_function('Sunrise monitoring started.')
 
     def stop(self):
-        logging.info('Stopping sunrise monitoring thread...')
+        if not self.prod:
+            logging.info('Stopping sunrise monitoring thread...')
         self._thread_active = False
         self._sunrise_thread.join(SUNRISE_CHECK_PERIOD * 3)
         self.message_function('Sunrise monitoring stopped.')

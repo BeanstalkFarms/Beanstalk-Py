@@ -22,10 +22,10 @@ class TelegramBot(object):
 
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
         
-        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg)
+        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(self.send_msg)
+        self.sunrise_monitor = util.SunriseMonitor(self.send_msg, prod=prod)
         self.sunrise_monitor.start()
 
     def send_msg(self, text):

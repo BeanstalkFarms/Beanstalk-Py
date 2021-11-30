@@ -36,10 +36,10 @@ class DiscordClient(discord.Client):
 
         self.msg_queue = []
 
-        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg_peg)
+        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg_peg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons)
+        self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons, prod=prod)
         self.sunrise_monitor.start()
 
         # self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
