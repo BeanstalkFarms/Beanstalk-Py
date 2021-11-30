@@ -24,26 +24,25 @@ PRICE_FIELD = 'price'
 TIMESTAMP_FIELD = 'timestamp'
 LAST_PEG_CROSS_FIELD = 'lastCross'
 
+# Newline character to get around limits of f-strings.
+NEWLINE_CHAR = '\n'
+
 SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
-BEAN_GRAPH_ENDPOINT= 'https://api.studio.thegraph.com/query/6727/bean/v1.1.11'
+BEAN_GRAPH_ENDPOINT= f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
+                      'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
 BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
                             'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 
 class BeanSqlClient(object):
 
-    # TODO(funderberker): Configurable timeout. Also for beanstalk subgraph.
     def __init__(self):
         transport = AIOHTTPTransport(url=BEAN_GRAPH_ENDPOINT)
         self._client = Client(
-            transport=transport, fetch_schema_from_transport=False, execute_timeout=30)
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
 
     def current_bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
         return float(self.get_bean_field(PRICE_FIELD))
-
-    def last_peg_cross(self):
-        """Returns a timestamp of the last time the peg was crossed."""
-        return int(self.get_bean_field(LAST_PEG_CROSS_FIELD))
 
     def get_bean_field(self, field):
         """Get a single field from the bean object."""
@@ -80,12 +79,34 @@ class BeanSqlClient(object):
         # Note that there is always only 1 bean item returned.
         return execute(self._client, query_str)['beans'][0]
 
+    def last_cross(self):
+        """Returns a dict containing timestamp and direction of most recent peg cross."""
+        return self.get_last_crosses()[0]
+
+    def get_last_crosses(self, n=1):
+        """Retrive the last n peg crosses, including timestamp and cross direction.
+        
+        Args:
+            n: number of recent crosses to retrieve.
+        
+        Returns:
+            array of dicts containing timestamp and cross direction for each cross.
+        """
+        query_str = """
+            query get_last_crosses {
+                crosses(first: """ + str(n) + """, orderBy:timestamp, orderDirection: desc)
+                {timestamp, above}
+            }
+        """
+        # Create gql query and execute.
+        return execute(self._client, query_str)['crosses']
+
 class BeanstalkSqlClient(object):
 
     def __init__(self):
         transport = AIOHTTPTransport(url=BEANSTALK_GRAPH_ENDPOINT)
         self._client = Client(
-            transport=transport, fetch_schema_from_transport=False, execute_timeout=10)
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
 
     def current_season_stat(self, field):
         return self.current_season_stats([field])[field]
@@ -139,19 +160,20 @@ def execute(client, query_str):
 
     try_count = 0
     while try_count < max_tries:
-        logging.info(f'GraphQL query:\n{query_str}')
+        logging.info(f'GraphQL query ({int(time.time())}):\n'
+                     f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
         try:
             result = client.execute(query)
-            logging.info(f'GraphQL result:\n{result}')
+            logging.info(f'GraphQL result ({int(time.time())}):\n{result}')
             return result
         except asyncio.exceptions.TimeoutError:
-            logging.warning('Timeout error on Bean GraphQL access. Retrying...')
+            logging.warning('Timeout error on subgraph access. Retrying...')
         except RuntimeError as e:
             logging.error(e)
             logging.error('Main thread no longer running. Exiting.')
             exit(1)
         except Exception as e:
-            logging.warning(f'Unexpected error on Bean GraphQL access:\n{e}\n Retrying...')
+            logging.warning(f'Unexpected error on subgraph access:\n{e}\n Retrying...')
         time.sleep(1)
         try_count += 1
     raise GraphAccessException
@@ -163,7 +185,7 @@ if __name__ == '__main__':
 
     bean_client = BeanSqlClient()
     print(f'Price: {bean_client.current_bean_price()}')
-    print(f'Last peg cross: {bean_client.last_peg_cross()}')
+    print(f'Last peg cross: {bean_client.last_cross()}')
     print(f'Total Supply (USD): {bean_client.get_bean_field("totalSupplyUSD")}')
     print(bean_client.get_bean_fields(['id', 'totalCrosses']))
 

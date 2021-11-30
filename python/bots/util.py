@@ -15,8 +15,6 @@ from data_access import eth_chain
 PEG_UPDATE_FREQUENCY = 0.1  # hz
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600 # seconds
-# Amount of time to wait after detecting a cross before checking for next cross.
-CROSS_COOLDOWN = 120 # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 10
 # Frequency to check chain for new Uniswap V2 pool interactions.
@@ -71,35 +69,21 @@ class PegCrossMonitor():
                 self.message_function(output_str)
                 logging.info(output_str)
 
-                # Delay additional checks for crosses by some amount of time. Due to the long
-                # graph access times we cannot reliably catch all crosses in this implementation.
-                # Soon the implementation of crosses in the graph will be updated such that
-                # processing all crosses is trivial, for now we accept that we have limited
-                # fidelity and do not attempt to convey all of the very rapid crosses that may
-                # occur when price is holding near peg.
-                logging.info(
-                    f'Pausing peg checks for {CROSS_COOLDOWN} seconds to prevent imperfect spam.')
-                time.sleep(CROSS_COOLDOWN)
-
 
     def _check_for_peg_cross(self):
         """
         Check to see if the peg has been crossed since the last known timestamp of the caller.
         Assumes that block time > period of graph checks.
 
-        Note that this call can take over 10 seconds due to graph access delays. If an access
-        takes longer than two blocks it is possible to miss a cross (only the latest cross)
-        will be reported.
-
         Returns:
             PegCrossType
         """
         cross_type = PegCrossType.NO_CROSS
 
-        # Get latest data from graph. May take 10+ seconds.
-        result = self.bean_graph_client.get_bean_fields([LAST_PEG_CROSS_FIELD, PRICE_FIELD])
-        last_cross = int(result[LAST_PEG_CROSS_FIELD])
-        price = float(result[PRICE_FIELD])
+        # Get latest data from graph.
+        result = self.bean_graph_client.last_cross()
+        last_cross = int(result['timestamp'])
+        cross_above = float(result['above'])
 
         # # For testing.
         # import random
@@ -109,14 +93,13 @@ class PegCrossMonitor():
         if not self.last_known_cross:
             logging.info('Peg cross timestamp initialized with last peg cross = '
                          f'{last_cross}')
-        else:
-            if last_cross > self.last_known_cross:
-                if price >= 1.0:
-                    logging.info('Price crossed above peg.')
-                    cross_type = PegCrossType.CROSS_ABOVE
-                else:
-                    logging.info('Price crossed below peg.')
-                    cross_type = PegCrossType.CROSS_BELOW
+        elif self.last_known_cross < last_cross:
+            if cross_above:
+                logging.info('Price crossed above peg.')
+                cross_type = PegCrossType.CROSS_ABOVE
+            else:
+                logging.info('Price crossed below peg.')
+                cross_type = PegCrossType.CROSS_BELOW
         self.last_known_cross = last_cross
         return cross_type
 
