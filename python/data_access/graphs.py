@@ -167,17 +167,29 @@ def execute(client, query_str):
             logging.info(f'GraphQL result ({int(time.time())}):\n{result}')
             return result
         except asyncio.exceptions.TimeoutError:
-            logging.warning('Timeout error on subgraph access. Retrying...')
+            logging.warning(f'Timeout error on {client_subgraph_name(client)} subgraph access. Retrying...')
         except RuntimeError as e:
+            # This is a bad state. It means the underlying thread exiting without properly
+            # stopping these threads. This state is never expected.
             logging.error(e)
             logging.error('Main thread no longer running. Exiting.')
             exit(1)
         except Exception as e:
-            logging.warning(f'Unexpected error on subgraph access:\n{e}\n Retrying...')
+            logging.warning(f'Unexpected error on {client_subgraph_name(client)} subgraph access:'
+                            f'\n{e}\n Retrying...')
         time.sleep(1)
         try_count += 1
     raise GraphAccessException
 
+def client_subgraph_name(client):
+    """Return a plain string name of the subgraph for the given gql.Client object."""
+    url = client.transport.url
+    if url == BEAN_GRAPH_ENDPOINT:
+        return 'Bean'
+    if url == BEANSTALK_GRAPH_ENDPOINT:
+        return 'Beanstalk'
+    else:
+        return 'unknown'
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""

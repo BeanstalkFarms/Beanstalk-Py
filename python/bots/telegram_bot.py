@@ -38,7 +38,7 @@ class TelegramBot(object):
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='Telegram Bot : %(levelname)s : %(message)s', level=logging.INFO)
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.

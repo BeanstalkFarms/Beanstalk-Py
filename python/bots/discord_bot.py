@@ -103,7 +103,7 @@ class DiscordClient(discord.Client):
             return
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='Discord Bot : %(levelname)s : %(message)s', level=logging.INFO)
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.
@@ -119,4 +119,5 @@ if __name__ == '__main__':
         discord_client.run(token)
     except (KeyboardInterrupt, SystemExit):
         pass
+    # Note that discord bot cannot send shutting down messages in its channel, due to lib impl.
     discord_client.stop()
