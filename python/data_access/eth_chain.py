@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import json
 import os
@@ -96,14 +97,14 @@ class EthEventClient():
         for filter in self.event_log_filters:
             for event in self.safe_get_new_entries(filter):
                 event_logs.append(event)
-                print(event)
+                logging.info(event)
         return event_logs
 
     def safe_get_new_entries(self, filter):
         while True:
             try:
                 return filter.get_new_entries()
-            except ValueError:
+            except (ValueError, asyncio.exceptions.TimeoutError):
                 logging.info('get_new_entries() failed or timed out. Retrying...')
 
 if __name__ == '__main__':

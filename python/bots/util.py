@@ -236,8 +236,9 @@ class SunriseMonitor():
 
 class PoolMonitor():
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
-    def __init__(self, message_function):
+    def __init__(self, message_function, prod=False):
         self.message_function = message_function
+        self.prod = prod
         self._eth_event_client = eth_chain.EthEventClient()
         self._eth_event_client.set_event_log_filters_pool_contract()
         # self._pool_contract_filter = eth_chain.get_pool_contract_filter()
@@ -245,13 +246,15 @@ class PoolMonitor():
         self._pool_thread = threading.Thread(target=self._monitor_pool_events)
 
     def start(self):
-        logging.info('Starting pool monitoring thread...')
+        if not self.prod:
+            logging.info('Starting pool monitoring...')
         self._thread_active = True
         self._pool_thread.start()
         self.message_function('Pool monitoring started.')
 
     def stop(self):
-        logging.info('Stopping pool monitoring thread...')
+        if not self.prod:
+            logging.info('Stopping pool monitoring...')
         self._thread_active = False
         self._pool_thread.join(3 / EVENT_POLL_FREQUENCY)
         self.message_function('Pool monitoring stopped.')
@@ -267,7 +270,6 @@ class PoolMonitor():
 
         Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
         """
-        logging.info(event_log)
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))

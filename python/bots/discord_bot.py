@@ -42,8 +42,8 @@ class DiscordClient(discord.Client):
         self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons, prod=prod)
         self.sunrise_monitor.start()
 
-        # self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
-        # self.pool_monitor.start()
+        self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
+        self.pool_monitor.start()
 
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
@@ -51,7 +51,7 @@ class DiscordClient(discord.Client):
     def stop(self):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
-        # self.pool_monitor.stop()
+        self.pool_monitor.stop()
 
     def send_msg_peg(self, text):
         """Send a message through the Discord bot in the peg channel."""
