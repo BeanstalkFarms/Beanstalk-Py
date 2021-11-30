@@ -93,17 +93,24 @@ class PegCrossMonitor():
         # self.last_known_cross = 1
         # price = random.uniform(0.5, 1.5)
 
+        # If the last known cross has not been set yet, initialize it.
         if not self.last_known_cross:
             logging.info('Peg cross timestamp initialized with last peg cross = '
                          f'{last_cross}')
-        elif self.last_known_cross < last_cross:
-            if cross_above:
-                logging.info('Price crossed above peg.')
-                cross_type = PegCrossType.CROSS_ABOVE
-            else:
-                logging.info('Price crossed below peg.')
-                cross_type = PegCrossType.CROSS_BELOW
+            self.last_known_cross = last_cross
+
+        # If the cross is not newer than the last known cross, return.
+        if last_cross <= self.last_known_cross:
+            return cross_type
+
+        # Else a new cross has been detected. Determine the cross type and return.
         self.last_known_cross = last_cross
+        if cross_above:
+            logging.info('Price crossed above peg.')
+            cross_type = PegCrossType.CROSS_ABOVE
+        else:
+            logging.info('Price crossed below peg.')
+            cross_type = PegCrossType.CROSS_BELOW
         return cross_type
 
     @abstractmethod
