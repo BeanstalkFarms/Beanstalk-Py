@@ -248,7 +248,6 @@ class PoolMonitor():
         self.prod = prod
         self._eth_event_client = eth_chain.EthEventClient()
         self._eth_event_client.set_event_log_filters_pool_contract()
-        # self._pool_contract_filter = eth_chain.get_pool_contract_filter()
         self._thread_active = False
         self._pool_thread = threading.Thread(target=self._monitor_pool_events)
 
@@ -286,16 +285,16 @@ class PoolMonitor():
         bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
         if event_log.event == 'Mint':
-            event_str = f'👉 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+            event_str = f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
         elif event_log.event == 'Burn':
             eth_out = eth_chain.eth_to_float(event_log.args.amount0)
             bean_out = eth_chain.bean_to_float(event_log.args.amount1)
-            event_str = f'👈 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+            event_str = f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
         elif event_log.event == 'Swap':
             if eth_in > 0:
-                event_str = f'🤝 {round_num(eth_in, 3)} ETH swapped for {round_num(bean_out)} Beans'
+                event_str = f'📗 {round_num(bean_out, 3)} Beans bought for {round_num(eth_in)} ETH'
             elif bean_in > 0:
-                event_str = f'🤝 {round_num(bean_in)} Beans swapped for {round_num(eth_out, 3)} ETH'
+                event_str = f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 3)} ETH'
             else:
                 logging.warning('Unexpected Swap args detected.')
 
