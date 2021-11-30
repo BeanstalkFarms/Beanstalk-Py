@@ -310,6 +310,10 @@ def round_num(number, precision=2):
     """Round a string or float to requested precision and return as a string."""
     return f'{float(number):,.{precision}f}'
 
+def handle_sigterm():
+    """Process a sigterm with a python exception for clean exiting."""
+    logging.warning("Handling SIGTERM.")
+    raise SystemExit
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""

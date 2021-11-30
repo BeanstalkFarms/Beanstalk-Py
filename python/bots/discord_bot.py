@@ -1,5 +1,6 @@
 from enum import Enum
 import logging
+import signal
 import os
 
 import discord
@@ -41,11 +42,16 @@ class DiscordClient(discord.Client):
         self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons)
         self.sunrise_monitor.start()
 
-        self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
-        self.pool_monitor.start()
+        # self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
+        # self.pool_monitor.start()
 
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
+
+    def stop(self):
+        self.peg_cross_monitor.stop()
+        self.sunrise_monitor.stop()
+        # self.pool_monitor.stop()
 
     def send_msg_peg(self, text):
         """Send a message through the Discord bot in the peg channel."""
@@ -98,6 +104,7 @@ class DiscordClient(discord.Client):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
+    signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.
     try:
@@ -110,8 +117,6 @@ if __name__ == '__main__':
     discord_client = DiscordClient(prod=prod)
     try:
         discord_client.run(token)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         pass
-    discord_client.peg_cross_monitor.stop()
-    discord_client.sunrise_monitor.stop()
-    discord_client.pool_monitor.stop()
+    discord_client.stop()
