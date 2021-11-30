@@ -102,8 +102,11 @@ class DiscordClient(discord.Client):
             await message.channel.send('I am alive and running!')
             return
 
+
 if __name__ == '__main__':
-    logging.basicConfig(format='Discord Bot : %(levelname)s : %(message)s', level=logging.INFO)
+    logging.basicConfig(format='Discord Bot : %(levelname)s : %(asctime)s : %(message)s',
+                        level=logging.INFO, handlers=[logging.FileHandler("discord_bot.log"),
+                        logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.

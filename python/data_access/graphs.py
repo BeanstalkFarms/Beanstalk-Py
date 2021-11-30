@@ -160,11 +160,11 @@ def execute(client, query_str):
 
     try_count = 0
     while try_count < max_tries:
-        logging.info(f'GraphQL query ({int(time.time())}):\n'
+        logging.info(f'GraphQL query:'
                      f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
         try:
             result = client.execute(query)
-            logging.info(f'GraphQL result ({int(time.time())}):\n{result}')
+            logging.info(f'GraphQL result:{result}')
             return result
         except asyncio.exceptions.TimeoutError:
             logging.warning(f'Timeout error on {client_subgraph_name(client)} subgraph access. Retrying...')
