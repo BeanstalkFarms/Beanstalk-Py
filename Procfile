@@ -1,1 +1,1 @@
-worker_bots: cd python && python -m bots.discord_bot & python -m bots.telegram_bot ; kill -15 $!
+worker_bots: cd python && python -m bots.discord_bot
