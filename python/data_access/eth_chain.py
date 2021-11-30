@@ -17,7 +17,7 @@ BEAN_DECIMALS = 6
 # BEAN_TOKEN_ADDR = '0xDC59ac4FeFa32293A95889Dc396682858d52e5Db'
 UNI_V2_POOL_ADDR = '0x87898263B6C5BABe34b4ec53F22d98430b91e371'
 
-with open(os.path.expanduser('~/Programs/beanstalk_protocol/Beanstalk-Tooling/contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
+with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
     # with open(os.path.expanduser('~/Programs/beanstalk_protocol/Beanstalk-Tooling/contracts/ethereum/univ2pool.json')) as pool_abi_file:
     pool_abi = json.load(pool_abi_file)
 pool_contract = web3.eth.contract(address=UNI_V2_POOL_ADDR, abi=pool_abi)
