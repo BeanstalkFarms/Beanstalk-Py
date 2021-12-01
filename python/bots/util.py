@@ -232,10 +232,10 @@ class SunriseMonitor():
             ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
         #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
-        ret_string += f'\n\n👉 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
-        ret_string += f'\n👉 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
-        ret_string += f'\n👈 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
-        ret_string += f'\n👈 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
+        ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
+        ret_string += f'\n📥 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
+        ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
+        ret_string += f'\n📤 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
         return ret_string
@@ -247,6 +247,7 @@ class PoolMonitor():
         self.message_function = message_function
         self.prod = prod
         self._eth_event_client = eth_chain.EthEventClient()
+        self._bean_graph_client = BeanSqlClient()
         self._eth_event_client.set_event_log_filters_pool_contract()
         self._thread_active = False
         self._pool_thread = threading.Thread(target=self._monitor_pool_events)
@@ -284,19 +285,30 @@ class PoolMonitor():
         eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
         bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
-        if event_log.event == 'Mint':
-            event_str = f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
-        elif event_log.event == 'Burn':
-            eth_out = eth_chain.eth_to_float(event_log.args.amount0)
-            bean_out = eth_chain.bean_to_float(event_log.args.amount1)
-            event_str = f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+
+        # Get bean price from subgrah.
+        current_price = self._bean_graph_client.current_bean_price()
+        lp_value = bean_amount * 2 * current_price
+
+        if bean_amount:
+            if event_log.event == 'Mint':
+                event_str = f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+            if event_log.event == 'Burn':
+                event_str = f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+            event_str += f' (${round_num(lp_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
+            event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             if eth_in > 0:
-                event_str = f'📗 {round_num(bean_out, 3)} Beans bought for {round_num(eth_in)} ETH'
+                swap_value = current_price * bean_out
+                event_str = f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 3)} ETH'
             elif bean_in > 0:
+                swap_value = current_price * bean_in
                 event_str = f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 3)} ETH'
             else:
                 logging.warning('Unexpected Swap args detected.')
+            event_str += f' (${round_num(swap_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
+            event_str += f'\n{value_to_emojis(swap_value)}'
+            event_str += f'\nThe new price is ${round_num(current_price)}.'
 
         logging.info(event_str)
         self.message_function(event_str)
@@ -306,6 +318,18 @@ class PoolMonitor():
 def round_num(number, precision=2):
     """Round a string or float to requested precision and return as a string."""
     return f'{float(number):,.{precision}f}'
+
+def value_to_emojis(value):
+    """Convert a dollar value to a string of emojis."""
+    value = int(value)
+    if value <= 0:
+        return ''
+    elif value < 10000:
+        return '🐟' * (value // 1000) or '🐟'
+    elif value < 100000:
+        return '🦈' * (value // 10000)
+    else:
+        return '🐳' * (value // 100000)
 
 def handle_sigterm():
     """Process a sigterm with a python exception for clean exiting."""

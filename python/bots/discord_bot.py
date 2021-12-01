@@ -11,6 +11,7 @@ from bots import util
 
 DISCORD_CHANNEL_ID_PEG_CROSSES = 911338190198169710
 DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
+DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 
 
@@ -27,6 +28,7 @@ class DiscordClient(discord.Client):
         if prod:
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
+            self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
             logging.info('Configured as a production instance.')
         else:
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
