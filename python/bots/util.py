@@ -38,11 +38,11 @@ class PegCrossMonitor():
         self._crossing_thread = threading.Thread(target=self._monitor_for_cross)
 
     def start(self):
+        logging.info('Starting peg monitoring thread...')
         if not self.prod:
-            logging.info('Starting peg monitoring thread...')
+            self.message_function('Peg monitoring started.')
         self._thread_active = True
         self._crossing_thread.start()
-        self.message_function('Peg monitoring started.')
 
     def stop(self):
         if not self.prod:
@@ -138,11 +138,11 @@ class SunriseMonitor():
         self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
 
     def start(self):
+        logging.info('Starting sunrise monitoring thread...')
         if not self.prod:
-            logging.info('Starting sunrise monitoring thread...')
+            self.message_function('Sunrise monitoring started.')
         self._thread_active = True
         self._sunrise_thread.start()
-        self.message_function('Sunrise monitoring started.')
 
     def stop(self):
         if not self.prod:
@@ -243,9 +243,10 @@ class SunriseMonitor():
 
 class PoolMonitor():
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
-    def __init__(self, message_function, prod=False):
+    def __init__(self, message_function, prod=False, dry_run=False):
         self.message_function = message_function
         self.prod = prod
+        self._dry_run = dry_run
         self._eth_event_client = eth_chain.EthEventClient()
         self._bean_graph_client = BeanSqlClient()
         self._eth_event_client.set_event_log_filters_pool_contract()
@@ -253,11 +254,14 @@ class PoolMonitor():
         self._pool_thread = threading.Thread(target=self._monitor_pool_events)
 
     def start(self):
-        if not self.prod:
-            logging.info('Starting pool monitoring...')
+        logging.info('Starting pool monitoring...')
+        if self._dry_run:
+            self.message_function('Pool monitoring started (with simulated data).')
+            logging.warning('Pool monitoring is using simulated data (dry_run == True).')
+        elif not self.prod:
+            self.message_function('Pool monitoring started.')
         self._thread_active = True
         self._pool_thread.start()
-        self.message_function('Pool monitoring started.')
 
     def stop(self):
         if not self.prod:
@@ -268,7 +272,7 @@ class PoolMonitor():
 
     def _monitor_pool_events(self):
         while self._thread_active:
-            for event_log in self._eth_event_client.get_new_log_entries():
+            for event_log in self._eth_event_client.get_new_log_entries(dry_run=self._dry_run):
                 self._handle_pool_event_log(event_log)
             time.sleep(1/EVENT_POLL_FREQUENCY)
 
@@ -286,32 +290,36 @@ class PoolMonitor():
         bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
 
-        # Get bean price from subgrah.
-        current_price = self._bean_graph_client.current_bean_price()
-        lp_value = bean_amount * 2 * current_price
-
         if bean_amount:
             if event_log.event == 'Mint':
                 event_str = f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
             if event_log.event == 'Burn':
                 event_str = f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+            # Get pricing from uni pools.
+            bean_price = eth_chain.current_bean_price()
+            # LP add/remove always takes equal value of both assets.
+            lp_value = bean_amount * bean_price * 2
             event_str += f' (${round_num(lp_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
             event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             if eth_in > 0:
-                swap_value = current_price * bean_out
                 event_str = f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 3)} ETH'
+                swap_price = eth_chain.avg_swap_price(eth_in, bean_out)
+                swap_value = swap_price * bean_out
             elif bean_in > 0:
-                swap_value = current_price * bean_in
                 event_str = f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 3)} ETH'
+                swap_price = eth_chain.avg_swap_price(eth_out, bean_in)
+                swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')
+                return ''
+            
             event_str += f' (${round_num(swap_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
             event_str += f'\n{value_to_emojis(swap_value)}'
-            event_str += f'\nThe new price is ${round_num(current_price)}.'
+            event_str += f'\nThe new price is ${round_num(swap_price)}.'
 
         logging.info(event_str)
-        self.message_function(event_str)
+        self.message_function(event_str + '\n')
         return
 
     
@@ -330,6 +338,11 @@ def value_to_emojis(value):
         return '🦈' * (value // 10000)
     else:
         return '🐳' * (value // 100000)
+
+def msg_includes_embedded_links(msg):
+    """Attempt to detect if there are embedded links in this message. Not an exact system."""
+    if msg.count(']('):
+        return True
 
 def handle_sigterm():
     """Process a sigterm with a python exception for clean exiting."""
