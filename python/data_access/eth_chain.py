@@ -23,7 +23,7 @@ ETH_USDC_POOL_ADDR = '0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc'
 with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
     pool_abi = json.load(pool_abi_file)
 eth_bean_pool_contract = web3.eth.contract(address=ETH_BEAN_POOL_ADDR, abi=pool_abi)
-eth_usdc_pool_contract = web3.eth.contract(address=ETH_BEAN_POOL_ADDR, abi=pool_abi)
+eth_usdc_pool_contract = web3.eth.contract(address=ETH_USDC_POOL_ADDR, abi=pool_abi)
 
 def current_eth_price():
     reserve0, reserve1, _ = eth_usdc_pool_contract.functions.getReserves().call()
