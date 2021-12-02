@@ -232,9 +232,9 @@ class SunriseMonitor():
             ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
         #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
-        ret_string += f'\n\n📪 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
-        ret_string += f'\n📬 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
+        ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
         ret_string += f'\n📥 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
+        ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
         ret_string += f'\n📤 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
