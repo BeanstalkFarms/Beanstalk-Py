@@ -305,18 +305,18 @@ class PoolMonitor():
             event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             if eth_in > 0:
-                event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 3)} ETH'
+                event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
                 swap_price = eth_chain.avg_swap_price(eth_in, bean_out)
                 swap_value = swap_price * bean_out
             elif bean_in > 0:
-                event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 3)} ETH'
+                event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
                 swap_price = eth_chain.avg_swap_price(eth_out, bean_in)
                 swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')
                 return ''            
-            event_str += f' @ ${round_num(swap_price)} (${round_num(swap_value)})'
-            event_str += f'  -  New price is ${round_num(bean_price)}'
+            event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+            event_str += f'  -  New price is ${round_num(bean_price, 4)}'
             event_str += f'\n{value_to_emojis(swap_value)}'
 
         logging.info(event_str)

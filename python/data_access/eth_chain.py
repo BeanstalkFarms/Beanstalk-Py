@@ -48,12 +48,12 @@ def eth_to_float(gwei):
 def bean_to_float(bean_long):
     if not bean_long:
         return 0
-    return int(bean_long) / (10** BEAN_DECIMALS)
+    return int(bean_long) / (10 ** BEAN_DECIMALS)
 
 def usdc_to_float(usdc_long):
     if not usdc_long:
         return 0
-    return int(usdc_long) / (10** USDC_DECIMALS)
+    return int(usdc_long) / (10 ** USDC_DECIMALS)
 
 def avg_swap_price(eth, beans):
     return current_eth_price() * (eth / beans)
