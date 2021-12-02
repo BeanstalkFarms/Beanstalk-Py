@@ -119,9 +119,9 @@ class PegCrossMonitor():
         # NOTE(funderberker): Have to compare enum values here because method of import of caller
         # can change the enum id.
         if cross_type.value == PegCrossType.CROSS_ABOVE.value:
-            return 'BEAN crossed above peg! 🟩↗'
+            return '🔋 BEAN crossed above peg!'
         elif cross_type.value == PegCrossType.CROSS_BELOW.value:
-            return 'BEAN crossed below peg! 🟥↘'
+            return '🧮 BEAN crossed below peg!'
         else:
             return 'Peg not crossed.'
 
@@ -232,12 +232,13 @@ class SunriseMonitor():
             ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
         #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
-        ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
+        ret_string += f'\n\n📪 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
         ret_string += f'\n📥 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
-        ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
+        ret_string += f'\n📬 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
         ret_string += f'\n📤 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
+        ret_string += '\n_ _' # Empty line.
         return ret_string
 
 
