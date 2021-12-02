@@ -281,7 +281,7 @@ class PoolMonitor():
 
         Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
         """
-        event_str = ''
+        event_str = f'<https://etherscan.io/tx/{event_log.transactionHash.hex()}>\n'
         # Parse possible values of interest from the event log. Not all will be populated.
         eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
         bean_amount = eth_chain.bean_to_float(event_log.args.get('amount1'))
@@ -289,37 +289,37 @@ class PoolMonitor():
         eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
         bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
+ 
+        # Get pricing from uni pools.
+        bean_price = eth_chain.current_bean_price()
 
         if bean_amount:
             if event_log.event == 'Mint':
-                event_str = f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+                event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
             if event_log.event == 'Burn':
-                event_str = f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
-            # Get pricing from uni pools.
-            bean_price = eth_chain.current_bean_price()
+                event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
             # LP add/remove always takes equal value of both assets.
             lp_value = bean_amount * bean_price * 2
             event_str += f' (${round_num(lp_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
             event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             if eth_in > 0:
-                event_str = f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 3)} ETH'
+                event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 3)} ETH'
                 swap_price = eth_chain.avg_swap_price(eth_in, bean_out)
                 swap_value = swap_price * bean_out
             elif bean_in > 0:
-                event_str = f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 3)} ETH'
+                event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 3)} ETH'
                 swap_price = eth_chain.avg_swap_price(eth_out, bean_in)
                 swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')
-                return ''
-            
-            event_str += f' (${round_num(swap_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
+                return ''            
+            event_str += f' @ ${round_num(swap_price)} (${round_num(swap_value)})'
+            event_str += f'  -  New price is ${round_num(bean_price)}'
             event_str += f'\n{value_to_emojis(swap_value)}'
-            event_str += f'\nThe new price is ${round_num(swap_price)}.'
 
         logging.info(event_str)
-        self.message_function(event_str + '\n')
+        self.message_function(event_str + '\n_ _')
         return
 
     
@@ -328,16 +328,21 @@ def round_num(number, precision=2):
     return f'{float(number):,.{precision}f}'
 
 def value_to_emojis(value):
-    """Convert a dollar value to a string of emojis."""
+    """Convert a rounded dollar value to a string of emojis."""
     value = int(value)
     if value <= 0:
         return ''
-    elif value < 10000:
+    
+    value = round(value, -3)
+    if value < 10000:
         return '🐟' * (value // 1000) or '🐟'
-    elif value < 100000:
+    
+    value = round(value, -4)
+    if value < 100000:
         return '🦈' * (value // 10000)
-    else:
-        return '🐳' * (value // 100000)
+    
+    value = round(value, -5)
+    return '🐳' * (value // 100000)
 
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
