@@ -282,7 +282,7 @@ class PoolMonitor():
 
         Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
         """
-        event_str = f'<https://etherscan.io/tx/{event_log.transactionHash.hex()}>\n'
+        event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
         bean_amount = eth_chain.bean_to_float(event_log.args.get('amount1'))
@@ -319,6 +319,7 @@ class PoolMonitor():
             event_str += f'  -  New price is ${round_num(bean_price, 4)}'
             event_str += f'\n{value_to_emojis(swap_value)}'
 
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         logging.info(event_str)
         self.message_function(event_str + '\n_ _')
         return
