@@ -27,18 +27,23 @@ eth_usdc_pool_contract = web3.eth.contract(address=ETH_USDC_POOL_ADDR, abi=pool_
 
 def current_eth_price():
     reserve0, reserve1, _ = eth_usdc_pool_contract.functions.getReserves().call()
-    eth_reserves = eth_to_float(reserve0)
-    usdc_reserves = usdc_to_float(reserve1)
-    logging.info('current eth price: ' + str(usdc_reserves / eth_reserves))
-    return usdc_reserves / eth_reserves
+    eth_reserves = eth_to_float(reserve1)
+    usdc_reserves = usdc_to_float(reserve0)
+    eth_price = usdc_reserves / eth_reserves
+    logging.info('Current ETH Price: ' + str(eth_price))
+    return eth_price
 
 def current_bean_price():
     reserve0, reserve1, _ = eth_bean_pool_contract.functions.getReserves().call()
     eth_reserves = eth_to_float(reserve0)
     bean_reserves = bean_to_float(reserve1)
-    logging.info('current bean price: ' + str(current_eth_price() * eth_reserves / bean_reserves))
-    return current_eth_price() * eth_reserves / bean_reserves
+    bean_price = current_eth_price() * eth_reserves / bean_reserves
+    logging.info('Current bean price: ' + str(bean_price))
+    return bean_price
 
+def avg_swap_price(eth, beans):
+    """Returns the $/bean cost for a swap txn using the $/ETH price."""
+    return current_eth_price() * (eth / beans)
 
 def eth_to_float(gwei):
     if not gwei:
@@ -55,8 +60,6 @@ def usdc_to_float(usdc_long):
         return 0
     return int(usdc_long) / (10 ** USDC_DECIMALS)
 
-def avg_swap_price(eth, beans):
-    return current_eth_price() * (eth / beans)
 
 
 # For testing purposes.
@@ -113,9 +116,11 @@ class EthEventClient():
     def safe_get_new_entries(self, filter):
         while True:
             try:
+                logging.info(f'Checking for new entries on latest block with filter {filter.filter_id}.')
                 return filter.get_new_entries()
             except (ValueError, asyncio.exceptions.TimeoutError):
-                logging.info('get_new_entries() failed or timed out. Retrying...')
+                logging.info('filter.get_new_entries() failed or timed out. Retrying...')
+                time.sleep(1)
 
 def maybe_get_test_events(percent_chance=1.0):
     """Get a list of old events to use for testing."""
