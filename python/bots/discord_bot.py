@@ -44,7 +44,7 @@ class DiscordClient(discord.Client):
         self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons, prod=prod)
         self.sunrise_monitor.start()
 
-        self.pool_monitor = util.PoolMonitor(self.send_msg_pool)
+        self.pool_monitor = util.PoolMonitor(self.send_msg_pool, prod=prod)
         self.pool_monitor.start()
 
         # Start the message queue sending task in the background.
