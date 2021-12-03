@@ -121,7 +121,7 @@ class PegCrossMonitor():
         if cross_type.value == PegCrossType.CROSS_ABOVE.value:
             return '🟩↗ BEAN crossed above peg!'
         elif cross_type.value == PegCrossType.CROSS_BELOW.value:
-            return '🟥↗ BEAN crossed below peg!'
+            return '🟥↘ BEAN crossed below peg!'
         else:
             return 'Peg not crossed.'
 
