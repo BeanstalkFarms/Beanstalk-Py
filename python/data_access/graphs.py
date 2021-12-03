@@ -99,7 +99,12 @@ class BeanSqlClient(object):
             }
         """
         # Create gql query and execute.
-        return execute(self._client, query_str)['crosses']
+        try:
+            return execute(self._client, query_str)['crosses']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error('Killing all processes due to inability to access Bean subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
 
 class BeanstalkSqlClient(object):
 
@@ -148,18 +153,22 @@ class BeanstalkSqlClient(object):
         query_str = query_str[:fields_index_start] + ' '.join(fields) + query_str[fields_index_end:]
 
         # Create gql query and execute.
-        return execute(self._client, query_str)['seasons']
+        try:
+            return execute(self._client, query_str)['seasons']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error('Killing all processes due to inability to access Beanstalk subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
         
 class GraphAccessException(Exception):
     """Failed to access the graph."""
 
-def execute(client, query_str):
+def execute(client, query_str, max_tries=0):
     """Convert query string into a gql query and execute query."""
-    max_tries = 10
     query = gql(query_str)
 
     try_count = 0
-    while try_count < max_tries:
+    while not max_tries or try_count < max_tries:
         logging.info(f'GraphQL query:'
                      f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
         try:
