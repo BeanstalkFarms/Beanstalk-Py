@@ -316,7 +316,7 @@ class PoolMonitor():
                 logging.warning('Unexpected Swap args detected.')
                 return ''            
             event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-            event_str += f'  -  New price is ${round_num(bean_price, 4)}'
+            event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
             event_str += f'\n{value_to_emojis(swap_value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
