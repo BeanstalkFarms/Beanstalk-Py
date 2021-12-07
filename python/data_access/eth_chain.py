@@ -5,7 +5,6 @@ import os
 import time
 
 from web3 import Web3, WebsocketProvider
-from web3.types import FilterParams
 
 API_KEY = os.environ['ETH_CHAIN_API_KEY']
 URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY

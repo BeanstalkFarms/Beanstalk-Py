@@ -19,37 +19,55 @@ SEASON_DURATION = 3600 # seconds
 SUNRISE_CHECK_PERIOD = 10
 # Frequency to check chain for new Uniswap V2 pool interactions.
 EVENT_POLL_FREQUENCY = 0.1
+# Rate at which to check for events on the Beanstalk contract.
+BEANSTALK_CHECK_RATE = 3 # seconds
 
 class PegCrossType(Enum):
     NO_CROSS = 0
     CROSS_ABOVE = 1
     CROSS_BELOW = 2
 
-# NOTE(funderberker): Fidelity can be improved by reading through list of crosses and taking
-# all since the last known cross. Return list of cross types.
-class PegCrossMonitor():
-    """Monitor bean graph for peg crosses and send out messages on detection."""
-    def __init__(self, message_function, prod=False):
+
+class Monitor():
+    """Base class for monitors. Do not use directly.
+    
+    Args:
+        name: simple human readable name string to use for logging.
+        message_function: fun(str) style function to send application messages.
+        query_rate: int representing rate monitored data should be queried (in seconds).
+        prod: bool indicating if this is a production instance or not.
+    """
+    def __init__(self, name, message_function, query_rate, prod=False, dry_run=False):
+        self.name = name
         self.message_function = message_function
+        self.query_rate = query_rate
         self.prod = prod
-        self.bean_graph_client = BeanSqlClient()
-        self.last_known_cross = 0
+        self._dry_run = dry_run
         self._thread_active = False
-        self._crossing_thread = threading.Thread(target=self._monitor_for_cross)
+        self._thread = None
 
     def start(self):
-        logging.info('Starting peg monitoring thread...')
+        logging.info(f'Starting {self.name} monitoring thread...')
         if not self.prod:
-            self.message_function('Peg monitoring started.')
+            self.message_function(f'{self.name} monitoring started.')
         self._thread_active = True
-        self._crossing_thread.start()
+        self._thread.start()
 
     def stop(self):
         if not self.prod:
-            logging.info('Stopping peg monitoring thread...')
+            logging.info(f'Stopping {self.name} monitoring thread...')
         self._thread_active = False
-        self._crossing_thread.join(10 / PEG_UPDATE_FREQUENCY)
-        self.message_function('Peg monitoring stopped.')
+        self._thread.join(3 * self.query_rate)
+        self.message_function(f'{self.name} monitoring stopped.')
+
+
+class PegCrossMonitor():
+    """Monitor bean graph for peg crosses and send out messages on detection."""
+    def __init__(self, message_function, prod=False):
+        super().__init__('peg', message_function, 1 / PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
+        self.bean_graph_client = BeanSqlClient()
+        self.last_known_cross = 0
+        self._thread = threading.Thread(target=self._monitor_for_cross)
 
     # NOTE(funderberker): graph implementation of cross data will change soon.
     def _monitor_for_cross(self):
@@ -127,29 +145,11 @@ class PegCrossMonitor():
 
 class SunriseMonitor():
     def __init__(self, message_function, prod=False):
-        self.message_function = message_function
-        self.prod = prod
+        super().__init__('sunrise', message_function, SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
         self.beanstalk_graph_client = BeanstalkSqlClient()
-
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
-
-        self._thread_active = False
-        self._sunrise_thread = threading.Thread(target=self._monitor_for_sunrise)
-
-    def start(self):
-        logging.info('Starting sunrise monitoring thread...')
-        if not self.prod:
-            self.message_function('Sunrise monitoring started.')
-        self._thread_active = True
-        self._sunrise_thread.start()
-
-    def stop(self):
-        if not self.prod:
-            logging.info('Stopping sunrise monitoring thread...')
-        self._thread_active = False
-        self._sunrise_thread.join(SUNRISE_CHECK_PERIOD * 3)
-        self.message_function('Sunrise monitoring stopped.')
+        self._thread = threading.Thread(target=self._monitor_for_sunrise)
 
     def _monitor_for_sunrise(self):
         while self._thread_active:
@@ -201,6 +201,7 @@ class SunriseMonitor():
             time.sleep(SUNRISE_CHECK_PERIOD)
         return None, None
 
+
     def season_summary_string(self, last_season_stats, current_season_stats):
         new_farmable_beans = float(current_season_stats['newFarmableBeans'])
         new_harvestable_pods = float(current_season_stats['newHarvestablePods'])
@@ -233,56 +234,35 @@ class SunriseMonitor():
         # if newSoil:
         #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
         ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
-        ret_string += f'\n📥 {deposited_bean_lp} Beans and {deposited_eth_lp} ETH of LP deposited'
+        ret_string += f'\n📥 {round_num(deposited_bean_lp)} Beans and {round_num(deposited_eth_lp)} ETH of LP deposited'
         ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
-        ret_string += f'\n📤 {withdrawn_bean_lp} Beans and {withdrawn_eth_lp} ETH of LP withdrawn'
+        ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
-        ret_string += '\n_ _' # Empty line.
+        ret_string += '\n_ _' # empty line that does not get stripped
         return ret_string
 
 
-class PoolMonitor():
+class PoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
     def __init__(self, message_function, prod=False, dry_run=False):
-        self.message_function = message_function
-        self.prod = prod
-        self._dry_run = dry_run
-        self._eth_event_client = eth_chain.EthEventClient()
-        self._bean_graph_client = BeanSqlClient()
-        self._eth_event_client.set_event_log_filters_pool_contract()
-        self._thread_active = False
-        self._pool_thread = threading.Thread(target=self._monitor_pool_events)
+        super().__init__('pool', message_function, 1/EVENT_POLL_FREQUENCY, prod=prod, dry_run=dry_run)
+        self._eth_event_client = eth_chain.EthEventsClient(eth_chain.get_event_log_filters_pool())
+        self._thread = threading.Thread(target=self._monitor_events)
 
-    def start(self):
-        logging.info('Starting pool monitoring...')
-        if self._dry_run:
-            self.message_function('Pool monitoring started (with simulated data).')
-            logging.warning('Pool monitoring is using simulated data (dry_run == True).')
-        elif not self.prod:
-            self.message_function('Pool monitoring started.')
-        self._thread_active = True
-        self._pool_thread.start()
-
-    def stop(self):
-        if not self.prod:
-            logging.info('Stopping pool monitoring...')
-        self._thread_active = False
-        self._pool_thread.join(3 / EVENT_POLL_FREQUENCY)
-        self.message_function('Pool monitoring stopped.')
-
-    def _monitor_pool_events(self):
+    def _monitor_events(self):
         while self._thread_active:
             for event_log in self._eth_event_client.get_new_log_entries(dry_run=self._dry_run):
-                self._handle_pool_event_log(event_log)
+                self._handle_event_log(event_log)
             time.sleep(1/EVENT_POLL_FREQUENCY)
 
-    def _handle_pool_event_log(self, event_log):
+    def _handle_event_log(self, event_log):
         """Process the pool event log.
 
         Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
         """
         event_str = ''
+
         # Parse possible values of interest from the event log. Not all will be populated.
         eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
         bean_amount = eth_chain.bean_to_float(event_log.args.get('amount1'))
@@ -294,14 +274,14 @@ class PoolMonitor():
         # Get pricing from uni pools.
         bean_price = eth_chain.current_bean_price()
 
-        if bean_amount:
+        if event_log.event in ['Mint', 'Burn']:
             if event_log.event == 'Mint':
                 event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
             if event_log.event == 'Burn':
                 event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
             # LP add/remove always takes equal value of both assets.
             lp_value = bean_amount * bean_price * 2
-            event_str += f' (${round_num(lp_value)})' # (https://etherscan.io/tx/{event_log.transactionHash.hex()})'
+            event_str += f' (${round_num(lp_value)})'
             event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             if eth_in > 0:
@@ -334,15 +314,12 @@ def value_to_emojis(value):
     value = int(value)
     if value <= 0:
         return ''
-    
     value = round(value, -3)
     if value < 10000:
         return '🐟' * (value // 1000) or '🐟'
-    
     value = round(value, -4)
     if value < 100000:
         return '🦈' * (value // 10000)
-    
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
