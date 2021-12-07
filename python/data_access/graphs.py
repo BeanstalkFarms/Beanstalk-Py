@@ -11,7 +11,6 @@ from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
 
-
 FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
                          'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
@@ -28,10 +27,11 @@ LAST_PEG_CROSS_FIELD = 'lastCross'
 NEWLINE_CHAR = '\n'
 
 SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
-BEAN_GRAPH_ENDPOINT= f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
-                      'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
+BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
+    'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
 BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
-                            'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
+    'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
+
 
 class BeanSqlClient(object):
 
@@ -53,7 +53,7 @@ class BeanSqlClient(object):
 
         Args:
             fields: an array of strings specifying which fields should be retried.
-        
+
         Returns:
             dict containing all request field:value pairs (fields and values are strings).
 
@@ -70,10 +70,12 @@ class BeanSqlClient(object):
 
         # Index where desired fields should be injected.
         fields_index_start = query_str.find(FIELDS_PLACEHOLDER)
-        fields_index_end = query_str.find(FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
+        fields_index_end = query_str.find(
+            FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
 
         # Stringify array and inject it into query string.
-        query_str = query_str[:fields_index_start] + ' '.join(fields) + query_str[fields_index_end:]
+        query_str = query_str[:fields_index_start] + \
+            ' '.join(fields) + query_str[fields_index_end:]
 
         # Create gql query and execute.
         # Note that there is always only 1 bean item returned.
@@ -85,10 +87,10 @@ class BeanSqlClient(object):
 
     def get_last_crosses(self, n=1):
         """Retrive the last n peg crosses, including timestamp and cross direction.
-        
+
         Args:
             n: number of recent crosses to retrieve.
-        
+
         Returns:
             array of dicts containing timestamp and cross direction for each cross.
         """
@@ -103,8 +105,10 @@ class BeanSqlClient(object):
             return execute(self._client, query_str)['crosses']
         except GraphAccessException as e:
             logging.exception(e)
-            logging.error('Killing all processes due to inability to access Bean subgraph...')
+            logging.error(
+                'Killing all processes due to inability to access Bean subgraph...')
             os._exit(os.EX_UNAVAILABLE)
+
 
 class BeanstalkSqlClient(object):
 
@@ -125,9 +129,9 @@ class BeanstalkSqlClient(object):
     def last_completed_season_stats(self, fields=DEFAULT_SEASON_FIELDS):
         return self.seasons_stats(season_ages=[1], fields=fields)[0]
 
-    def seasons_stats(self, season_ages=[0,1], fields=DEFAULT_SEASON_FIELDS):
+    def seasons_stats(self, season_ages=[0, 1], fields=DEFAULT_SEASON_FIELDS):
         """Retrieve the specified data for a season.
-        
+
         Args:
             season_ages: list of ascending order int of season age relative to current season.
             fields: list of strings specifying which fields should be retried.
@@ -147,21 +151,26 @@ class BeanstalkSqlClient(object):
 
         # Index where desired fields should be injected.
         fields_index_start = query_str.find(FIELDS_PLACEHOLDER)
-        fields_index_end = query_str.find(FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
+        fields_index_end = query_str.find(
+            FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
 
         # Stringify array and inject it into query string.
-        query_str = query_str[:fields_index_start] + ' '.join(fields) + query_str[fields_index_end:]
+        query_str = query_str[:fields_index_start] + \
+            ' '.join(fields) + query_str[fields_index_end:]
 
         # Create gql query and execute.
         try:
             return execute(self._client, query_str)['seasons']
         except GraphAccessException as e:
             logging.exception(e)
-            logging.error('Killing all processes due to inability to access Beanstalk subgraph...')
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
             os._exit(os.EX_UNAVAILABLE)
-        
+
+
 class GraphAccessException(Exception):
     """Failed to access the graph."""
+
 
 def execute(client, query_str, max_tries=0):
     """Convert query string into a gql query and execute query."""
@@ -176,7 +185,8 @@ def execute(client, query_str, max_tries=0):
             logging.info(f'GraphQL result:{result}')
             return result
         except asyncio.exceptions.TimeoutError:
-            logging.warning(f'Timeout error on {client_subgraph_name(client)} subgraph access. Retrying...')
+            logging.warning(
+                f'Timeout error on {client_subgraph_name(client)} subgraph access. Retrying...')
         except RuntimeError as e:
             # This is a bad state. It means the underlying thread exiting without properly
             # stopping these threads. This state is never expected.
@@ -190,6 +200,7 @@ def execute(client, query_str, max_tries=0):
         try_count += 1
     raise GraphAccessException
 
+
 def client_subgraph_name(client):
     """Return a plain string name of the subgraph for the given gql.Client object."""
     url = client.transport.url
@@ -200,6 +211,7 @@ def client_subgraph_name(client):
     else:
         return 'unknown'
 
+
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
@@ -207,11 +219,14 @@ if __name__ == '__main__':
     bean_client = BeanSqlClient()
     print(f'Price: {bean_client.current_bean_price()}')
     print(f'Last peg cross: {bean_client.last_cross()}')
-    print(f'Total Supply (USD): {bean_client.get_bean_field("totalSupplyUSD")}')
+    print(
+        f'Total Supply (USD): {bean_client.get_bean_field("totalSupplyUSD")}')
     print(bean_client.get_bean_fields(['id', 'totalCrosses']))
 
-
     beanstalk_client = BeanstalkSqlClient()
-    print(f'\nCurrent and previous Season Stats:\n{beanstalk_client.seasons_stats()}')
-    print(f'\nPrevious Season Start Price:\n{beanstalk_client.last_completed_season_stat(PRICE_FIELD)}')
-    print(f'\nCurrent Season Start Price:\n{beanstalk_client.current_season_stat(PRICE_FIELD)}')
+    print(
+        f'\nCurrent and previous Season Stats:\n{beanstalk_client.seasons_stats()}')
+    print(
+        f'\nPrevious Season Start Price:\n{beanstalk_client.last_completed_season_stat(PRICE_FIELD)}')
+    print(
+        f'\nCurrent Season Start Price:\n{beanstalk_client.current_season_stat(PRICE_FIELD)}')

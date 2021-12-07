@@ -6,8 +6,9 @@ import telebot
 
 from bots import util
 
-TELE_CHAT_ID_STAGING = "-1001655547288" # Beanstalk Bot Testing channel
-TELE_CHAT_ID_PRODUCTION = "-1001770089535" # Beanstalk Tracker channel
+TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
+TELE_CHAT_ID_PRODUCTION = "-1001770089535"  # Beanstalk Tracker channel
+
 
 class TelegramBot(object):
 
@@ -21,7 +22,7 @@ class TelegramBot(object):
             logging.info('Configured as a staging instance.')
 
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
-        
+
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
         self.peg_cross_monitor.start()
 
@@ -34,19 +35,20 @@ class TelegramBot(object):
     def send_msg(self, text):
         # Remove URL pointy brackets used by md formatting to suppress link previews.
         text = text.replace('<', '').replace('>', '')
-        self.tele_bot.send_message(chat_id=self._chat_id, text=text, disable_web_page_preview=True)
+        self.tele_bot.send_message(
+            chat_id=self._chat_id, text=text, disable_web_page_preview=True)
 
     def stop(self):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.pool_monitor.stop()
-    
+
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(format='Telegram Bot : %(levelname)s : %(asctime)s : %(message)s',
                         level=logging.INFO, handlers=[logging.FileHandler("telegram_bot.log"),
-                        logging.StreamHandler()])
+                                                      logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.

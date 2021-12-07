@@ -38,16 +38,19 @@ class DiscordClient(discord.Client):
 
         self.msg_queue = []
 
-        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg_peg, prod=prod)
+        self.peg_cross_monitor = util.PegCrossMonitor(
+            self.send_msg_peg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(self.send_msg_seasons, prod=prod)
+        self.sunrise_monitor = util.SunriseMonitor(
+            self.send_msg_seasons, prod=prod)
         self.sunrise_monitor.start()
 
         self.pool_monitor = util.PoolMonitor(self.send_msg_pool, prod=prod)
         self.pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_pool, prod=prod)
+        self.beanstalk_monitor = util.BeanstalkMonitor(
+            self.send_msg_pool, prod=prod)
         self.beanstalk_monitor.start()
 
         # Start the message queue sending task in the background.
@@ -73,7 +76,8 @@ class DiscordClient(discord.Client):
 
     async def on_ready(self):
         self._channel_peg = discord_client.get_channel(self._chat_id_peg)
-        self._channel_seasons = discord_client.get_channel(self._chat_id_seasons)
+        self._channel_seasons = discord_client.get_channel(
+            self._chat_id_seasons)
         self._channel_pool = discord_client.get_channel(self._chat_id_pool)
         logging.info(
             f'Discord channels are {self._channel_peg}, {self._channel_seasons}, {self._channel_pool}')
@@ -97,7 +101,6 @@ class DiscordClient(discord.Client):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
 
-
     async def on_message(self, message):
         """Respond to messages."""
         # Do not reply to itself.
@@ -112,7 +115,7 @@ class DiscordClient(discord.Client):
 if __name__ == '__main__':
     logging.basicConfig(format='Discord Bot : %(levelname)s : %(asctime)s : %(message)s',
                         level=logging.INFO, handlers=[logging.FileHandler("discord_bot.log"),
-                        logging.StreamHandler()])
+                                                      logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.

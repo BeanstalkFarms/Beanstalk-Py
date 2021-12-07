@@ -14,13 +14,14 @@ from data_access import eth_chain
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
 PEG_UPDATE_FREQUENCY = 0.1  # hz
 # The duration of a season. Assumes that seasons align with Unix epoch.
-SEASON_DURATION = 3600 # seconds
+SEASON_DURATION = 3600  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 10
 # Frequency to check chain for new Uniswap V2 pool interactions.
 EVENT_POLL_FREQUENCY = 0.1
 # Rate at which to check for events on the Beanstalk contract.
-BEANSTALK_CHECK_RATE = 3 # seconds
+BEANSTALK_CHECK_RATE = 3  # seconds
+
 
 class PegCrossType(Enum):
     NO_CROSS = 0
@@ -30,13 +31,14 @@ class PegCrossType(Enum):
 
 class Monitor():
     """Base class for monitors. Do not use directly.
-    
+
     Args:
         name: simple human readable name string to use for logging.
         message_function: fun(str) style function to send application messages.
         query_rate: int representing rate monitored data should be queried (in seconds).
         prod: bool indicating if this is a production instance or not.
     """
+
     def __init__(self, name, message_function, query_rate, prod=False, dry_run=False):
         self.name = name
         self.message_function = message_function
@@ -61,10 +63,12 @@ class Monitor():
         self.message_function(f'{self.name} monitoring stopped.')
 
 
-class PegCrossMonitor():
+class PegCrossMonitor(Monitor):
     """Monitor bean graph for peg crosses and send out messages on detection."""
+
     def __init__(self, message_function, prod=False):
-        super().__init__('peg', message_function, 1 / PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
+        super().__init__('peg', message_function, 1 /
+                         PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = 0
         self._thread = threading.Thread(target=self._monitor_for_cross)
@@ -83,13 +87,12 @@ class PegCrossMonitor():
                 time.sleep(1)
                 continue
             min_update_time = time.time() + 1 / PEG_UPDATE_FREQUENCY
-            
+
             cross_type = self._check_for_peg_cross()
             if cross_type != PegCrossType.NO_CROSS:
                 output_str = PegCrossMonitor.peg_cross_string(cross_type)
                 self.message_function(output_str)
                 logging.info(output_str)
-
 
     def _check_for_peg_cross(self):
         """
@@ -143,9 +146,11 @@ class PegCrossMonitor():
         else:
             return 'Peg not crossed.'
 
-class SunriseMonitor():
+
+class SunriseMonitor(Monitor):
     def __init__(self, message_function, prod=False):
-        super().__init__('sunrise', message_function, SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
+        super().__init__('sunrise', message_function,
+                         SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
@@ -169,7 +174,7 @@ class SunriseMonitor():
 
     def _wait_until_expected_sunrise(self):
         """Wait until beanstalk is eligible for a sunrise call.
-        
+
         Assumes sunrise timing cycle beings with Unix Epoch (1/1/1970 00:00:00 UTC).
         This is not exact since we do not bother with syncing local and graph time.
         """
@@ -193,18 +198,19 @@ class SunriseMonitor():
         while self._thread_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
-            if (self.current_season_id != current_season_stats['id'] and 
-                int(current_season_stats['timestamp']) > time.time() - SEASON_DURATION / 2):
+            if (self.current_season_id != current_season_stats['id'] and
+                    int(current_season_stats['timestamp']) > time.time() - SEASON_DURATION / 2):
                 self.current_season_id = current_season_stats['id']
-                logging.info(f'New season detected with id {self.current_season_id}')
+                logging.info(
+                    f'New season detected with id {self.current_season_id}')
                 return current_season_stats, last_season_stats
             time.sleep(SUNRISE_CHECK_PERIOD)
         return None, None
 
-
     def season_summary_string(self, last_season_stats, current_season_stats):
         new_farmable_beans = float(current_season_stats['newFarmableBeans'])
-        new_harvestable_pods = float(current_season_stats['newHarvestablePods'])
+        new_harvestable_pods = float(
+            current_season_stats['newHarvestablePods'])
         newMintedBeans = new_farmable_beans + new_harvestable_pods
         # newSoil = float(current_season_stats['newSoil'])
         new_deposited_lp = float(last_season_stats["newDepositedLP"])
@@ -224,7 +230,7 @@ class SunriseMonitor():
             new_withdrawn_lp, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
         last_weather = float(last_season_stats['weather'])
         newPods = float(last_season_stats['newPods'])
-        
+
         ret_string = f'⏱ Season {last_season_stats["id"]} is complete!'
         ret_string += f'\n💵 The TWAP last season was ${round_num(current_season_stats["price"], 3)}'
         ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
@@ -243,15 +249,18 @@ class SunriseMonitor():
         ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
-        ret_string += '\n_ _' # empty line that does not get stripped
+        ret_string += '\n_ _'  # empty line that does not get stripped
         return ret_string
 
 
 class PoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
+
     def __init__(self, message_function, prod=False, dry_run=False):
-        super().__init__('pool', message_function, 1/EVENT_POLL_FREQUENCY, prod=prod, dry_run=dry_run)
-        self._eth_event_client = eth_chain.EthEventsClient(eth_chain.get_event_log_filters_pool())
+        super().__init__('pool', message_function, 1 /
+                         EVENT_POLL_FREQUENCY, prod=prod, dry_run=dry_run)
+        self._eth_event_client = eth_chain.EthEventsClient(
+            eth_chain.get_event_log_filters_pool())
         self._thread = threading.Thread(target=self._monitor_events)
 
     def _monitor_events(self):
@@ -274,7 +283,7 @@ class PoolMonitor(Monitor):
         eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
         bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
- 
+
         # Get pricing from uni pools.
         bean_price = eth_chain.current_bean_price()
 
@@ -298,20 +307,25 @@ class PoolMonitor(Monitor):
                 swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')
-                return         
+                return
             event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
             event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
             event_str += f'\n{value_to_emojis(swap_value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         logging.info(event_str)
-        self.message_function(event_str + '\n_ _') # empty line that does not get stripped
+        # empty line that does not get stripped
+        self.message_function(event_str + '\n_ _')
+
 
 class BeanstalkMonitor(Monitor):
     """Monitor the Beanstalk contract for events."""
+
     def __init__(self, message_function, prod=False, dry_run=False):
-        super().__init__('beanstalk', message_function, BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._eth_event_client = eth_chain.EthEventsClient(eth_chain.get_event_log_filters_beanstalk())
+        super().__init__('beanstalk', message_function,
+                         BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._eth_event_client = eth_chain.EthEventsClient(
+            eth_chain.get_event_log_filters_beanstalk())
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self._thread = threading.Thread(target=self._monitor_events)
 
@@ -356,17 +370,19 @@ class BeanstalkMonitor(Monitor):
             event_str += f' - {round_num(beans_amount)} Beans (${round_num(beans_value)})'
             event_str += f'\n{value_to_emojis(beans_value)}'
         else:
-            logging.warning(f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
+            logging.warning(
+                f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
             return
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         logging.info(event_str)
-        self.message_function(event_str + '\n_ _') # empty line that does not get stripped
-        
-    
+        # empty line that does not get stripped
+        self.message_function(event_str + '\n_ _')
+
+
 def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstalk_graph_client=None):
     """Return the amount of ETH and beans equivalent to an amount of LP.
-    
+
     Args:
         total_lp: current amount of lp in pool.
         pooled_eth: current amount of eth in pool.
@@ -379,9 +395,10 @@ def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstal
         pooled_eth = float(current_season_stats['pooledEth'])
         pooled_beans = float(current_season_stats['pooledBeans'])
         total_lp = float(current_season_stats['lp'])
-    
+
     if None in [total_lp, pooled_eth, pooled_beans]:
-        raise ValueError('Must provide (total_lp & pooled_eth & pooled_beans) OR beanstalk_graph_client')
+        raise ValueError(
+            'Must provide (total_lp & pooled_eth & pooled_beans) OR beanstalk_graph_client')
 
     bean_pool_ratio = pooled_beans / total_lp
     eth_pool_ratio = pooled_eth / total_lp
@@ -389,9 +406,11 @@ def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstal
     bean_lp = lp * bean_pool_ratio
     return eth_lp, bean_lp
 
+
 def round_num(number, precision=2):
     """Round a string or float to requested precision and return as a string."""
     return f'{float(number):,.{precision}f}'
+
 
 def value_to_emojis(value):
     """Convert a rounded dollar value to a string of emojis."""
@@ -407,15 +426,18 @@ def value_to_emojis(value):
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
+
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
     if msg.count(']('):
         return True
 
+
 def handle_sigterm():
     """Process a sigterm with a python exception for clean exiting."""
     logging.warning("Handling SIGTERM.")
     raise SystemExit
+
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
