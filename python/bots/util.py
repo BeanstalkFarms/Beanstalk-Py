@@ -209,15 +209,19 @@ class SunriseMonitor():
         # newSoil = float(current_season_stats['newSoil'])
         new_deposited_lp = float(last_season_stats["newDepositedLP"])
         new_withdrawn_lp = float(last_season_stats["newWithdrawnLP"])
-        pooled_beans = float(current_season_stats['pooledBeans'])
         pooled_eth = float(current_season_stats['pooledEth'])
+        pooled_beans = float(current_season_stats['pooledBeans'])
         total_lp = float(current_season_stats['lp'])
-        bean_pool_ratio = pooled_beans / total_lp
-        eth_pool_ratio = pooled_eth / total_lp
-        deposited_bean_lp = round_num(new_deposited_lp * bean_pool_ratio)
-        deposited_eth_lp = round_num(new_deposited_lp * eth_pool_ratio)
-        withdrawn_bean_lp = round_num(new_withdrawn_lp * bean_pool_ratio)
-        withdrawn_eth_lp = round_num(new_withdrawn_lp * eth_pool_ratio)
+        # bean_pool_ratio = pooled_beans / total_lp
+        # eth_pool_ratio = pooled_eth / total_lp
+        # deposited_bean_lp = round_num(new_deposited_lp * bean_pool_ratio)
+        # deposited_eth_lp = round_num(new_deposited_lp * eth_pool_ratio)
+        deposited_eth_lp, deposited_bean_lp = lp_eq_values(
+            new_deposited_lp, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
+        # withdrawn_bean_lp = round_num(new_withdrawn_lp * bean_pool_ratio)
+        # withdrawn_eth_lp = round_num(new_withdrawn_lp * eth_pool_ratio)
+        withdrawn_eth_lp, withdrawn_bean_lp = lp_eq_values(
+            new_withdrawn_lp, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
         last_weather = float(last_season_stats['weather'])
         newPods = float(last_season_stats['newPods'])
         
@@ -294,17 +298,97 @@ class PoolMonitor(Monitor):
                 swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')
-                return ''            
+                return         
             event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
             event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
             event_str += f'\n{value_to_emojis(swap_value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         logging.info(event_str)
-        self.message_function(event_str + '\n_ _')
-        return
+        self.message_function(event_str + '\n_ _') # empty line that does not get stripped
 
+class BeanstalkMonitor(Monitor):
+    """Monitor the Beanstalk contract for events."""
+    def __init__(self, message_function, prod=False, dry_run=False):
+        super().__init__('beanstalk', message_function, BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._eth_event_client = eth_chain.EthEventsClient(eth_chain.get_event_log_filters_beanstalk())
+        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self._thread = threading.Thread(target=self._monitor_events)
+
+    def _monitor_events(self):
+        while self._thread_active:
+            for event_log in self._eth_event_client.get_new_log_entries(dry_run=self._dry_run):
+                self._handle_event_log(event_log)
+            time.sleep(BEANSTALK_CHECK_RATE)
+
+    def _handle_event_log(self, event_log):
+        """Process the beanstalk event log.
+
+        Note that Event Log Object is not the same as Event object.
+        """
+        event_str = ''
+
+        eth_price = eth_chain.current_eth_price()
+        bean_price = eth_chain.current_bean_price(eth_price=eth_price)
+        lp_amount = event_log.args.get('lp') or 0
+        lp_eth, lp_beans = lp_eq_values(
+            lp_amount, beanstalk_graph_client=self.beanstalk_graph_client)
+        lp_value = lp_eth * eth_price + lp_beans * bean_price
+        beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
+        beans_value = beans_amount * bean_price
+
+        if event_log.event in ['LPDeposit', 'LPRemove', 'LPWithdraw']:
+            if event_log.event == 'LPDeposit':
+                event_str += f'📥 LP deposited'
+            elif event_log.event == 'LPRemove':
+                event_str += f'📤 LP removed'
+            elif event_log.event == 'LPWithdraw':
+                event_str += f'📭 LP withdrawn'
+            event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
+            event_str += f'\n{value_to_emojis(lp_value)}'
+        elif event_log.event in ['BeanDeposit', 'BeanRemove', 'BeanWithdraw']:
+            if event_log.event == 'BeanDeposit':
+                event_str += f'📥 Beans deposited'
+            elif event_log.event == 'BeanRemove':
+                event_str += f'📤 Beans removed'
+            elif event_log.event == 'BeanWithdraw':
+                event_str += f'📭 Beans withdrawn'
+            event_str += f' - {round_num(beans_amount)} Beans (${round_num(beans_value)})'
+            event_str += f'\n{value_to_emojis(beans_value)}'
+        else:
+            logging.warning(f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
+            return
+
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        logging.info(event_str)
+        self.message_function(event_str + '\n_ _') # empty line that does not get stripped
+        
     
+def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstalk_graph_client=None):
+    """Return the amount of ETH and beans equivalent to an amount of LP.
+    
+    Args:
+        total_lp: current amount of lp in pool.
+        pooled_eth: current amount of eth in pool.
+        pooled_beans: current amount of beans in pool.
+        beanstalk_graph_client: a beanstalk graphsql client. If provided latest season stats will
+            be retrieved and used.
+    """
+    if beanstalk_graph_client:
+        current_season_stats = beanstalk_graph_client.current_season_stats()
+        pooled_eth = float(current_season_stats['pooledEth'])
+        pooled_beans = float(current_season_stats['pooledBeans'])
+        total_lp = float(current_season_stats['lp'])
+    
+    if None in [total_lp, pooled_eth, pooled_beans]:
+        raise ValueError('Must provide (total_lp & pooled_eth & pooled_beans) OR beanstalk_graph_client')
+
+    bean_pool_ratio = pooled_beans / total_lp
+    eth_pool_ratio = pooled_eth / total_lp
+    eth_lp = lp * eth_pool_ratio
+    bean_lp = lp * bean_pool_ratio
+    return eth_lp, bean_lp
+
 def round_num(number, precision=2):
     """Round a string or float to requested precision and return as a string."""
     return f'{float(number):,.{precision}f}'

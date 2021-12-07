@@ -47,6 +47,9 @@ class DiscordClient(discord.Client):
         self.pool_monitor = util.PoolMonitor(self.send_msg_pool, prod=prod)
         self.pool_monitor.start()
 
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_pool, prod=prod)
+        self.beanstalk_monitor.start()
+
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
 
@@ -54,6 +57,7 @@ class DiscordClient(discord.Client):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.pool_monitor.stop()
+        self.beanstalk_monitor.stop()
 
     def send_msg_peg(self, text):
         """Send a message through the Discord bot in the peg channel."""
