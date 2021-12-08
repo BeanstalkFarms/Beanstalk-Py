@@ -182,11 +182,14 @@ class EthEventsClient():
             fromBlock='latest'),
             beanstalk_contract.events.LPWithdraw.createFilter(
             fromBlock='latest'),
+            beanstalk_contract.events.LPClaim.createFilter(fromBlock='latest'),
             beanstalk_contract.events.BeanDeposit.createFilter(
             fromBlock='latest'),
             beanstalk_contract.events.BeanRemove.createFilter(
             fromBlock='latest'),
-            beanstalk_contract.events.BeanWithdraw.createFilter(fromBlock='latest')]
+            beanstalk_contract.events.BeanClaim.createFilter(
+                fromBlock='latest'),
+            beanstalk_contract.events.Sow.createFilter(fromBlock='latest')]
 
     # Creating a generic Filter this way will return Event Objects with data (arguments) encoded.
     # return web3.eth.filter({'fromBlock': 'latest', 'address': ETH_BEAN_POOL_ADDR, 'topic': [[MINT_TOPIC, BURN_TOPIC, SWAP_TOPIC]]})
