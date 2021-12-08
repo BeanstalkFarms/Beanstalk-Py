@@ -3,12 +3,12 @@ import logging
 import json
 import os
 import time
+from discord.ext.commands.errors import ArgumentParsingError
 
 from web3 import Web3, WebsocketProvider
 
 API_KEY = os.environ['ETH_CHAIN_API_KEY']
 URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
-web3 = Web3(WebsocketProvider(URL))
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -22,40 +22,58 @@ BEANSTALK_ADDR = '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5'
 
 with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
     pool_abi = json.load(pool_abi_file)
-eth_bean_pool_contract = web3.eth.contract(
-    address=ETH_BEAN_POOL_ADDR, abi=pool_abi)
-eth_usdc_pool_contract = web3.eth.contract(
-    address=ETH_USDC_POOL_ADDR, abi=pool_abi)
-
 with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
-beanstalk_contract = web3.eth.contract(
-    address=BEANSTALK_ADDR, abi=beanstalk_abi)
 
 
-def current_eth_price():
-    reserve0, reserve1, _ = eth_usdc_pool_contract.functions.getReserves().call()
-    eth_reserves = eth_to_float(reserve1)
-    usdc_reserves = usdc_to_float(reserve0)
-    eth_price = usdc_reserves / eth_reserves
-    logging.info('Current ETH Price: ' + str(eth_price))
-    return eth_price
+def get_eth_bean_pool_contract(web3):
+    """Get a web.eth.contract object for the ETH:BEAN pool. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=ETH_BEAN_POOL_ADDR, abi=pool_abi)
 
 
-def current_bean_price(eth_price=None):
-    reserve0, reserve1, _ = eth_bean_pool_contract.functions.getReserves().call()
-    eth_reserves = eth_to_float(reserve0)
-    bean_reserves = bean_to_float(reserve1)
-    if not eth_price:
-        eth_price = current_eth_price()
-    bean_price = eth_price * eth_reserves / bean_reserves
-    logging.info('Current bean price: ' + str(bean_price))
-    return bean_price
+def get_eth_usdc_pool_contract(web3):
+    """Get a web.eth.contract object for the ETH:USDC pool. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=ETH_USDC_POOL_ADDR, abi=pool_abi)
 
 
-def avg_swap_price(eth, beans):
-    """Returns the $/bean cost for a swap txn using the $/ETH price."""
-    return current_eth_price() * (eth / beans)
+def get_beanstalk_contract(web3):
+    """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=BEANSTALK_ADDR, abi=beanstalk_abi)
+
+
+class BlockchainClient():
+    def __init__(self):
+        self._web3 = Web3(WebsocketProvider(URL))
+        self.eth_usdc_pool_contract = get_eth_usdc_pool_contract(self._web3)
+        self.eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
+
+    def current_eth_price(self):
+        reserve0, reserve1, _ = self.eth_usdc_pool_contract.functions.getReserves().call()
+        eth_reserves = eth_to_float(reserve1)
+        usdc_reserves = usdc_to_float(reserve0)
+        eth_price = usdc_reserves / eth_reserves
+        logging.info('Current ETH Price: ' + str(eth_price))
+        return eth_price
+
+    def current_eth_and_bean_price(self):
+        reserve0, reserve1, _ = self.eth_bean_pool_contract.functions.getReserves().call()
+        eth_reserves = eth_to_float(reserve0)
+        bean_reserves = bean_to_float(reserve1)
+        eth_price = self.current_eth_price()
+        bean_price = eth_price * eth_reserves / bean_reserves
+        logging.info('Current bean price: ' + str(bean_price))
+        return eth_price, bean_price
+
+    def current_bean_price(self):
+        _, bean_price = self.current_eth_and_bean_price()
+        return bean_price
+
+    def avg_swap_price(self, eth, beans):
+        """Returns the $/bean cost for a swap txn using the $/ETH price."""
+        return self.current_eth_price() * (eth / beans)
 
 
 def eth_to_float(gwei):
@@ -79,7 +97,8 @@ def usdc_to_float(usdc_long):
 # For testing purposes.
 # Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
 def monitor_uni_v2_pair_events():
-    client = EthEventsClient(get_event_log_filters_pool())
+    client = EthEventsClient()
+    client.set_event_log_filters_pool()
     while True:
         events = client.get_new_log_entries()
         logging.info(events)
@@ -90,7 +109,8 @@ def monitor_uni_v2_pair_events():
 
 
 def monitor_beanstalk_events():
-    client = EthEventsClient(get_event_log_filters_beanstalk())
+    client = EthEventsClient()
+    client.set_event_log_filters_beanstalk()
     while True:
         events = client.get_new_log_entries()
         logging.info(events)
@@ -98,18 +118,19 @@ def monitor_beanstalk_events():
 
 
 class EthEventsClient():
-    def __init__(self, filters):
-        self.event_log_filters = filters
+    def __init__(self):
+        self._web3 = Web3(WebsocketProvider(URL))
+        self._event_log_filters = None
 
     def get_new_log_entries(self, dry_run=False):
         """Iterate through all event log filters and return list of Event Log Objects."""
-        assert self.event_log_filters
+        assert self._event_log_filters
         event_logs = []
         if dry_run:
             return maybe_get_test_events()
         logging.info(
-            f'Checking for new entries with filters {self.event_log_filters}.')
-        for filter in self.event_log_filters:
+            f'Checking for new entries with filters {self._event_log_filters}.')
+        for filter in self._event_log_filters:
             for event in self.safe_get_new_entries(filter):
                 event_logs.append(event)
                 logging.info(event)
@@ -120,51 +141,51 @@ class EthEventsClient():
         while try_count < 5:
             try_count += 1
             try:
-                # return filter.get_new_entries()
-                return filter.get_all_entries()
-            except (ValueError, asyncio.exceptions.TimeoutError) as e:
+                return filter.get_new_entries()
+                # return filter.get_all_entries()
+            except (ValueError, asyncio.TimeoutError) as e:
                 logging.warning(e)
                 logging.info(
                     'filter.get_new_entries() failed or timed out. Retrying...')
                 time.sleep(1)
 
+    def set_event_log_filters_pool(self):
+        """Create and return web3 filters for the uniswap pair logs.
 
-def get_event_log_filters_pool():
-    """Create and return web3 filters for the uniswap pair logs.
+        - Latest block only
+        - Address == Uniswap V2 Pair Contract Address
+        - Mint, Burn, and Swap interactions only (ignore sync).
 
-    - Latest block only
-    - Address == Uniswap V2 Pair Contract Address
-    - Mint, Burn, and Swap interactions only (ignore sync).
-
-    Returns:
-        [swap filter, mint filter, burn filter]
-    """
-    # Creating an Event Log Filter this way will return Event Log Objects with arguments decoded.
-    return [eth_bean_pool_contract.events.Swap.createFilter(fromBlock='latest'),
-            eth_bean_pool_contract.events.Mint.createFilter(
-                fromBlock='latest'),
+        Returns:
+            [swap filter, mint filter, burn filter]
+        """
+        # Creating an Event Log Filter this way will return Event Log Objects with arguments decoded.
+        eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
+        self._event_log_filters = [eth_bean_pool_contract.events.Swap.createFilter(fromBlock='latest'),
+                                   eth_bean_pool_contract.events.Mint.createFilter(
+            fromBlock='latest'),
             eth_bean_pool_contract.events.Burn.createFilter(fromBlock='latest')]
 
+    def set_event_log_filters_beanstalk(self):
+        """Create and return web3 filters for the beanstalk contract logs.
 
-def get_event_log_filters_beanstalk():
-    """Create and return web3 filters for the beanstalk contract logs.
+        - Latest block only
+        - Address == Beanstalk Contract Address
 
-    - Latest block only
-    - Address == Beanstalk Contract Address
-
-    Returns:
-        []
-    """
-    # Creating Event Log Filters this way will return Event Log Objects with arguments decoded.
-    return [beanstalk_contract.events.LPDeposit.createFilter(fromBlock='latest'),
-            beanstalk_contract.events.LPRemove.createFilter(
-                fromBlock='latest'),
+        Returns:
+            []
+        """
+        # Creating Event Log Filters this way will return Event Log Objects with arguments decoded.
+        beanstalk_contract = get_beanstalk_contract(self._web3)
+        self._event_log_filters = [beanstalk_contract.events.LPDeposit.createFilter(fromBlock='latest'),
+                                   beanstalk_contract.events.LPRemove.createFilter(
+            fromBlock='latest'),
             beanstalk_contract.events.LPWithdraw.createFilter(
-                fromBlock='latest'),
+            fromBlock='latest'),
             beanstalk_contract.events.BeanDeposit.createFilter(
-                fromBlock='latest'),
+            fromBlock='latest'),
             beanstalk_contract.events.BeanRemove.createFilter(
-                fromBlock='latest'),
+            fromBlock='latest'),
             beanstalk_contract.events.BeanWithdraw.createFilter(fromBlock='latest')]
 
     # Creating a generic Filter this way will return Event Objects with data (arguments) encoded.

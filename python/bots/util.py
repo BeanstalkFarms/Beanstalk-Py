@@ -73,7 +73,6 @@ class PegCrossMonitor(Monitor):
         self.last_known_cross = 0
         self._thread = threading.Thread(target=self._monitor_for_cross)
 
-    # NOTE(funderberker): graph implementation of cross data will change soon.
     def _monitor_for_cross(self):
         """Continuously monitor for BEAN price crossing the peg.
 
@@ -259,8 +258,9 @@ class PoolMonitor(Monitor):
     def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__('pool', message_function, 1 /
                          EVENT_POLL_FREQUENCY, prod=prod, dry_run=dry_run)
-        self._eth_event_client = eth_chain.EthEventsClient(
-            eth_chain.get_event_log_filters_pool())
+        self._eth_event_client = eth_chain.EthEventsClient()
+        self._eth_event_client.set_event_log_filters_pool()
+        self.blockchain_client = eth_chain.BlockchainClient()
         self._thread = threading.Thread(target=self._monitor_events)
 
     def _monitor_events(self):
@@ -285,7 +285,7 @@ class PoolMonitor(Monitor):
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
 
         # Get pricing from uni pools.
-        bean_price = eth_chain.current_bean_price()
+        bean_price = self.blockchain_client.current_bean_price()
 
         if event_log.event in ['Mint', 'Burn']:
             if event_log.event == 'Mint':
@@ -299,11 +299,13 @@ class PoolMonitor(Monitor):
         elif event_log.event == 'Swap':
             if eth_in > 0:
                 event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
-                swap_price = eth_chain.avg_swap_price(eth_in, bean_out)
+                swap_price = self.blockchain_client.avg_swap_price(
+                    eth_in, bean_out)
                 swap_value = swap_price * bean_out
             elif bean_in > 0:
                 event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
-                swap_price = eth_chain.avg_swap_price(eth_out, bean_in)
+                swap_price = self.blockchain_client.avg_swap_price(
+                    eth_out, bean_in)
                 swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')
@@ -324,9 +326,10 @@ class BeanstalkMonitor(Monitor):
     def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__('beanstalk', message_function,
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._eth_event_client = eth_chain.EthEventsClient(
-            eth_chain.get_event_log_filters_beanstalk())
+        self._eth_event_client = eth_chain.EthEventsClient()
+        self._eth_event_client.set_event_log_filters_beanstalk()
         self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.blockchain_client = eth_chain.BlockchainClient()
         self._thread = threading.Thread(target=self._monitor_events)
 
     def _monitor_events(self):
@@ -342,8 +345,7 @@ class BeanstalkMonitor(Monitor):
         """
         event_str = ''
 
-        eth_price = eth_chain.current_eth_price()
-        bean_price = eth_chain.current_bean_price(eth_price=eth_price)
+        eth_price, bean_price = self.blockchain_client.current_eth_and_bean_price()
         lp_amount = event_log.args.get('lp') or 0
         lp_eth, lp_beans = lp_eq_values(
             lp_amount, beanstalk_graph_client=self.beanstalk_graph_client)
