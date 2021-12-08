@@ -15,7 +15,7 @@ DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 
 
-class DiscordClient(discord.Client):
+class DiscordClient(discord.ext.commands.Bot):
 
     class Channel(Enum):
         PEG = 0
@@ -23,7 +23,7 @@ class DiscordClient(discord.Client):
         POOL = 2
 
     def __init__(self, prod=False):
-        super().__init__()
+        super().__init__(command_prefix=commands.when_mentioned_or("!"))
 
         if prod:
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
@@ -75,10 +75,10 @@ class DiscordClient(discord.Client):
         self.msg_queue.append((self.Channel.POOL, text))
 
     async def on_ready(self):
-        self._channel_peg = discord_client.get_channel(self._chat_id_peg)
-        self._channel_seasons = discord_client.get_channel(
+        self._channel_peg = self.get_channel(self._chat_id_peg)
+        self._channel_seasons = self.get_channel(
             self._chat_id_seasons)
-        self._channel_pool = discord_client.get_channel(self._chat_id_pool)
+        self._channel_pool = self.get_channel(self._chat_id_pool)
         logging.info(
             f'Discord channels are {self._channel_peg}, {self._channel_seasons}, {self._channel_pool}')
 
@@ -107,9 +107,14 @@ class DiscordClient(discord.Client):
         if message.author.id == self.user.id:
             return
 
-        if message.content.startswith('!botstatus'):
-            await message.channel.send('I am alive and running!')
-            return
+        # Process commands.
+        await self.process_commands(message)
+
+
+def configure_bot_commands(bot):
+    @bot.command(pass_context=True)
+    async def botstatus(ctx):
+        await ctx.send('I am alive and running!')
 
 
 if __name__ == '__main__':
@@ -127,6 +132,8 @@ if __name__ == '__main__':
         prod = False
 
     discord_client = DiscordClient(prod=prod)
+    configure_bot_commands(discord_client)
+
     try:
         discord_client.run(token)
     except (KeyboardInterrupt, SystemExit):
