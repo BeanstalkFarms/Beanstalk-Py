@@ -12,6 +12,7 @@ from bots import util
 DISCORD_CHANNEL_ID_PEG_CROSSES = 911338190198169710
 DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
 DISCORD_CHANNEL_ID_POOL = 915372733758603284
+DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 
 
@@ -21,6 +22,7 @@ class DiscordClient(discord.ext.commands.Bot):
         PEG = 0
         SEASONS = 1
         POOL = 2
+        BEANSTALK = 3
 
     def __init__(self, prod=False):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
@@ -29,11 +31,13 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
+            self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
             logging.info('Configured as a production instance.')
         else:
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
 
         self.msg_queue = []
@@ -49,8 +53,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.pool_monitor = util.PoolMonitor(self.send_msg_pool, prod=prod)
         self.pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(
-            self.send_msg_pool, prod=prod)
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
 
         # Start the message queue sending task in the background.
@@ -74,13 +77,19 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the pool channel."""
         self.msg_queue.append((self.Channel.POOL, text))
 
+    def send_msg_beanstalk(self, text):
+        """Send a message through the Discord bot in the beanstalk channel."""
+        self.msg_queue.append((self.Channel.BEANSTALK, text))
+
     async def on_ready(self):
         self._channel_peg = self.get_channel(self._chat_id_peg)
         self._channel_seasons = self.get_channel(
             self._chat_id_seasons)
         self._channel_pool = self.get_channel(self._chat_id_pool)
+        self._channel_beanstalk = self.get_channel(self._chat_id_beanstalk)
         logging.info(
-            f'Discord channels are {self._channel_peg}, {self._channel_seasons}, {self._channel_pool}')
+            f'Discord channels are {self._channel_peg}, {self._channel_seasons}, '
+            f'{self._channel_pool}, {self._channel_beanstalk}')
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):
@@ -92,6 +101,8 @@ class DiscordClient(discord.ext.commands.Bot):
                 await self._channel_seasons.send(msg)
             elif channel is self.Channel.POOL:
                 await self._channel_pool.send(msg)
+            elif channel is self.Channel.BEANSTALK:
+                await self._channel_beanstalk.send(msg)
             else:
                 logging.error('Unknown channel seen in msg queue: {channel}')
             self.msg_queue = self.msg_queue[1:]

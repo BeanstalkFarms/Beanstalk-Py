@@ -32,6 +32,9 @@ class TelegramBot(object):
         self.pool_monitor = util.PoolMonitor(self.send_msg, prod=prod)
         self.pool_monitor.start()
 
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
+        self.beanstalk_monitor.start()
+
     def send_msg(self, text):
         # Remove URL pointy brackets used by md formatting to suppress link previews.
         text = text.replace('<', '').replace('>', '')
@@ -42,6 +45,7 @@ class TelegramBot(object):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.pool_monitor.stop()
+        self.beanstalk_monitor.stop()
 
 
 if __name__ == '__main__':
