@@ -445,9 +445,9 @@ def msg_includes_embedded_links(msg):
         return True
 
 
-def handle_sigterm():
+def handle_sigterm(signal_number, stack_frame):
     """Process a sigterm with a python exception for clean exiting."""
-    logging.warning("Handling SIGTERM.")
+    logging.warning("Handling SIGTERM. Exiting.")
     raise SystemExit
 
 
