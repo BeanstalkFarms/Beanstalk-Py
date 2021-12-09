@@ -1,14 +1,35 @@
 from abc import abstractmethod
 from enum import Enum
 import logging
+import sys
 import threading
 import time
+
 
 from web3 import eth
 
 from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
+
+# Configure uncaught exception handling for main and threads.
+def log_exceptions(exc_type, exc_value, exc_traceback):
+    """Log uncaught exceptions for main thread."""
+    logging.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+sys.excepthook = log_exceptions
+def log_thread_exceptions(args):
+    """Log uncaught exceptions for threads."""
+    logging.critical("Uncaught exception", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+threading.excepthook = log_thread_exceptions
+
+
+# Strongly encourage Python 3.8+.
+# If not 3.8+ uncaught exceptions on threads will not be logged.
+MIN_PYTHON = (3, 8)
+if sys.version_info < MIN_PYTHON:
+    logging.critical(
+        "Python %s.%s or later is required for proper exception logging.\n" % MIN_PYTHON)
+
 
 TIMESTAMP_KEY = 'timestamp'
 # There is a built in assumption that we will update at least once per
@@ -453,7 +474,6 @@ def handle_sigterm(signal_number, stack_frame):
     """Process a sigterm with a python exception for clean exiting."""
     logging.warning("Handling SIGTERM. Exiting.")
     raise SystemExit
-
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""

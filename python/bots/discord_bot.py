@@ -135,7 +135,6 @@ if __name__ == '__main__':
                             logging.handlers.RotatingFileHandler("discord_bot.log",
                                                                  maxBytes=util.FIFTY_MEGABYTES),
                             logging.StreamHandler()])
-
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     # Automatically detect if this is a production environment.
