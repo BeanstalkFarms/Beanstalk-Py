@@ -154,6 +154,8 @@ class EthEventsClient():
                 logging.info(
                     'filter.get_new_entries() failed or timed out. Retrying...')
                 time.sleep(1)
+        logging.error('Failed to get new event entries. Passing.')
+        return []
 
     def set_event_log_filters_pool(self):
         """Create and return web3 filters for the uniswap pair logs.
