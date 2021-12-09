@@ -51,7 +51,9 @@ class Monitor():
 
     def start(self):
         logging.info(f'Starting {self.name} monitoring thread...')
-        if not self.prod:
+        if self._dry_run:
+            self.message_function(f'{self.name} monitoring started (with simulated data).')
+        elif not self.prod:
             self.message_function(f'{self.name} monitoring started.')
         self._thread_active = True
         self._thread.start()
