@@ -381,30 +381,39 @@ class BeanstalkMonitor(Monitor):
         event_str = ''
 
         eth_price, bean_price = self.blockchain_client.current_eth_and_bean_price()
-        lp_amount = event_log.args.get('lp') or 0
+        lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
         lp_eth, lp_beans = lp_eq_values(
             lp_amount, beanstalk_graph_client=self.beanstalk_graph_client)
         lp_value = lp_eth * eth_price + lp_beans * bean_price
         beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
         beans_value = beans_amount * bean_price
+        pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
 
-        if event_log.event in ['LPDeposit', 'LPRemove', 'LPWithdraw']:
+        if event_log.event in ['LPDeposit', 'LPRemove', 'LPWithdraw', 'LPClaim']:
             if event_log.event == 'LPDeposit':
                 event_str += f'📥 LP deposited'
             elif event_log.event == 'LPRemove':
                 event_str += f'📤 LP removed'
             elif event_log.event == 'LPWithdraw':
                 event_str += f'📭 LP withdrawn'
+            elif event_log.event == 'LPClaim':
+                event_str += f'🛍 LP claimed'
             event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
             event_str += f'\n{value_to_emojis(lp_value)}'
-        elif event_log.event in ['BeanDeposit', 'BeanRemove', 'BeanWithdraw']:
+        elif event_log.event in ['BeanDeposit', 'BeanRemove', 'BeanWithdraw', 'BeanClaim']:
             if event_log.event == 'BeanDeposit':
                 event_str += f'📥 Beans deposited'
             elif event_log.event == 'BeanRemove':
                 event_str += f'📤 Beans removed'
             elif event_log.event == 'BeanWithdraw':
                 event_str += f'📭 Beans withdrawn'
+            elif event_log.event == 'BeanClaim':
+                event_str += f'🛍 Beans claimed'
             event_str += f' - {round_num(beans_amount)} Beans (${round_num(beans_value)})'
+            event_str += f'\n{value_to_emojis(beans_value)}'
+        elif event_log.event == 'Sow':
+            event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
+                         f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
             event_str += f'\n{value_to_emojis(beans_value)}'
         else:
             logging.warning(

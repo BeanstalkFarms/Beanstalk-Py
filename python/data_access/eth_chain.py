@@ -12,6 +12,7 @@ URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
+LP_DECIMALS = 18
 BEAN_DECIMALS = 6
 USDC_DECIMALS = 6
 
@@ -81,6 +82,11 @@ def eth_to_float(gwei):
         return 0
     return int(gwei) / (10 ** ETH_DECIMALS)
 
+
+def lp_to_float(lp_long):
+    if not lp_long:
+        return 0
+    return int(lp_long) / (10 ** LP_DECIMALS)
 
 def bean_to_float(bean_long):
     if not bean_long:
@@ -237,7 +243,9 @@ def maybe_get_test_events(odds=1.0):
         AttributeDict({'args': AttributeDict({'account': '0x25CFB95e1D64e271c1EdACc12B4C9032E2824905', 'crates': [2935, 2754], 'crateBeans': [818912179, 381087821], 'beans': 1200000000}), 'event': 'BeanRemove', 'logIndex': 360, 'transactionIndex': 248, 'transactionHash': HexBytes(
             '0xa6aeb32213fb61e4417622a4183584766abd5fc118e851eb506cd48b401e9e1e'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x74e1a3d8fc1fda3b834e6b2e27c1d612520f7119d2f72be604494eac39800bd4'), 'blockNumber': 13759909}),
         AttributeDict({'args': AttributeDict({'account': '0x25CFB95e1D64e271c1EdACc12B4C9032E2824905', 'season': 2960, 'beans': 1200000000}), 'event': 'BeanWithdraw', 'logIndex': 361, 'transactionIndex': 248, 'transactionHash': HexBytes(
-            '0xa6aeb32213fb61e4417622a4183584766abd5fc118e851eb506cd48b401e9e1e'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x74e1a3d8fc1fda3b834e6b2e27c1d612520f7119d2f72be604494eac39800bd4'), 'blockNumber': 13759909})
+            '0xa6aeb32213fb61e4417622a4183584766abd5fc118e851eb506cd48b401e9e1e'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x74e1a3d8fc1fda3b834e6b2e27c1d612520f7119d2f72be604494eac39800bd4'), 'blockNumber': 13759909}),
+        AttributeDict({'args': AttributeDict({'account': '0x15884aBb6c5a8908294f25eDf22B723bAB36934F', 'withdrawals': [2983], 'lp': 343343500000000}), 'event': 'LPClaim', 'logIndex': 210, 'transactionIndex': 119, 'transactionHash': HexBytes(
+            '0xf1ef8aeee45b44468393638356d9fccc0ff3b7cee169e6784969e7c0cdcf86a6'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xa877eb7ab22366a8abcbf974da5069c4db03ec80df7f503435b42021877d9222'), 'blockNumber': 13772704})
     ]
     if random.randint(1, int(10/odds)) <= 10:
         return events
