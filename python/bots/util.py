@@ -21,7 +21,7 @@ SUNRISE_CHECK_PERIOD = 10
 # Frequency to check chain for new Uniswap V2 pool interactions.
 EVENT_POLL_FREQUENCY = 0.1
 # Rate at which to check for events on the Beanstalk contract.
-BEANSTALK_CHECK_RATE = 3  # seconds
+BEANSTALK_CHECK_RATE = 10  # seconds
 # Bytes in 50 megabytes.
 FIFTY_MEGABYTES = 500**6
 
