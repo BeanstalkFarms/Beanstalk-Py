@@ -194,8 +194,9 @@ def execute(client, query_str, max_tries=0):
             logging.error('Main thread no longer running. Exiting.')
             exit(1)
         except Exception as e:
-            logging.warning(f'Unexpected error on {client_subgraph_name(client)} subgraph access:'
-                            f'\n{e}\n Retrying...')
+            logging.exception(e)
+            logging.warning(f'Unexpected error on {client_subgraph_name(client)} subgraph access.'
+                            f'\nRetrying...')
         time.sleep(1)
         try_count += 1
     raise GraphAccessException

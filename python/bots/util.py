@@ -22,6 +22,8 @@ SUNRISE_CHECK_PERIOD = 10
 EVENT_POLL_FREQUENCY = 0.1
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = 3  # seconds
+# Bytes in 50 megabytes.
+FIFTY_MEGABYTES = 500**6
 
 
 class PegCrossType(Enum):
