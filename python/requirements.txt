@@ -1,0 +1,3 @@
+
+-r bots/requirements.txt
+-r data_access/requirements.txt

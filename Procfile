@@ -1,1 +1,0 @@
-worker_bots: cd python && python -m bots.discord_bot & cd python && python -m bots.telegram_bot
