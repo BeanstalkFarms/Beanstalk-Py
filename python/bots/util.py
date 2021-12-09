@@ -10,6 +10,7 @@ from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
+TIMESTAMP_KEY = 'timestamp'
 # There is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds), so frequency should not be set too low.
 PEG_UPDATE_FREQUENCY = 0.1  # hz
@@ -70,7 +71,7 @@ class PegCrossMonitor(Monitor):
         super().__init__('peg', message_function, 1 /
                          PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
         self.bean_graph_client = BeanSqlClient()
-        self.last_known_cross = 0
+        self.last_known_cross = None
         self._thread = threading.Thread(target=self._monitor_for_cross)
 
     def _monitor_for_cross(self):
@@ -87,51 +88,60 @@ class PegCrossMonitor(Monitor):
                 continue
             min_update_time = time.time() + 1 / PEG_UPDATE_FREQUENCY
 
-            cross_type = self._check_for_peg_cross()
-            if cross_type != PegCrossType.NO_CROSS:
-                output_str = PegCrossMonitor.peg_cross_string(cross_type)
-                self.message_function(output_str)
-                logging.info(output_str)
+            cross_types = self._check_for_peg_crosses()
+            for cross_type in cross_types:
+                if cross_type != PegCrossType.NO_CROSS:
+                    output_str = PegCrossMonitor.peg_cross_string(cross_type)
+                    self.message_function(output_str)
+                    logging.info(output_str)
 
-    def _check_for_peg_cross(self):
+    def _check_for_peg_crosses(self):
         """
         Check to see if the peg has been crossed since the last known timestamp of the caller.
         Assumes that block time > period of graph checks.
 
         Returns:
-            PegCrossType
+            [PegCrossType]
         """
-        cross_type = PegCrossType.NO_CROSS
-
         # Get latest data from graph.
-        result = self.bean_graph_client.last_cross()
-        last_cross = int(result['timestamp'])
-        cross_above = float(result['above'])
+        last_cross = self.bean_graph_client.last_cross()
 
         # # For testing.
         # import random
-        # self.last_known_cross = 1
+        # self.last_known_cross = {'timestamp': 1}
         # price = random.uniform(0.5, 1.5)
 
         # If the last known cross has not been set yet, initialize it.
         if not self.last_known_cross:
             logging.info('Peg cross timestamp initialized with last peg cross = '
-                         f'{last_cross}')
+                         f'{last_cross[TIMESTAMP_KEY]}')
             self.last_known_cross = last_cross
+            return [PegCrossType.NO_CROSS]
 
         # If the cross is not newer than the last known cross, return.
-        if last_cross <= self.last_known_cross:
-            return cross_type
-
-        # Else a new cross has been detected. Determine the cross type and return.
+        if last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY]:
+            return [PegCrossType.NO_CROSS]
+        
+        # Set the last known cross to be the latest new cross.
         self.last_known_cross = last_cross
-        if cross_above:
-            logging.info('Price crossed above peg.')
-            cross_type = PegCrossType.CROSS_ABOVE
+
+        # If multiple crosses have occurred since last known cross.
+        number_of_new_crosses = last_cross['id'] - self.last_known_cross['id']
+        if number_of_new_crosses > 1:
+            new_cross_list = self.bean_graph_client.get_last_crosses(n=number_of_new_crosses)
         else:
-            logging.info('Price crossed below peg.')
-            cross_type = PegCrossType.CROSS_BELOW
-        return cross_type
+            new_cross_list = [last_cross]
+
+        # At least one new cross has been detected. Determine the cross type and return.
+        cross_types = []
+        for cross in new_cross_list:
+            if cross['above']:
+                logging.info('Price crossed above peg.')
+                cross_types.append(PegCrossType.CROSS_ABOVE)
+            else:
+                logging.info('Price crossed below peg.')
+                cross_types.append(PegCrossType.CROSS_BELOW)
+            return cross_types
 
     @abstractmethod
     def peg_cross_string(cross_type):

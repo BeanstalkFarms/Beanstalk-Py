@@ -97,7 +97,7 @@ class BeanSqlClient(object):
         query_str = """
             query get_last_crosses {
                 crosses(first: """ + str(n) + """, orderBy:timestamp, orderDirection: desc)
-                {timestamp, above}
+                {timestamp, above, id}
             }
         """
         # Create gql query and execute.
