@@ -135,27 +135,34 @@ class EventClientType(Enum):
 class EthEventsClient():
     def __init__(self, event_client_type):
         self._web3 = Web3(WebsocketProvider(URL))
-        if event_client_type == event_client_type.POOL:
+        self._event_client_type = event_client_type
+        if self._event_client_type == EventClientType.POOL:
             self._contract = get_eth_bean_pool_contract(self._web3)
             self._events_dict = POOL_EVENT_MAP
+            self._set_filter()
+        elif self._event_client_type == EventClientType.BEANSTALK:
+            self._contract = get_beanstalk_contract(self._web3)
+            self._events_dict = BEANSTALK_EVENT_MAP
+            self._set_filter()
+        else:
+            raise ValueError("Illegal event client type.")
+
+    def _set_filter(self):
+        """This is located in a method so it can be reset on the fly."""
+        if self._event_client_type == EventClientType.POOL:
             self._event_filter = self._web3.eth.filter({
                 "address": ETH_BEAN_POOL_ADDR,
                 "topics": [list(POOL_EVENT_MAP.keys())],
-                "fromBlock": 'latest',
+                # "fromBlock": 'latest',
                 "toBlock": 'latest'
                 })
-        elif event_client_type == event_client_type.BEANSTALK:
-            self._contract = get_beanstalk_contract(self._web3)
-            self._events_dict = BEANSTALK_EVENT_MAP
+        elif self._event_client_type == EventClientType.BEANSTALK:
             self._event_filter = self._web3.eth.filter({
                 "address": BEANSTALK_ADDR,
                 "topics": [list(BEANSTALK_EVENT_MAP.keys())],
-                "fromBlock": 'latest',
+                # "fromBlock": 'latest',
                 "toBlock": 'latest'
                 })
-
-        else:
-            raise ValueError("Illegal event client type.")
 
     def get_new_logs(self, dry_run=False):
         """Iterate through all entries passing filter and return list of decoded Log Objects."""
@@ -185,13 +192,17 @@ class EthEventsClient():
         while try_count < 5:
             try_count += 1
             try:
-                # return filter.get_new_entries()
-                return filter.get_all_entries()
+                return filter.get_new_entries()
+                # return filter.get_all_entries()
             except (ValueError, asyncio.TimeoutError) as e:
-                logging.warning(e)
+                logging.exception(e)
                 logging.info(
                     'filter.get_new_entries() failed or timed out. Retrying...')
                 time.sleep(1)
+        # Filters rely on server state and may be arbitrarily uninstalled by server.
+        # https://github.com/ethereum/web3.py/issues/551
+        # If we are failing too much recreate the filter.
+        self._set_filter()
         logging.error('Failed to get new event entries. Passing.')
         return []
 
