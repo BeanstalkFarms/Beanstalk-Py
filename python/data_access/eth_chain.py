@@ -1,4 +1,5 @@
 import asyncio
+from enum import Enum
 import logging
 import json
 import os
@@ -6,6 +7,7 @@ import time
 from discord.ext.commands.errors import ArgumentParsingError
 
 from web3 import Web3, WebsocketProvider
+from web3.logs import DISCARD
 
 API_KEY = os.environ['ETH_CHAIN_API_KEY']
 URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
@@ -20,6 +22,30 @@ USDC_DECIMALS = 6
 ETH_BEAN_POOL_ADDR = '0x87898263B6C5BABe34b4ec53F22d98430b91e371'
 ETH_USDC_POOL_ADDR = '0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc'
 BEANSTALK_ADDR = '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5'
+
+# NOTE(funderberker): Pretty lame that we cannot automatically parse these from the ABI files.
+#   Technically it seems very straight forward, but it is not implemented in the web3 lib and
+#   parsing it manually is not any better than just writing it out here.
+def add_abi_signature_to_dict(signature, sig_dict):
+    """Add signature_hash:event_name to the dict."""
+    sig_dict[Web3.keccak(text=signature).hex()] = signature.split('(')[0]
+
+POOL_EVENT_MAP = {}
+add_abi_signature_to_dict('Mint(address,uint256,uint256)', POOL_EVENT_MAP)
+add_abi_signature_to_dict('Burn(address,uint256,uint256,address)', POOL_EVENT_MAP)
+add_abi_signature_to_dict('Swap(address,uint256,uint256,uint256,uint256,address)', POOL_EVENT_MAP)
+
+BEANSTALK_EVENT_MAP = {}
+add_abi_signature_to_dict('Sow(address,uint256,uint256,uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('BeanClaim(address,uint32[],uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('LPClaim(address,uint32[],uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('LPDeposit(address,uint256,uint256,uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('LPRemove(address,uint32[],uint256[],uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('LPWithdraw(address,uint256,uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('BeanDeposit(address,uint256,uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('BeanRemove(address,uint32[],uint256[],uint256)', BEANSTALK_EVENT_MAP)
+add_abi_signature_to_dict('BeanWithdraw(address,uint256,uint256)', BEANSTALK_EVENT_MAP)
+
 
 with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
     pool_abi = json.load(pool_abi_file)
@@ -100,55 +126,67 @@ def usdc_to_float(usdc_long):
     return int(usdc_long) / (10 ** USDC_DECIMALS)
 
 
-# For testing purposes.
-# Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
-def monitor_uni_v2_pair_events():
-    client = EthEventsClient()
-    client.set_event_log_filters_pool()
-    while True:
-        events = client.get_new_log_entries()
-        logging.info(events)
-        time.sleep(2)
 
-# For testing purposes.
-# Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
-
-
-def monitor_beanstalk_events():
-    client = EthEventsClient()
-    client.set_event_log_filters_beanstalk()
-    while True:
-        events = client.get_new_log_entries()
-        logging.info(events)
-        time.sleep(2)
+class EventClientType(Enum):
+    POOL = 0
+    BEANSTALK = 1
 
 
 class EthEventsClient():
-    def __init__(self):
+    def __init__(self, event_client_type):
         self._web3 = Web3(WebsocketProvider(URL))
-        self._event_log_filters = None
+        if event_client_type == event_client_type.POOL:
+            self._contract = get_eth_bean_pool_contract(self._web3)
+            self._events_dict = POOL_EVENT_MAP
+            self._event_filter = self._web3.eth.filter({
+                "address": ETH_BEAN_POOL_ADDR,
+                "topics": [list(POOL_EVENT_MAP.keys())],
+                "fromBlock": 'latest',
+                "toBlock": 'latest'
+                })
+        elif event_client_type == event_client_type.BEANSTALK:
+            self._contract = get_beanstalk_contract(self._web3)
+            self._events_dict = BEANSTALK_EVENT_MAP
+            self._event_filter = self._web3.eth.filter({
+                "address": BEANSTALK_ADDR,
+                "topics": [list(BEANSTALK_EVENT_MAP.keys())],
+                "fromBlock": 'latest',
+                "toBlock": 'latest'
+                })
 
-    def get_new_log_entries(self, dry_run=False):
-        """Iterate through all event log filters and return list of Event Log Objects."""
-        assert self._event_log_filters
-        event_logs = []
+        else:
+            raise ValueError("Illegal event client type.")
+
+    def get_new_logs(self, dry_run=False):
+        """Iterate through all entries passing filter and return list of decoded Log Objects."""
+        decoded_logs = []
         if dry_run:
-            return maybe_get_test_events()
+            decoded_logs = maybe_get_test_logs()
+            logging.info(decoded_logs)
+            return decoded_logs
         logging.info(
-            f'Checking for new entries with filters {self._event_log_filters}.')
-        for filter in self._event_log_filters:
-            for event in self.safe_get_new_entries(filter):
-                event_logs.append(event)
-                logging.info(event)
-        return event_logs
+            f'Checking for new entries with filter {self._event_filter}.')
+        for entry in self.safe_get_new_entries(self._event_filter):
+            # logging.info(entry)
+
+            # Retrieve the full tx receipt.
+            receipt = self._web3.eth.get_transaction_receipt(entry['transactionHash'])
+            topic_hash = entry['topics'][0].hex()
+            # Assume only one log of interest per entry.
+            decoded_log = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
+                receipt, errors=DISCARD)[0]
+            logging.info(str(decoded_log) + '\n\n')
+            decoded_logs.append(decoded_log)
+        return decoded_logs
 
     def safe_get_new_entries(self, filter):
+        """Retrieve all new entries that pass the filter."""
         try_count = 0
         while try_count < 5:
             try_count += 1
             try:
-                return filter.get_new_entries()
-                # return filter.get_all_entries()
+                # return filter.get_new_entries()
+                return filter.get_all_entries()
             except (ValueError, asyncio.TimeoutError) as e:
                 logging.warning(e)
                 logging.info(
@@ -157,79 +195,8 @@ class EthEventsClient():
         logging.error('Failed to get new event entries. Passing.')
         return []
 
-    def set_event_log_filters_pool(self):
-        """Create and return web3 filters for the uniswap pair logs.
-
-        - Latest block only
-        - Address == Uniswap V2 Pair Contract Address
-        - Mint, Burn, and Swap interactions only (ignore sync).
-
-        Returns:
-            [swap filter, mint filter, burn filter]
-        """
-        # Creating an Event Log Filter this way will return Event Log Objects with arguments decoded.
-        eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
-        self._event_log_filters = [eth_bean_pool_contract.events.Swap.createFilter(fromBlock='latest'),
-                                   eth_bean_pool_contract.events.Mint.createFilter(
-            fromBlock='latest'),
-            eth_bean_pool_contract.events.Burn.createFilter(fromBlock='latest')]
-
-    def set_event_log_filters_beanstalk(self):
-        """Create and return web3 filters for the beanstalk contract logs.
-
-        - Latest block only
-        - Address == Beanstalk Contract Address
-
-        Returns:
-            []
-        """
-        # Creating Event Log Filters this way will return Event Log Objects with arguments decoded.
-        beanstalk_contract = get_beanstalk_contract(self._web3)
-        self._event_log_filters = [beanstalk_contract.events.LPDeposit.createFilter(fromBlock='latest'),
-                                   beanstalk_contract.events.LPRemove.createFilter(
-            fromBlock='latest'),
-            beanstalk_contract.events.LPWithdraw.createFilter(
-            fromBlock='latest'),
-            beanstalk_contract.events.LPClaim.createFilter(fromBlock='latest'),
-            beanstalk_contract.events.BeanDeposit.createFilter(
-            fromBlock='latest'),
-            beanstalk_contract.events.BeanRemove.createFilter(
-            fromBlock='latest'),
-            beanstalk_contract.events.BeanClaim.createFilter(
-                fromBlock='latest'),
-            beanstalk_contract.events.Sow.createFilter(fromBlock='latest')]
-
-    # Creating a generic Filter this way will return Event Objects with data (arguments) encoded.
-    # return web3.eth.filter({'fromBlock': 'latest', 'address': ETH_BEAN_POOL_ADDR, 'topic': [[MINT_TOPIC, BURN_TOPIC, SWAP_TOPIC]]})
-
-    # Create one Event Log filter with all topics.
-    # https://web3py.readthedocs.io/en/stable/filters.html
-    # mint_event_signature_hash = web3.keccak(eth_bean_pool_contract.encode('Mint')).hex()
-    # burn_event_signature_hash = web3.keccak(text="Burn(address,uint,uint,address)").hex()
-    # swap_event_signature_hash = web3.keccak(text="Swap(address indexed sender,  uint amount0In,  uint amount1In,  uint amount0Out,  uint amount1Out,  address indexed to)").hex()
-
-    # MINT_TOPIC = '0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f'
-    # BURN_TOPIC = '0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496'
-    # SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
-    # SYNC_TOPIC = '0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1'
-    # Turns out this returns just a standard event type with the data encoded. :/.
-    # return [web3.eth.filter({
-    #     "address": ETH_BEAN_POOL_ADDR,
-    #     "topics": [[mint_event_signature_hash, burn_event_signature_hash, swap_event_signature_hash]],
-    #     "fromBlock": 13753729,
-    #     "toBlock": 'latest'
-    #     })]
-
-    # return eth_bean_pool_contract.eventFilter('Swap', {'fromBlock': 0,'toBlock': 'latest'})
-    # filter_builder = eth_bean_pool_contract.events.myEvent.build_filter()
-    # swap_filter = eth_bean_pool_contract.events.Swap.createFilter(fromBlock='latest')
-    # mint_filter = eth_bean_pool_contract.events.Mint.createFilter(fromBlock='latest')
-    # burn_filter = eth_bean_pool_contract.events.Burn.createFilter(fromBlock='latest')
-    # return swap_filter + mint_filter + burn_filter
-
-
-def maybe_get_test_events(odds=1.0):
-    """Get a list of old events to use for testing."""
+def maybe_get_test_logs(odds=1.0):
+    """Get a list of old decoded logs to use for testing."""
     from attributedict.collections import AttributeDict
     from hexbytes import HexBytes
     import random
@@ -247,7 +214,9 @@ def maybe_get_test_events(odds=1.0):
         AttributeDict({'args': AttributeDict({'account': '0x25CFB95e1D64e271c1EdACc12B4C9032E2824905', 'season': 2960, 'beans': 1200000000}), 'event': 'BeanWithdraw', 'logIndex': 361, 'transactionIndex': 248, 'transactionHash': HexBytes(
             '0xa6aeb32213fb61e4417622a4183584766abd5fc118e851eb506cd48b401e9e1e'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x74e1a3d8fc1fda3b834e6b2e27c1d612520f7119d2f72be604494eac39800bd4'), 'blockNumber': 13759909}),
         AttributeDict({'args': AttributeDict({'account': '0x15884aBb6c5a8908294f25eDf22B723bAB36934F', 'withdrawals': [2983], 'lp': 343343500000000}), 'event': 'LPClaim', 'logIndex': 210, 'transactionIndex': 119, 'transactionHash': HexBytes(
-            '0xf1ef8aeee45b44468393638356d9fccc0ff3b7cee169e6784969e7c0cdcf86a6'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xa877eb7ab22366a8abcbf974da5069c4db03ec80df7f503435b42021877d9222'), 'blockNumber': 13772704})
+            '0xf1ef8aeee45b44468393638356d9fccc0ff3b7cee169e6784969e7c0cdcf86a6'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xa877eb7ab22366a8abcbf974da5069c4db03ec80df7f503435b42021877d9222'), 'blockNumber': 13772704}),
+        AttributeDict({'args': AttributeDict({'account': '0x374E518f85aB75c116905Fc69f7e0dC9f0E2350C', 'crates': [1110], 'crateLP': [25560533590528], 'lp': 25560533590528}), 'event': 'LPRemove', 'logIndex': 472, 'transactionIndex': 208, 'transactionHash': HexBytes(
+            '0xc35157e0ba17e7a3ea966f33f36a84dd14516e7542870add0061f377910d7533'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0a21f0179867a9d979b6654943dd88a0f92892b50ba927282c5127a09fc9bdb9'), 'blockNumber': 13777911})
     ]
     if random.randint(1, int(10/odds)) <= 10:
         return events
@@ -255,8 +224,27 @@ def maybe_get_test_events(odds=1.0):
         return []
 
 
+# For testing purposes.
+# Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
+def monitor_uni_v2_pair_events():
+    client = EthEventsClient(EventClientType.POOL)
+    while True:
+        events = client.get_new_logs(dry_run=True)
+        time.sleep(5)
+
+# For testing purposes.
+# Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
+
+
+def monitor_beanstalk_events():
+    client = EthEventsClient(EventClientType.BEANSTALK)
+    while True:
+        events = client.get_new_logs(dry_run=True)
+        time.sleep(5)
+
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
-
-    # monitor_uni_v2_pair_events()
-    monitor_beanstalk_events()
+    logging.basicConfig(format='ETH Chain : %(levelname)s : %(asctime)s : %(message)s',
+                        level=logging.INFO)
+    monitor_uni_v2_pair_events()
+    # monitor_beanstalk_events()

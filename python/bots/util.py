@@ -39,8 +39,8 @@ PEG_UPDATE_FREQUENCY = 0.1  # hz
 SEASON_DURATION = 3600  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 10
-# Frequency to check chain for new Uniswap V2 pool interactions.
-EVENT_POLL_FREQUENCY = 0.1
+# Rate at which to check chain for new Uniswap V2 pool interactions.
+POOL_CHECK_RATE = 10 # seconds
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = 10  # seconds
 # Bytes in 50 megabytes.
@@ -291,18 +291,22 @@ class PoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
 
     def __init__(self, message_function, prod=False, dry_run=False):
-        super().__init__('pool', message_function, 1 /
-                         EVENT_POLL_FREQUENCY, prod=prod, dry_run=dry_run)
-        self._eth_event_client = eth_chain.EthEventsClient()
-        self._eth_event_client.set_event_log_filters_pool()
+        super().__init__('pool', message_function,
+                         POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._eth_event_client = eth_chain.EthEventsClient(
+            eth_chain.EventClientType.POOL)
         self.blockchain_client = eth_chain.BlockchainClient()
         self._thread = threading.Thread(target=self._monitor_events)
 
     def _monitor_events(self):
+        last_check_time = 0
         while self._thread_active:
-            for event_log in self._eth_event_client.get_new_log_entries(dry_run=self._dry_run):
+            if time.time() < last_check_time + POOL_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for event_log in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
                 self._handle_event_log(event_log)
-            time.sleep(1/EVENT_POLL_FREQUENCY)
 
     def _handle_event_log(self, event_log):
         """Process the pool event log.
@@ -361,17 +365,20 @@ class BeanstalkMonitor(Monitor):
     def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__('beanstalk', message_function,
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._eth_event_client = eth_chain.EthEventsClient()
-        self._eth_event_client.set_event_log_filters_beanstalk()
+        self._eth_event_client = eth_chain.EthEventsClient(eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.blockchain_client = eth_chain.BlockchainClient()
         self._thread = threading.Thread(target=self._monitor_events)
 
     def _monitor_events(self):
+        last_check_time = 0
         while self._thread_active:
-            for event_log in self._eth_event_client.get_new_log_entries(dry_run=self._dry_run):
+            if time.time() < last_check_time + BEANSTALK_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for event_log in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
                 self._handle_event_log(event_log)
-            time.sleep(BEANSTALK_CHECK_RATE)
 
     def _handle_event_log(self, event_log):
         """Process the beanstalk event log.
