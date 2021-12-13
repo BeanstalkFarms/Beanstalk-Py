@@ -1,7 +1,7 @@
 # Bots
 Several bots will be implemented here which will collect and disseminate data through community channels (Telegram, Discord, Twitter).
 
-Each bot will be implemented in Python and containerized using Docker. They will collect data from the Beanstalk subgraphs and/or the Ethereum chain and may maintain a small amount of persistent state in local storage. Each bot will be implemented in such a way that it can serve all necessary output channels.
+Each bot will be implemented in Python. They will collect data from the Beanstalk graphs and/or the Ethereum chain and may maintain a small amount of persistent state in local storage. Each bot will be implemented in such a way that it can serve all necessary output channels.
 
 ## Communication Channels
 
@@ -10,16 +10,20 @@ The Python bots will disseminate information through the various text-based comm
 Each of these applications has their own API for handling messages. We pull third-party SDKs for each to simplify interaction with the various APIs.
 
 ### Telegram
-API Documentation: https://core.telegram.org/bots/api
-Python SDK Library: https://github.com/eternnoir/pyTelegramBotAPI (GPLv2 License)
+- **beanstalk_stage_bot** https://t.me/beanstalk_stage_bot
+- **beanstalk_bot** https://t.me/beanstalk_bot
+- API Documentation: https://core.telegram.org/bots/api
+- Python SDK Library: https://github.com/eternnoir/pyTelegramBotAPI (GPLv2 License)
 
 ### Discord
-API Documentation: https://discord.com/developers/docs/intro
-Python SDK Library: https://github.com/Rapptz/discord.py (MIT License)
+- **BeanBot-Staging#0096**
+- **BeanBot#8204**
+- API Documentation: https://discord.com/developers/docs/intro
+- Python SDK Library: https://github.com/Rapptz/discord.py (MIT License)
 
 ### Twitter
-API Documentation: https://developer.twitter.com/en/docs/twitter-api
-Python SDK Library: https://github.com/bear/python-twitter (Apache License)
+- API Documentation: https://developer.twitter.com/en/docs/twitter-api
+- Python SDK Library: https://github.com/bear/python-twitter (Apache License)
 
 ## Bot List
 
