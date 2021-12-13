@@ -45,6 +45,8 @@ POOL_CHECK_RATE = 10 # seconds
 BEANSTALK_CHECK_RATE = 10  # seconds
 # Bytes in 50 megabytes.
 FIFTY_MEGABYTES = 500**6
+# Time to wait before restarting a monitor after an unhandled exception.
+MONITOR_RESET_DELAY = 5
 
 
 class PegCrossType(Enum):
@@ -70,7 +72,11 @@ class Monitor():
         self.prod = prod
         self._dry_run = dry_run
         self._thread_active = False
-        self._thread = None
+        self._thread_wrapper = threading.Thread(target=self._thread_wrapper_method)
+
+    @abstractmethod
+    def _monitor_method(self):
+        pass
 
     def start(self):
         logging.info(f'Starting {self.name} monitoring thread...')
@@ -79,14 +85,32 @@ class Monitor():
         elif not self.prod:
             self.message_function(f'{self.name} monitoring started.')
         self._thread_active = True
-        self._thread.start()
+        self._thread_wrapper.start()
 
     def stop(self):
         if not self.prod:
             logging.info(f'Stopping {self.name} monitoring thread...')
         self._thread_active = False
-        self._thread.join(3 * self.query_rate)
+        self._thread_wrapper.join(3 * self.query_rate)
         self.message_function(f'{self.name} monitoring stopped.')
+
+    def _thread_wrapper_method(self):
+        """
+        Many of the web3 calls can fail arbitrarily on external calls. Gracefully log all
+        excpetions and continue.
+        """
+        retry_time = 0
+        while self._thread_active:
+            if time.time() < retry_time:
+                time.sleep(0.5)
+                continue
+            try:
+                self._monitor_method()
+            except Exception as e:
+                logging.exception(f'Unhandled exception in the {self.name} thread.'
+                                  f'\nLogging here and restarting monitor.')
+                logging.exception(e)
+            retry_time = time.time() + MONITOR_RESET_DELAY
 
 
 class PegCrossMonitor(Monitor):
@@ -97,9 +121,8 @@ class PegCrossMonitor(Monitor):
                          PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = None
-        self._thread = threading.Thread(target=self._monitor_for_cross)
 
-    def _monitor_for_cross(self):
+    def _monitor_method(self):
         """Continuously monitor for BEAN price crossing the peg.
 
         Note that this assumes that block time > period of graph checks.
@@ -188,9 +211,8 @@ class SunriseMonitor(Monitor):
         self.beanstalk_graph_client = BeanstalkSqlClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
-        self._thread = threading.Thread(target=self._monitor_for_sunrise)
 
-    def _monitor_for_sunrise(self):
+    def _monitor_method(self):
         while self._thread_active:
             # Wait until the eligible for a sunrise.
             self._wait_until_expected_sunrise()
@@ -284,6 +306,7 @@ class SunriseMonitor(Monitor):
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
         ret_string += '\n_ _'  # empty line that does not get stripped
+        logging.info(ret_string)
         return ret_string
 
 
@@ -296,9 +319,8 @@ class PoolMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.POOL)
         self.blockchain_client = eth_chain.BlockchainClient()
-        self._thread = threading.Thread(target=self._monitor_events)
 
-    def _monitor_events(self):
+    def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
             if time.time() < last_check_time + POOL_CHECK_RATE:
@@ -368,9 +390,8 @@ class BeanstalkMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.blockchain_client = eth_chain.BlockchainClient()
-        self._thread = threading.Thread(target=self._monitor_events)
 
-    def _monitor_events(self):
+    def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
             if time.time() < last_check_time + BEANSTALK_CHECK_RATE:

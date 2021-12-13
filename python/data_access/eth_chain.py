@@ -26,30 +26,56 @@ BEANSTALK_ADDR = '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5'
 # NOTE(funderberker): Pretty lame that we cannot automatically parse these from the ABI files.
 #   Technically it seems very straight forward, but it is not implemented in the web3 lib and
 #   parsing it manually is not any better than just writing it out here.
-def add_abi_signature_to_dict(signature, sig_dict):
-    """Add signature_hash:event_name to the dict."""
-    sig_dict[Web3.keccak(text=signature).hex()] = signature.split('(')[0]
+def add_event_to_dict(signature, sig_dict, sig_list):
+    """Add both signature_hash and event_name to the bidirectional dict.
+    
+    Configure as a bijective map. Both directions will be added for each event type:
+        - signature_hash:event_name
+        - event_name:signature_hash
+    """
+    event_name =  signature.split('(')[0]
+    event_signature_hash = Web3.keccak(text=signature).hex()
+    sig_dict[event_name] = event_signature_hash
+    sig_dict[event_signature_hash] = event_name
+    sig_list.append(event_signature_hash)
+
 
 POOL_EVENT_MAP = {}
-add_abi_signature_to_dict('Mint(address,uint256,uint256)', POOL_EVENT_MAP)
-add_abi_signature_to_dict('Burn(address,uint256,uint256,address)', POOL_EVENT_MAP)
-add_abi_signature_to_dict('Swap(address,uint256,uint256,uint256,uint256,address)', POOL_EVENT_MAP)
+POOL_SIGNATURES_LIST = []
+add_event_to_dict('Mint(address,uint256,uint256)',
+                  POOL_EVENT_MAP, POOL_SIGNATURES_LIST)
+add_event_to_dict('Burn(address,uint256,uint256,address)',
+                  POOL_EVENT_MAP, POOL_SIGNATURES_LIST)
+add_event_to_dict('Swap(address,uint256,uint256,uint256,uint256,address)',
+                  POOL_EVENT_MAP, POOL_SIGNATURES_LIST)
 
 BEANSTALK_EVENT_MAP = {}
-add_abi_signature_to_dict('Sow(address,uint256,uint256,uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('BeanClaim(address,uint32[],uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('LPClaim(address,uint32[],uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('LPDeposit(address,uint256,uint256,uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('LPRemove(address,uint32[],uint256[],uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('LPWithdraw(address,uint256,uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('BeanDeposit(address,uint256,uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('BeanRemove(address,uint32[],uint256[],uint256)', BEANSTALK_EVENT_MAP)
-add_abi_signature_to_dict('BeanWithdraw(address,uint256,uint256)', BEANSTALK_EVENT_MAP)
+BEANSTALK_SIGNATURES_LIST = []
+add_event_to_dict('Sow(address,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('BeanClaim(address,uint32[],uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('LPClaim(address,uint32[],uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('BeanDeposit(address,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('LPDeposit(address,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('BeanRemove(address,uint32[],uint256[],uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('LPRemove(address,uint32[],uint256[],uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('BeanWithdraw(address,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('LPWithdraw(address,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
 
-with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
+with open(os.path.join(os.path.dirname(__file__),
+                       '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
     pool_abi = json.load(pool_abi_file)
-with open(os.path.join(os.path.dirname(__file__), '../../contracts/ethereum/beanstalk_abi.json')) as beanstalk_abi_file:
+with open(os.path.join(os.path.dirname(__file__),
+                       '../../contracts/ethereum/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 
 
@@ -152,14 +178,14 @@ class EthEventsClient():
         if self._event_client_type == EventClientType.POOL:
             self._event_filter = self._web3.eth.filter({
                 "address": ETH_BEAN_POOL_ADDR,
-                "topics": [list(POOL_EVENT_MAP.keys())],
+                "topics": [POOL_SIGNATURES_LIST],
                 # "fromBlock": 'latest',
                 "toBlock": 'latest'
                 })
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._event_filter = self._web3.eth.filter({
                 "address": BEANSTALK_ADDR,
-                "topics": [list(BEANSTALK_EVENT_MAP.keys())],
+                "topics": [BEANSTALK_SIGNATURES_LIST],
                 # "fromBlock": 'latest',
                 "toBlock": 'latest'
                 })
@@ -177,12 +203,22 @@ class EthEventsClient():
         for entry in self.safe_get_new_entries(self._event_filter):
             # logging.info(entry)
 
-            # Retrieve the full tx receipt.
+            # Retrieve the full txn receipt.
             receipt = self._web3.eth.get_transaction_receipt(entry['transactionHash'])
             topic_hash = entry['topics'][0].hex()
-            # Assume only one log of interest per entry.
-            decoded_log = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
-                receipt, errors=DISCARD)[0]
+            
+            # Get and decode all logs with given topic for the txn.
+            decoded_logs = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
+                receipt, errors=DISCARD)
+            
+            # Assume only one log of interest for the topic per entry in a given txn.
+            # If it is a swap, use the last swap, which will always be ETH<->Bean.
+            if topic_hash == self._events_dict['Swap']:
+                decoded_log = decoded_logs[-1]
+            # Else assume first entry is the one of interest.
+            else:
+                decoded_log = decoded_logs[0]
+
             logging.info(str(decoded_log) + '\n\n')
             decoded_logs.append(decoded_log)
         return decoded_logs
