@@ -172,7 +172,8 @@ class EthEventsClient():
             logging.info(decoded_logs)
             return decoded_logs
         logging.info(
-            f'Checking for new entries with filter {self._event_filter}.')
+            f'Checking for new {self._event_client_type.name} entries with ' \
+            f'filter {self._event_filter}.')
         for entry in self.safe_get_new_entries(self._event_filter):
             # logging.info(entry)
 
