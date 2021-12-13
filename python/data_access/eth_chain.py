@@ -73,7 +73,7 @@ def get_beanstalk_contract(web3):
 
 class BlockchainClient():
     def __init__(self):
-        self._web3 = Web3(WebsocketProvider(URL))
+        self._web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
         self.eth_usdc_pool_contract = get_eth_usdc_pool_contract(self._web3)
         self.eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
 
@@ -134,7 +134,7 @@ class EventClientType(Enum):
 
 class EthEventsClient():
     def __init__(self, event_client_type):
-        self._web3 = Web3(WebsocketProvider(URL))
+        self._web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.POOL:
             self._contract = get_eth_bean_pool_contract(self._web3)
@@ -187,14 +187,17 @@ class EthEventsClient():
         return decoded_logs
 
     def safe_get_new_entries(self, filter):
-        """Retrieve all new entries that pass the filter."""
+        """Retrieve all new entries that pass the filter.
+        
+        Catch any exceptions that may arise when attempting to connect to Infura.
+        """
         try_count = 0
         while try_count < 5:
             try_count += 1
             try:
                 return filter.get_new_entries()
                 # return filter.get_all_entries()
-            except (ValueError, asyncio.TimeoutError) as e:
+            except (ValueError, asyncio.TimeoutError, Exception) as e:
                 logging.exception(e)
                 logging.info(
                     'filter.get_new_entries() failed or timed out. Retrying...')
