@@ -174,7 +174,7 @@ class PegCrossMonitor(Monitor):
         self.last_known_cross = last_cross
 
         # If multiple crosses have occurred since last known cross.
-        number_of_new_crosses = last_cross['id'] - self.last_known_cross['id']
+        number_of_new_crosses = int(last_cross['id']) - int(self.last_known_cross['id'])
         if number_of_new_crosses > 1:
             new_cross_list = self.bean_graph_client.get_last_crosses(n=number_of_new_crosses)
         else:
@@ -189,7 +189,7 @@ class PegCrossMonitor(Monitor):
             else:
                 logging.info('Price crossed below peg.')
                 cross_types.append(PegCrossType.CROSS_BELOW)
-            return cross_types
+        return cross_types
 
     @abstractmethod
     def peg_cross_string(cross_type):
