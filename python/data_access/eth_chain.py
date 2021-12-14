@@ -213,7 +213,7 @@ class EthEventsClient():
             
             # Assume only one log of interest for the topic per entry in a given txn.
             # If it is a swap, use the last swap, which will always be ETH<->Bean.
-            if topic_hash == self._events_dict['Swap']:
+            if topic_hash == self._events_dict.get('Swap'):
                 decoded_log = decoded_logs[-1]
             # Else assume first entry is the one of interest.
             else:
