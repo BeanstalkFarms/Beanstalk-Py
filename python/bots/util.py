@@ -122,10 +122,6 @@ class PegCrossMonitor(Monitor):
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = None
 
-        # One time bootstrap for 12/14/21.
-        output_str = PegCrossMonitor.peg_cross_string(PegCrossType.CROSS_ABOVE)
-        self.message_function(output_str)
-
     def _monitor_method(self):
         """Continuously monitor for BEAN price crossing the peg.
 
