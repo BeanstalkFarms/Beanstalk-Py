@@ -346,7 +346,7 @@ class PoolMonitor(Monitor):
         bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
 
         # Get pricing from uni pools.
-        bean_price = self.blockchain_client.current_bean_price()
+        eth_price, bean_price = self.blockchain_client.current_eth_and_bean_price()
 
         if event_log.event in ['Mint', 'Burn']:
             if event_log.event == 'Mint':
@@ -361,12 +361,12 @@ class PoolMonitor(Monitor):
             if eth_in > 0:
                 event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
                 swap_price = self.blockchain_client.avg_swap_price(
-                    eth_in, bean_out)
+                    eth_in, bean_out, eth_price=eth_price)
                 swap_value = swap_price * bean_out
             elif bean_in > 0:
                 event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
                 swap_price = self.blockchain_client.avg_swap_price(
-                    eth_out, bean_in)
+                    eth_out, bean_in, eth_price=eth_price)
                 swap_value = swap_price * bean_in
             else:
                 logging.warning('Unexpected Swap args detected.')

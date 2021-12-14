@@ -124,9 +124,11 @@ class BlockchainClient():
         _, bean_price = self.current_eth_and_bean_price()
         return bean_price
 
-    def avg_swap_price(self, eth, beans):
+    def avg_swap_price(self, eth, beans, eth_price=None):
         """Returns the $/bean cost for a swap txn using the $/ETH price."""
-        return self.current_eth_price() * (eth / beans)
+        if not eth_price:
+            eth_price = self.current_eth_price()
+        return eth_price * (eth / beans)
 
 
 def eth_to_float(gwei):
