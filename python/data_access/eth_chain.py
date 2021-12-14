@@ -192,11 +192,11 @@ class EthEventsClient():
 
     def get_new_logs(self, dry_run=False):
         """Iterate through all entries passing filter and return list of decoded Log Objects."""
-        decoded_logs = []
+        all_decoded_logs = []
         if dry_run:
-            decoded_logs = maybe_get_test_logs()
-            logging.info(decoded_logs)
-            return decoded_logs
+            all_decoded_logs = maybe_get_test_logs()
+            logging.info(all_decoded_logs)
+            return all_decoded_logs
         logging.info(
             f'Checking for new {self._event_client_type.name} entries with ' \
             f'filter {self._event_filter}.')
@@ -220,8 +220,8 @@ class EthEventsClient():
                 decoded_log = decoded_logs[0]
 
             logging.info(str(decoded_log) + '\n\n')
-            decoded_logs.append(decoded_log)
-        return decoded_logs
+            all_decoded_logs.append(decoded_log)
+        return all_decoded_logs
 
     def safe_get_new_entries(self, filter):
         """Retrieve all new entries that pass the filter.
