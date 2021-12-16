@@ -350,9 +350,9 @@ class PoolMonitor(Monitor):
 
         if event_log.event in ['Mint', 'Burn']:
             if event_log.event == 'Mint':
-                event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+                event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
             if event_log.event == 'Burn':
-                event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 3)} ETH'
+                event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
             # LP add/remove always takes equal value of both assets.
             lp_value = bean_amount * bean_price * 2
             event_str += f' (${round_num(lp_value)})'

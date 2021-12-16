@@ -193,43 +193,81 @@ class EthEventsClient():
                 })
 
     def get_new_logs(self, dry_run=False):
-        """Iterate through all entries passing filter and return list of decoded Log Objects."""
-        all_decoded_logs = []
-        if dry_run:
-            all_decoded_logs = maybe_get_test_logs()
-            logging.info(all_decoded_logs)
-            return all_decoded_logs
-        logging.info(
-            f'Checking for new {self._event_client_type.name} entries with ' \
-            f'filter {self._event_filter}.')
-        for entry in self.safe_get_new_entries(self._event_filter):
-            # logging.info(entry)
+        """Iterate through all entries passing filter and return list of decoded Log Objects.
+        
+        Each on-chain event triggered creates one log, which is associated with one entry. We
+        assume that an entry here will contain only one log of interest. It is
+        possible to have multiple entries on the same block though, with each entry
+        representing a unique txn.
+
+        Note that there may be multiple unique entries with the same topic. Though we assume
+        each entry indicates one log of interest.
+        """
+        # All decoded logs of interest from all txn+topic combos.
+        logs_of_interest = []
+        # Keep track of which txn/topic combos have already been processed. 
+        seen_txn_topic_combos = set()
+
+        if not dry_run:
+            new_entries = self.safe_get_new_entries(self._event_filter)
+        else:
+            new_entries = get_test_entries()
+            time.sleep(3)
+            
+        # Track which unique logs have already been processed from this event batch.
+        for entry in new_entries:
+            # The topic associated with this entry.
+            topic_hash = entry['topics'][0].hex()
+
+            # Do not process topics outside of this classes topics of interest.
+            if topic_hash not in self._events_dict:
+                logging.warning(f'Unexpected topic ({topic_hash}) seen in '
+                                f'{self._event_client_type.name} EthEventsClient')
+                continue
+
+            logging.info(f'{self._event_client_type.name} entry:\n{str(entry)}\n')
+
+            # Do not process the same txn + topic combo multiple times.
+            if txn_topic_combo_id(entry) in seen_txn_topic_combos:
+                continue
+            seen_txn_topic_combos.add(txn_topic_combo_id(entry))
 
             # Retrieve the full txn receipt.
             receipt = self._web3.eth.get_transaction_receipt(entry['transactionHash'])
-            topic_hash = entry['topics'][0].hex()
             
-            # Get and decode all logs with given topic for the txn.
+            # Get and decode all logs with given topic for the txn. There may be multiple logs
+            # of interest in this txn+topic combo.
             decoded_logs = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
                 receipt, errors=DISCARD)
             
-            # Assume only one log of interest for the topic per entry in a given txn.
-            # If it is a swap, use the last swap, which will always be ETH<->Bean.
-            if topic_hash == self._events_dict.get('Swap'):
-                decoded_log = decoded_logs[-1]
-            # Else assume first entry is the one of interest.
-            else:
-                decoded_log = decoded_logs[0]
+            logging.info(f'Decoded {self._events_dict[topic_hash]} logs from '
+                         f'{entry["transactionHash"].hex()}:\n{str(decoded_logs)}\n')
+            
+            # Iterate through all txn+topic logs and add all logs that we are interested in.
+            combo_logs_of_interest = []
+            for log in decoded_logs:
+                # Only process Swaps with the ETH:BEAN pool.
+                if log.event == 'Swap' and log.address == ETH_BEAN_POOL_ADDR:
+                    combo_logs_of_interest.append(log)
+                elif log.event == self._events_dict[topic_hash]:
+                    combo_logs_of_interest.append(log)
+            # Expect at least one log of interest for each combo.
+            if not combo_logs_of_interest:
+                logging.error(f'No logs of interest found for:\n{txn_topic_combo_id(entry)}\n')
+            logs_of_interest.extend(combo_logs_of_interest)
 
-            logging.info(str(decoded_log) + '\n\n')
-            all_decoded_logs.append(decoded_log)
-        return all_decoded_logs
+        return logs_of_interest
 
     def safe_get_new_entries(self, filter):
         """Retrieve all new entries that pass the filter.
         
+        Returns one entry for every log that matches a filter. So if a single txn has multiple logs
+        of interest this will return multiple entries.
         Catch any exceptions that may arise when attempting to connect to Infura.
         """
+        logging.info(
+            f'Checking for new {self._event_client_type.name} entries with ' \
+            f'filter {self._event_filter}.')
         try_count = 0
         while try_count < 5:
             try_count += 1
@@ -247,6 +285,10 @@ class EthEventsClient():
         self._set_filter()
         logging.error('Failed to get new event entries. Passing.')
         return []
+
+def txn_topic_combo_id(entry):
+    """Return a unique string identifying this transaction and topic combo."""
+    return entry['transactionHash'].hex() + entry['topics'][0].hex()
 
 def maybe_get_test_logs(odds=1.0):
     """Get a list of old decoded logs to use for testing."""
@@ -276,6 +318,18 @@ def maybe_get_test_logs(odds=1.0):
     else:
         return []
 
+def get_test_entries():
+    """Get a list of old encoded entries to use for testing."""
+    from attributedict.collections import AttributeDict
+    from hexbytes import HexBytes
+    time.sleep(1)
+    entries = [
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x9ec4bb0665ea05462c94c6482051d656f0d8d9f087acc9f835b4ee26f4944f9e'), 'blockNumber': 13816727, 'data': '0x0000000000000000000000000000000000000000000000000000000000000c4c0000000000000000000000000000000000000000000000000000000000168678',
+                      'logIndex': 698, 'removed': False, 'topics': [HexBytes('0x916fd954accea6bad98fd6d8dda65058a5a16511534ebb14b2380f24aa61cc3a'), HexBytes('0x000000000000000000000000821acf4602b9d57da21dee0c3db45e71143c0b45')], 'transactionHash': HexBytes('0xf9665147a5d4f518b71c6f1239a84b5db3aaac980d5992a075e45249959bf1de'), 'transactionIndex': 158}),
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xe4a69dd4c21d6eb38328fe3e2bbf3df77e889489aceb53860809fbaa726e721c'), 'blockNumber': 13816750, 'data': '0x0000000000000000000000000000000000000000000000000000000000000c4c0000000000000000000000000000000000000000000000000000000004f2ca26',
+                      'logIndex': 25, 'removed': False, 'topics': [HexBytes('0x916fd954accea6bad98fd6d8dda65058a5a16511534ebb14b2380f24aa61cc3a'), HexBytes('0x000000000000000000000000414a26eaa23583715d71b3294f0bf5eabdd2eaa8')], 'transactionHash': HexBytes('0x39d1bc1325d27effed5092735861922443b269a1dfbe3f7d52e3cac8446a292e'), 'transactionIndex': 6})
+    ]
+    return entries
 
 # For testing purposes.
 # Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
