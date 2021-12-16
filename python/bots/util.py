@@ -169,9 +169,6 @@ class PegCrossMonitor(Monitor):
         # If the cross is not newer than the last known cross, return.
         if last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY]:
             return [PegCrossType.NO_CROSS]
-        
-        # Set the last known cross to be the latest new cross.
-        self.last_known_cross = last_cross
 
         # If multiple crosses have occurred since last known cross.
         number_of_new_crosses = int(last_cross['id']) - int(self.last_known_cross['id'])
@@ -179,6 +176,9 @@ class PegCrossMonitor(Monitor):
             new_cross_list = self.bean_graph_client.get_last_crosses(n=number_of_new_crosses)
         else:
             new_cross_list = [last_cross]
+
+        # Set the last known cross to be the latest new cross.
+        self.last_known_cross = last_cross
 
         # At least one new cross has been detected. Determine the cross type and return.
         cross_types = []
