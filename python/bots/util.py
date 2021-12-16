@@ -488,7 +488,7 @@ def round_num(number, precision=2):
 def value_to_emojis(value):
     """Convert a rounded dollar value to a string of emojis."""
     value = int(value)
-    if value <= 0:
+    if value < 0:
         return ''
     value = round(value, -3)
     if value < 10000:
