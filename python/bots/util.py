@@ -48,7 +48,6 @@ FIFTY_MEGABYTES = 500**6
 # Time to wait before restarting a monitor after an unhandled exception.
 MONITOR_RESET_DELAY = 5
 
-
 class PegCrossType(Enum):
     NO_CROSS = 0
     CROSS_ABOVE = 1
