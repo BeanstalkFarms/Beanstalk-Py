@@ -64,15 +64,28 @@ add_event_to_dict('BeanDeposit(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('LPDeposit(address,uint256,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('BeanRemove(address,uint32[],uint256[],uint256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('LPRemove(address,uint32[],uint256[],uint256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('BeanRemove(address,uint32[],uint256[],uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('LPRemove(address,uint32[],uint256[],uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('BeanWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('LPWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
+ALL_SIGNATURES_LIST = POOL_SIGNATURES_LIST + BEANSTALK_SIGNATURES_LIST
+
+# Method signatures.
+# Silo conversion signatures.
+silo_conversion_sigs = ['convertDepositedLP(uint256,uint256,uint32[],uint256[])',
+                        'convertDepositedBeans(uint256,uint256,uint32[],uint256[])']
+silo_conversion_sigs = [Web3.keccak(text=sig).hex() for sig in silo_conversion_sigs]
+# Signatures of methods with the explicit bean deposit (most txns include embedded deposit).
+bean_deposit_sigs = ['depositBeans(uint256)',
+                     'buyAndDepositBeans(uint256,uint256)',
+                     'claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))',
+                     'claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))']
+bean_deposit_sigs = [Web3.keccak(text=sig).hex() for sig in bean_deposit_sigs]
 
 with open(os.path.join(os.path.dirname(__file__),
                        '../../contracts/ethereum/IUniswapV2Pair.json')) as pool_abi_file:
@@ -169,31 +182,27 @@ class EthEventsClient():
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.POOL:
             self._contract = get_eth_bean_pool_contract(self._web3)
+            self._contract_address = ETH_BEAN_POOL_ADDR
             self._events_dict = POOL_EVENT_MAP
+            self._signature_list = POOL_SIGNATURES_LIST
             self._set_filter()
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contract = get_beanstalk_contract(self._web3)
+            self._contract_address = BEANSTALK_ADDR
             self._events_dict = BEANSTALK_EVENT_MAP
+            self._signature_list = BEANSTALK_SIGNATURES_LIST
             self._set_filter()
         else:
             raise ValueError("Illegal event client type.")
 
     def _set_filter(self):
         """This is located in a method so it can be reset on the fly."""
-        if self._event_client_type == EventClientType.POOL:
-            self._event_filter = self._web3.eth.filter({
-                "address": ETH_BEAN_POOL_ADDR,
-                "topics": [POOL_SIGNATURES_LIST],
-                # "fromBlock": 'latest',
-                "toBlock": 'latest'
-                })
-        elif self._event_client_type == EventClientType.BEANSTALK:
-            self._event_filter = self._web3.eth.filter({
-                "address": BEANSTALK_ADDR,
-                "topics": [BEANSTALK_SIGNATURES_LIST],
-                # "fromBlock": 'latest',
-                "toBlock": 'latest'
-                })
+        self._event_filter = self._web3.eth.filter({
+            "address": self._contract_address,
+            "topics": [self._signature_list],
+            # "fromBlock": 'latest',
+            "toBlock": 'latest'
+            })
 
     def get_new_logs(self, dry_run=False):
         """Iterate through all entries passing filter and return list of decoded Log Objects.
@@ -206,10 +215,8 @@ class EthEventsClient():
         Note that there may be multiple unique entries with the same topic. Though we assume
         each entry indicates one log of interest.
         """
-        # All decoded logs of interest from all txn+topic combos.
-        logs_of_interest = []
-        # Keep track of which txn/topic combos have already been processed. 
-        seen_txn_topic_combos = set()
+        # All decoded logs of interest from each txn.
+        txn_logs_dict = {}
 
         if not dry_run:
             new_entries = self.safe_get_new_entries(self._event_filter)
@@ -219,7 +226,7 @@ class EthEventsClient():
             
         # Track which unique logs have already been processed from this event batch.
         for entry in new_entries:
-            # The topic associated with this entry.
+            # The event topic associated with this entry.
             topic_hash = entry['topics'][0].hex()
 
             # Do not process topics outside of this classes topics of interest.
@@ -228,42 +235,63 @@ class EthEventsClient():
                                 f'{self._event_client_type.name} EthEventsClient')
                 continue
 
-            # Do not process the same txn + topic combo multiple times.
-            if txn_topic_combo_id(entry) in seen_txn_topic_combos:
-                continue
-            seen_txn_topic_combos.add(txn_topic_combo_id(entry))
-
+            # Print out entry.
             logging.info(f'{self._event_client_type.name} entry:\n{str(entry)}\n')
 
-            # Retrieve the full txn receipt.
-            receipt = self._web3.eth.get_transaction_receipt(entry['transactionHash'])
+            # Do not process the same txn multiple times.
+            txn_hash = entry['transactionHash']
+            if txn_hash in txn_logs_dict:
+                continue
+
+            logging.info(f'{self._event_client_type.name} processing {txn_hash.hex()} logs.')
+
+            # Retrieve the full txn and txn receipt.
+            receipt = self._web3.eth.get_transaction_receipt(txn_hash)
             
             # Get and decode all logs with given topic for the txn. There may be multiple logs
             # of interest in this txn+topic combo.
-            decoded_logs = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
-                receipt, errors=DISCARD)
-            
-            logging.info(f'Decoded {self._events_dict[topic_hash]} logs from '
-                         f'{entry["transactionHash"].hex()}:\n{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}\n')
-            
-            # Iterate through all txn+topic logs and add all logs that we are interested in.
-            combo_logs_of_interest = []
-            for log in decoded_logs:
-                # Only process Swaps with the ETH:BEAN pool.
-                if log.event == 'Swap':
-                    if log.address == ETH_BEAN_POOL_ADDR:
-                        combo_logs_of_interest.append(log)
-                    else:
-                        # Do nothing for swaps in different pools.
-                        pass
-                elif log.event == self._events_dict[topic_hash]:
-                    combo_logs_of_interest.append(log)
-            # Expect at least one log of interest for each combo.
-            if not combo_logs_of_interest:
-                logging.error(f'No logs of interest found for:\n{txn_topic_combo_id(entry)}\n')
-            logs_of_interest.extend(combo_logs_of_interest)
+            # decoded_logs = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
+            #     receipt, errors=DISCARD)
+            # Get and decode all logs of interest from the txn. There may be many logs.
+            decoded_logs = []
+            for signature in self._signature_list:
+                decoded_logs.extend(self._contract.events[
+                    self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
+            print(decoded_logs)
 
-        return logs_of_interest
+            # Prune unrelated logs.
+            for i in range(len(decoded_logs)):
+                if decoded_logs[i].event == 'Swap':
+                    # Only process Swaps with the ETH:BEAN pool.
+                    if decoded_logs[i].address != ETH_BEAN_POOL_ADDR:
+                        # Remove this log from the list.
+                        decoded_logs.pop(i)
+
+            # Add all remaining txn logs to log map.
+            txn_logs_dict[txn_hash] = decoded_logs
+            logging.info(
+                f'Transaction: {txn_hash}\nAll txn logs of interest:\n'
+                f'{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}')
+
+
+            # # Iterate through all txn+topic logs and add all logs that we are interested in.
+            # combo_logs_of_interest = []
+            # for log in decoded_logs:
+            #     # Only process Swaps with the ETH:BEAN pool.
+            #     if log.event == 'Swap':
+            #         if log.address == ETH_BEAN_POOL_ADDR:
+            #             combo_logs_of_interest.append(log)
+            #         else:
+            #             # Do nothing for swaps in different pools.
+            #             pass
+            #     elif log.event == self._events_dict[topic_hash]:
+            #         combo_logs_of_interest.append(log)
+            # # Expect at least one log of interest for each combo.
+            # if not combo_logs_of_interest:
+            #     logging.error(f'No logs of interest found for:\n{txn_topic_combo_id(entry)}\n')
+            # logs_of_interest.extend(combo_logs_of_interest)
+
+        return txn_logs_dict
 
     def safe_get_new_entries(self, filter):
         """Retrieve all new entries that pass the filter.
@@ -292,6 +320,7 @@ class EthEventsClient():
         self._set_filter()
         logging.error('Failed to get new event entries. Passing.')
         return []
+
 
 def txn_topic_combo_id(entry):
     """Return a unique string identifying this transaction and topic combo."""
