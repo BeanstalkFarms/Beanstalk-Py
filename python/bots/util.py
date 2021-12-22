@@ -171,6 +171,7 @@ class PegCrossMonitor(Monitor):
         # If multiple crosses have occurred since last known cross.
         number_of_new_crosses = int(last_cross['id']) - int(self.last_known_cross['id'])
         if number_of_new_crosses > 1:
+            # Returns n crosses ordered most recent -> least recent.
             new_cross_list = self.bean_graph_client.get_last_crosses(n=number_of_new_crosses)
         else:
             new_cross_list = [last_cross]
@@ -178,9 +179,10 @@ class PegCrossMonitor(Monitor):
         # Set the last known cross to be the latest new cross.
         self.last_known_cross = last_cross
 
-        # At least one new cross has been detected. Determine the cross type and return.
+        # At least one new cross has been detected.
+        # Determine the cross types and return list in ascending order.
         cross_types = []
-        for cross in new_cross_list:
+        for cross in reversed(new_cross_list):
             if cross['above']:
                 logging.info('Price crossed above peg.')
                 cross_types.append(PegCrossType.CROSS_ABOVE)
