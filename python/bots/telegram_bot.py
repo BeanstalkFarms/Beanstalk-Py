@@ -36,11 +36,12 @@ class TelegramBot(object):
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
         self.beanstalk_monitor.start()
 
-    def send_msg(self, text):
+    def send_msg(self, msg):
         # Remove URL pointy brackets used by md formatting to suppress link previews.
-        text = text.replace('<', '').replace('>', '')
+        msg = msg.replace('<', '').replace('>', '')
         self.tele_bot.send_message(
-            chat_id=self._chat_id, text=text, disable_web_page_preview=True)
+            chat_id=self._chat_id, text=msg, disable_web_page_preview=True)
+        logging.info(f'Message sent:\n{msg}\n')
 
     def stop(self):
         self.peg_cross_monitor.stop()

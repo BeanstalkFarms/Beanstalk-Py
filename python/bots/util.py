@@ -140,7 +140,6 @@ class PegCrossMonitor(Monitor):
                 if cross_type != PegCrossType.NO_CROSS:
                     output_str = PegCrossMonitor.peg_cross_string(cross_type)
                     self.message_function(output_str)
-                    logging.info(output_str)
 
     def _check_for_peg_crosses(self):
         """
@@ -305,7 +304,6 @@ class SunriseMonitor(Monitor):
         ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
         ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
         ret_string += '\n_ _'  # empty line that does not get stripped
-        logging.info(ret_string)
         return ret_string
 
 
@@ -400,7 +398,6 @@ def default_pool_event_str(event_log, blockchain_client):
         event_str += f'\n{value_to_emojis(swap_value)}'
 
     event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-    logging.info(event_str)
     # empty line that does not get stripped
     event_str += '\n_ _'
     return event_str
@@ -450,14 +447,14 @@ class BeanstalkMonitor(Monitor):
         # Process the txn logs based on the method.
         # Compile all events within a silo conversion to a single action.
         if multi_sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs):
-            logging.info(f'Silo conversion txn seen ({txn_hash}).')
+            logging.info(f'Silo conversion txn seen ({txn_hash.hex()}).')
             # Include last bean deposit log for this type of txn.
             event_logs.append(last_bean_deposit)
             self.message_function(silo_conversion_str(event_logs, self.blockchain_client, self.beanstalk_graph_client))
             return
         # If there is a direct bean deposit, do not ignore the last bean deposit event.
         elif multi_sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs):
-            logging.info(f'Bean deposit txn seen ({txn_hash}).')
+            logging.info(f'Bean deposit txn seen ({txn_hash.hex()}).')
             # Include last bean deposit log for this type of txn.
             event_logs.append(last_bean_deposit)
 
@@ -513,7 +510,6 @@ def default_beanstalk_event_str(event_log, blockchain_client, beanstalk_graph_cl
             return ''
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-        logging.info(event_str)
         # empty line that does not get stripped
         event_str += '\n_ _'
         return event_str
@@ -525,7 +521,6 @@ def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
     Assumes event_logs is not empty.
     Uses events from Beanstalk contract.
     """
-    logging.warning(f'Creating silo conversion string with silo_conversion_str().\nLogs:\n{event_logs}')
     beans_converted = lp_converted = None
     bean_price = blockchain_client.current_bean_price()
     # Find the relevant logs (Swap + Mint/Burn).

@@ -107,6 +107,7 @@ class DiscordClient(discord.ext.commands.Bot):
             else:
                 logging.error('Unknown channel seen in msg queue: {channel}')
             self.msg_queue = self.msg_queue[1:]
+            logging.info(f'Message sent through {channel.name} channel:\n{msg}\n')
 
     @send_queued_messages.before_loop
     async def before_send_queued_messages_loop(self):
