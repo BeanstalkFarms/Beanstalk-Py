@@ -37,6 +37,9 @@ class TelegramBot(object):
         self.beanstalk_monitor.start()
 
     def send_msg(self, msg):
+        # Ignore empty messages.
+        if not msg:
+            return
         # Remove URL pointy brackets used by md formatting to suppress link previews.
         msg = msg.replace('<', '').replace('>', '')
         self.tele_bot.send_message(

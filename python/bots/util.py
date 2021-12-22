@@ -154,7 +154,7 @@ class PegCrossMonitor(Monitor):
 
         # # For testing.
         # import random
-        # self.last_known_cross = {'timestamp': 1, 'id': int(last_cross['id']) - 3}
+        # self.last_known_cross = {'timestamp': 1, 'id': int(last_cross['id']) - 2}
         # logging.info(f'TESTING: Last cross was above? {last_cross["above"]}')
         # price = random.uniform(0.5, 1.5)
 

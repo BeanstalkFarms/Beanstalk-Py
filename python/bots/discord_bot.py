@@ -96,7 +96,10 @@ class DiscordClient(discord.ext.commands.Bot):
     async def send_queued_messages(self):
         """Send messages in queue."""
         for channel, msg in self.msg_queue:
-            if channel is self.Channel.PEG:
+            # Ignore empty messages.
+            if not msg:
+                pass
+            elif channel is self.Channel.PEG:
                 await self._channel_peg.send(msg)
             elif channel is self.Channel.SEASONS:
                 await self._channel_seasons.send(msg)
