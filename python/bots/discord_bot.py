@@ -133,8 +133,8 @@ def configure_bot_commands(bot):
 if __name__ == '__main__':
     logging.basicConfig(format='Discord Bot : %(levelname)s : %(asctime)s : %(message)s',
                         level=logging.INFO, handlers=[
-                            logging.handlers.RotatingFileHandler("discord_bot.log",
-                                                                 maxBytes=util.FIFTY_MEGABYTES),
+                            logging.handlers.RotatingFileHandler(
+                                "discord_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 

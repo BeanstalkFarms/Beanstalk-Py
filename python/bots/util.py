@@ -44,7 +44,7 @@ POOL_CHECK_RATE = 10 # seconds
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = 10  # seconds
 # Bytes in 50 megabytes.
-FIFTY_MEGABYTES = 500**6
+FIVE_HUNDRED_MEGABYTES = 500**6
 # Time to wait before restarting a monitor after an unhandled exception.
 MONITOR_RESET_DELAY = 5
 

@@ -54,8 +54,8 @@ if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(format='Telegram Bot : %(levelname)s : %(asctime)s : %(message)s',
                         level=logging.INFO, handlers=[
-                            logging.handlers.RotatingFileHandler("telegram_bot.log",
-                                                                 maxBytes=util.FIFTY_MEGABYTES),
+                            logging.handlers.RotatingFileHandler(
+                                "telegram_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
