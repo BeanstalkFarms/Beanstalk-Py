@@ -261,10 +261,6 @@ class EthEventsClient():
             # Retrieve the full txn and txn receipt.
             receipt = self._web3.eth.get_transaction_receipt(txn_hash)
             
-            # Get and decode all logs with given topic for the txn. There may be multiple logs
-            # of interest in this txn+topic combo.
-            # decoded_logs = self._contract.events[self._events_dict[topic_hash]]().processReceipt(
-            #     receipt, errors=DISCARD)
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
@@ -273,36 +269,20 @@ class EthEventsClient():
             print(decoded_logs)
 
             # Prune unrelated logs.
-            for i in range(len(decoded_logs)):
-                if decoded_logs[i].event == 'Swap':
+            decoded_logs_copy = decoded_logs.copy()
+            decoded_logs.clear()
+            for log in decoded_logs_copy:
+                if log.event == 'Swap':
                     # Only process Swaps with the ETH:BEAN pool.
-                    if decoded_logs[i].address != ETH_BEAN_POOL_ADDR:
-                        # Remove this log from the list.
-                        decoded_logs.pop(i)
+                    if log.address != ETH_BEAN_POOL_ADDR:
+                        continue
+                decoded_logs.append(log)
 
             # Add all remaining txn logs to log map.
             txn_logs_dict[txn_hash] = decoded_logs
             logging.info(
                 f'Transaction: {txn_hash}\nAll txn logs of interest:\n'
                 f'{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}')
-
-
-            # # Iterate through all txn+topic logs and add all logs that we are interested in.
-            # combo_logs_of_interest = []
-            # for log in decoded_logs:
-            #     # Only process Swaps with the ETH:BEAN pool.
-            #     if log.event == 'Swap':
-            #         if log.address == ETH_BEAN_POOL_ADDR:
-            #             combo_logs_of_interest.append(log)
-            #         else:
-            #             # Do nothing for swaps in different pools.
-            #             pass
-            #     elif log.event == self._events_dict[topic_hash]:
-            #         combo_logs_of_interest.append(log)
-            # # Expect at least one log of interest for each combo.
-            # if not combo_logs_of_interest:
-            #     logging.error(f'No logs of interest found for:\n{txn_topic_combo_id(entry)}\n')
-            # logs_of_interest.extend(combo_logs_of_interest)
 
         return txn_logs_dict
 

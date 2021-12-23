@@ -359,12 +359,13 @@ class PoolMonitor(Monitor):
         if len(event_logs) > 1:
             logging.warning(f'Multiple swaps of interest seen in a single txn ({str(event_logs)}).')
         for event_log in event_logs:
-            event_str = default_pool_event_str(event_log, self.blockchain_client)
+            event_str = default_pool_event_str(
+                event_log, *self.blockchain_client.current_eth_and_bean_price())
             if event_str:
                 self.message_function(event_str)
 
 
-def default_pool_event_str(event_log, blockchain_client):
+def default_pool_event_str(event_log, eth_price, bean_price):
     event_str = ''
     # Parse possible values of interest from the event log. Not all will be populated.
     eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
@@ -373,9 +374,6 @@ def default_pool_event_str(event_log, blockchain_client):
     eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
     bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
     bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
-
-    # Get pricing from uni pools.
-    eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
 
     if event_log.event in ['Mint', 'Burn']:
         if event_log.event == 'Mint':
@@ -387,24 +385,35 @@ def default_pool_event_str(event_log, blockchain_client):
         event_str += f' (${round_num(lp_value)})'
         event_str += f'\n{value_to_emojis(lp_value)}'
     elif event_log.event == 'Swap':
-        if eth_in > 0:
-            event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
-            swap_price = eth_chain.avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price)
-            swap_value = swap_price * bean_out
-        elif bean_in > 0:
-            event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
-            swap_price = eth_chain.avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
-            swap_value = swap_price * bean_in
-        else:
-            logging.critical('Unexpected Swap args detected.')
-            return ''
-        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-        event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
-        event_str += f'\n{value_to_emojis(swap_value)}'
+        if eth_in:
+            event_str += swap_event_str(eth_price, bean_price, eth_in=eth_in, bean_out=bean_out)
+        elif bean_in:
+            event_str += swap_event_str(eth_price, bean_price, bean_in=bean_in, eth_out=eth_out)
 
     event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
     # empty line that does not get stripped
     event_str += '\n_ _'
+    return event_str
+
+def swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
+    event_str = ''
+    if ((not eth_in and not bean_in) or (not eth_out and not bean_out)):
+        logging.error('Must set at least one input and one output of swap.')
+        return ''
+    if ((eth_in and bean_in) or (eth_out and bean_out)):
+        logging.error('Cannot set two inputs or two outputs of swap.')
+        return ''
+    if eth_in:
+        event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
+        swap_price = eth_chain.avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price)
+        swap_value = swap_price * bean_out
+    elif bean_in:
+        event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
+        swap_price = eth_chain.avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
+        swap_value = swap_price * bean_in
+    event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+    event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
+    event_str += f'\n{value_to_emojis(swap_value)}'
     return event_str
 
 class BeanstalkMonitor(Monitor):
@@ -440,6 +449,7 @@ class BeanstalkMonitor(Monitor):
         last_bean_deposit = None
         bean_deposit_logs = []
         for event_log in event_logs:
+            # Parse through BeanDeposit logs, keeping track of which is last.
             if event_log.event == 'BeanDeposit':
                 if last_bean_deposit is None or event_log.logIndex > last_bean_deposit.logIndex:
                     last_bean_deposit = event_log
@@ -456,7 +466,8 @@ class BeanstalkMonitor(Monitor):
             # If this is a conversion into beans, include last bean deposit log.
             if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
                 event_logs.append(last_bean_deposit)
-            self.message_function(silo_conversion_str(event_logs, self.blockchain_client, self.beanstalk_graph_client))
+            self.message_function(silo_conversion_str(
+                event_logs, self.blockchain_client, self.beanstalk_graph_client))
             return
         # If there is a direct bean deposit, do not ignore the last bean deposit event.
         elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
@@ -529,16 +540,13 @@ def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
     Uses events from Beanstalk contract.
     """
     beans_converted = lp_converted = None
-    bean_price = blockchain_client.current_bean_price()
+    eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
     # Find the relevant logs (Swap + Mint/Burn).
     for event_log in event_logs:
         # One Swap event will always be present.
+        # But we cannot parse the Swap event because it is only seen by the pool monitor.
         # if event_log.event == 'Swap':
-        #     eth_in = eth_chain.eth_to_float(event_log.args.get('amount0In'))
-        #     eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
-        #     bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
-        #     bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
-
+        
         # One of the below two events will always be present.
         if event_log.event == 'BeanRemove':
             beans_converted = eth_chain.bean_to_float(event_log.args.get('beans'))
@@ -561,11 +569,11 @@ def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
     # If converting to LP.
     if beans_converted:
         event_str = f'🔃 {round_num(beans_converted)} siloed Beans converted to {round_num(lp_deposited_eth,4)} ETH & {round_num(lp_deposited_beans)} Beans of LP (${round_num(value)})'
-
     # If converting to Beans.
     elif lp_converted:
         event_str = f'🔄 {round_num(lp_converted_eth,4)} ETH and {round_num(lp_converted_beans)} Beans of siloed LP converted to {round_num(beans_deposited)} siloed Beans (${round_num(value)})'
-
+    
+    event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
     event_str += f'\n{value_to_emojis(value)}'
     event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
     return event_str
