@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from enum import Enum
 import logging
 import json
@@ -120,20 +121,24 @@ class BlockchainClient():
         self.eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
 
     def current_eth_price(self):
-        reserve0, reserve1, _ = self.eth_usdc_pool_contract.functions.getReserves().call()
+        reserve0, reserve1, last_swap_block_time = self.eth_usdc_pool_contract.functions.getReserves().call()
         eth_reserves = eth_to_float(reserve1)
         usdc_reserves = usdc_to_float(reserve0)
         eth_price = usdc_reserves / eth_reserves
-        logging.info('Current ETH Price: ' + str(eth_price))
+        logging.info(f'Current ETH Price: {eth_price} (last ETH:USDC txn block time: '
+                     f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
         return eth_price
 
     def current_eth_and_bean_price(self):
-        reserve0, reserve1, _ = self.eth_bean_pool_contract.functions.getReserves().call()
+        reserve0, reserve1, last_swap_block_time = self.eth_bean_pool_contract.functions.getReserves().call()
         eth_reserves = eth_to_float(reserve0)
         bean_reserves = bean_to_float(reserve1)
         eth_price = self.current_eth_price()
         bean_price = eth_price * eth_reserves / bean_reserves
-        logging.info('Current bean price: ' + str(bean_price))
+        logging.info(f'Current bean price: {bean_price} (last ETH:BEAN txn block time: '
+                     f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
+        last_block = self._web3.eth.get_block(block_identifier="latest", full_transactions=False)
+        logging.info(f'Latest block number: {last_block.number} ({datetime.datetime.fromtimestamp(last_block.timestamp).strftime("%c")})')
         return eth_price, bean_price
 
     def current_bean_price(self):
