@@ -330,9 +330,9 @@ class PoolMonitor(Monitor):
             for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
                 self._handle_txn_logs(txn_hash, event_logs)
             
-            # For testing purposes, track the price on each check.
-            if not self.prod:
-                self.blockchain_client.current_eth_and_bean_price()
+            # # For testing purposes, track the price on each check.
+            # if not self.prod:
+            #     self.blockchain_client.current_eth_and_bean_price()
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the pool event logs for a single txn.

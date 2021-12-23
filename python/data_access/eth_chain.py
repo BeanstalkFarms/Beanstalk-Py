@@ -139,7 +139,6 @@ class BlockchainClient():
         bean_price = eth_price * eth_reserves / bean_reserves
         logging.info(f'Current bean price: {bean_price} (last ETH:BEAN txn block time: '
                      f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
-        logging.info(f'Latest block number: {self._web3.eth.get_block_number()}')
         return eth_price, bean_price
 
     def current_bean_price(self):
