@@ -19,6 +19,8 @@ LP_DECIMALS = 18
 BEAN_DECIMALS = 6
 USDC_DECIMALS = 6
 
+POOL_FEE = 0.003 # %
+
 # BEAN_TOKEN_ADDR = '0xDC59ac4FeFa32293A95889Dc396682858d52e5Db'
 ETH_BEAN_POOL_ADDR = '0x87898263B6C5BABe34b4ec53F22d98430b91e371'
 ETH_USDC_POOL_ADDR = '0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc'
@@ -137,19 +139,26 @@ class BlockchainClient():
         bean_price = eth_price * eth_reserves / bean_reserves
         logging.info(f'Current bean price: {bean_price} (last ETH:BEAN txn block time: '
                      f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
-        last_block = self._web3.eth.get_block(block_identifier="latest", full_transactions=False)
-        logging.info(f'Latest block number: {last_block.number} ({datetime.datetime.fromtimestamp(last_block.timestamp).strftime("%c")})')
+        logging.info(f'Latest block number: {self._web3.eth.get_block_number()}')
         return eth_price, bean_price
 
     def current_bean_price(self):
         _, bean_price = self.current_eth_and_bean_price()
         return bean_price
 
-    def avg_swap_price(self, eth, beans, eth_price=None):
-        """Returns the $/bean cost for a swap txn using the $/ETH price."""
-        if not eth_price:
-            eth_price = self.current_eth_price()
-        return eth_price * (eth / beans)
+
+def avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price):
+    """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
+    # Approximate fee by reducing input amount by pool fee %.
+    eth_in = eth_in * (1 - POOL_FEE)
+    return eth_price * (eth_in / bean_out)
+
+
+def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
+    """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
+    # Approximate fee by reducing input amount by pool fee %.
+    bean_in = bean_in * (1 - POOL_FEE)
+    return eth_price * (eth_out / bean_in)
 
 
 def eth_to_float(gwei):
@@ -352,7 +361,10 @@ def maybe_get_test_logs(odds=1.0):
         AttributeDict({'args': AttributeDict({'account': '0x15884aBb6c5a8908294f25eDf22B723bAB36934F', 'withdrawals': [2983], 'lp': 343343500000000}), 'event': 'LPClaim', 'logIndex': 210, 'transactionIndex': 119, 'transactionHash': HexBytes(
             '0xf1ef8aeee45b44468393638356d9fccc0ff3b7cee169e6784969e7c0cdcf86a6'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xa877eb7ab22366a8abcbf974da5069c4db03ec80df7f503435b42021877d9222'), 'blockNumber': 13772704}),
         AttributeDict({'args': AttributeDict({'account': '0x374E518f85aB75c116905Fc69f7e0dC9f0E2350C', 'crates': [1110], 'crateLP': [25560533590528], 'lp': 25560533590528}), 'event': 'LPRemove', 'logIndex': 472, 'transactionIndex': 208, 'transactionHash': HexBytes(
-            '0xc35157e0ba17e7a3ea966f33f36a84dd14516e7542870add0061f377910d7533'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0a21f0179867a9d979b6654943dd88a0f92892b50ba927282c5127a09fc9bdb9'), 'blockNumber': 13777911})
+            '0xc35157e0ba17e7a3ea966f33f36a84dd14516e7542870add0061f377910d7533'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0a21f0179867a9d979b6654943dd88a0f92892b50ba927282c5127a09fc9bdb9'), 'blockNumber': 13777911}),
+        # ConvertDepositedBeans
+        AttributeDict({'args': AttributeDict({'account': '0x3bD12E6C72B92C43BD1D2ACD65F8De2E0E335133', 'season': 1, 'beans': 6785107202}), 'event': 'BeanDeposit', 'logIndex': 314, 'transactionIndex': 173, 'transactionHash': HexBytes(
+            '0x05858da0ac3a85bd75bb389e02e5df35bcbb1ca1b16f0e068038734f21ec23a0'), 'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xe7300ad8ff662b19cf4fa86362fbccfd241d4a7a78ec894a4878b69c4682648f'), 'blockNumber': 13805622})
     ]
     if random.randint(1, int(10/odds)) <= 10:
         return events
@@ -378,9 +390,18 @@ def get_test_entries():
         AttributeDict({'address': '0x87898263B6C5BABe34b4ec53F22d98430b91e371', 'blockHash': HexBytes('0xacab853acdebf139d234a39a7dbdf0dd8f3df54bb31b7564839ad2ff524dcb27'), 'blockNumber': 13817815, 'data': '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a3e9ab8000000000000000000000000000000000000000000000000008e040fa032acd3f40000000000000000000000000000000000000000000000000000000000000000',
                       'logIndex': 363, 'removed': False, 'topics': [HexBytes('0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d'), HexBytes('0x000000000000000000000000b4e16d0168e52d35cacd2c6185b44281ec28c9dc')], 'transactionHash': HexBytes('0xd4e66c54a535ec41e92fcb9308109292bebce53ea5504e9f234ff7bca06f778f'), 'transactionIndex': 168}),  # multiswap
         AttributeDict({'address': '0x87898263B6C5BABe34b4ec53F22d98430b91e371', 'blockHash': HexBytes('0x20162ea3724564603cb7d1f6d77f0f8760d10b1888f2b4f0a5817694f0aa4cd5'), 'blockNumber': 13817843, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000036d4669d00000000000000000000000000000000000000000000000002eeb669620f72bfe0000000000000000000000000000000000000000000000000000000000000000',
-                      'logIndex': 66, 'removed': False, 'topics': [HexBytes('0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d')], 'transactionHash': HexBytes('0x3df8be86781d177f7a554bea6fdc79bfe5385f0a04f5a59255e65656093182d8'), 'transactionIndex': 57})
+                      'logIndex': 66, 'removed': False, 'topics': [HexBytes('0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d')], 'transactionHash': HexBytes('0x3df8be86781d177f7a554bea6fdc79bfe5385f0a04f5a59255e65656093182d8'), 'transactionIndex': 57}),
+        # ConvertDepositedBeans. Made manually, not accurate to chain.
+        AttributeDict({'address': '0x87898263B6C5BABe34b4ec53F22d98430b91e371', 'blockHash': HexBytes('0xe7300ad8ff662b19cf4fa86362fbccfd241d4a7a78ec894a4878b69c4682648f'), 'blockNumber': 13805622, 'data': '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+                       'logIndex': 66, 'removed': False, 'topics': [HexBytes('0x916fd954accea6bad98fd6d8dda65058a5a16511534ebb14b2380f24aa61cc3a'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d')], 'transactionHash': HexBytes('0x05858da0ac3a85bd75bb389e02e5df35bcbb1ca1b16f0e068038734f21ec23a0'), 'transactionIndex': 57}),
+        # Beans bought.
+        AttributeDict({'address': '0x87898263B6C5BABe34b4ec53F22d98430b91e371', 'blockHash': HexBytes('0xb2ea6b5de747b36bb68950b57d683a74a4686d37daee238c5ee695bb4a60819b'), 'blockNumber': 13858696, 'data': '0x00000000000000000000000000000000000000000000000069789fbbc4f800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006f868aa83',
+                      'logIndex': 454, 'removed': False, 'topics': [HexBytes('0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5')], 'transactionHash': HexBytes('0x9f8dc6b759cc32bc75e4057e5ad7f1f3db550a48de402a78c2292f4f4ebf9d1c'), 'transactionIndex': 337})
     ]
     return entries
+
+
+
 
 # For testing purposes.
 # Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.

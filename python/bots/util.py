@@ -389,13 +389,11 @@ def default_pool_event_str(event_log, blockchain_client):
     elif event_log.event == 'Swap':
         if eth_in > 0:
             event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
-            swap_price = blockchain_client.avg_swap_price(
-                eth_in, bean_out, eth_price=eth_price)
+            swap_price = eth_chain.avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price)
             swap_value = swap_price * bean_out
         elif bean_in > 0:
             event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
-            swap_price = blockchain_client.avg_swap_price(
-                eth_out, bean_in, eth_price=eth_price)
+            swap_price = eth_chain.avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
             swap_value = swap_price * bean_in
         else:
             logging.critical('Unexpected Swap args detected.')
