@@ -346,10 +346,10 @@ class PoolMonitor(Monitor):
 
         # Process the txn logs based on the method.
         # Ignore silo conversion events. They will be handled by the beanstalk class.
-        if multi_sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs):
+        if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
             return
         # No special logic for deposits. If they include a swap we should process it as normal.
-        elif multi_sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs):
+        elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
             pass
         else:
             # All other txn log sets should include a standard ETH:BEAN swap.
@@ -451,14 +451,15 @@ class BeanstalkMonitor(Monitor):
 
         # Process the txn logs based on the method.
         # Compile all events within a silo conversion to a single action.
-        if multi_sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs):
+        if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
             logging.info(f'Silo conversion txn seen ({txn_hash.hex()}).')
-            # Include last bean deposit log for this type of txn.
-            event_logs.append(last_bean_deposit)
+            # If this is a conversion into beans, include last bean deposit log.
+            if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
+                event_logs.append(last_bean_deposit)
             self.message_function(silo_conversion_str(event_logs, self.blockchain_client, self.beanstalk_graph_client))
             return
         # If there is a direct bean deposit, do not ignore the last bean deposit event.
-        elif multi_sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs):
+        elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
             logging.info(f'Bean deposit txn seen ({txn_hash.hex()}).')
             # Include last bean deposit log for this type of txn.
             event_logs.append(last_bean_deposit)
@@ -524,6 +525,7 @@ def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
     
     Assumes that there are no non-Bean swaps contained in the event logs.
     Assumes event_logs is not empty.
+    Assumes embedded beanDeposits have been removed from logs.
     Uses events from Beanstalk contract.
     """
     beans_converted = lp_converted = None
@@ -540,13 +542,12 @@ def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
         # One of the below two events will always be present.
         if event_log.event == 'BeanRemove':
             beans_converted = eth_chain.bean_to_float(event_log.args.get('beans'))
-            value = beans_converted * bean_price
         elif event_log.event == 'LPRemove':
             lp_converted = eth_chain.lp_to_float(event_log.args.get('lp'))
             lp_converted_eth, lp_converted_beans = lp_eq_values(lp_converted, beanstalk_graph_client=beanstalk_graph_client)
 
         # One of the below two events will always be present.
-        if event_log.event == 'BeanDeposit':
+        elif event_log.event == 'BeanDeposit':
             beans_deposited = eth_chain.bean_to_float(event_log.args.get('beans'))
             value = beans_deposited * bean_price
         elif event_log.event == 'LPDeposit':
@@ -569,11 +570,14 @@ def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
     event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
     return event_str
 
-def multi_sig_compare(signature, signatures):
-    """Compare signature to all signatures in list and return if there are any matches. 
+def sig_compare(signature, signatures):
+    """Compare a signature to one or many signatures and return if there are any matches. 
 
     Comparison is made based on 10 character prefix.
     """
+    if type(signatures) is str:
+        return signature[:9] == signatures[:9]
+    
     for sig in signatures:
         if signature[:9] == sig[:9]:
             return True
