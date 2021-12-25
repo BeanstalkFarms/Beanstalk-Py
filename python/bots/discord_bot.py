@@ -3,6 +3,7 @@ import logging
 import logging.handlers
 import signal
 import os
+import subprocess
 
 import discord
 from discord.ext import tasks, commands
@@ -91,6 +92,11 @@ class DiscordClient(discord.ext.commands.Bot):
         logging.info(
             f'Discord channels are {self._channel_peg}, {self._channel_seasons}, '
             f'{self._channel_pool}, {self._channel_beanstalk}')
+        # Log the commit of this run.
+        logging.info('Git commit is ' + subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            cwd=os.path.dirname(os.path.realpath(__file__))
+            ).decode('ascii').strip())
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):

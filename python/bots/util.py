@@ -170,12 +170,22 @@ class PegCrossMonitor(Monitor):
             return [PegCrossType.NO_CROSS]
 
         # If multiple crosses have occurred since last known cross.
-        number_of_new_crosses = int(last_cross['id']) - int(self.last_known_cross['id'])
+        last_cross_id = int(last_cross['id'])
+        last_known_cross_id = int(self.last_known_cross['id'])
+        number_of_new_crosses = last_cross_id - last_known_cross_id
         if number_of_new_crosses > 1:
             # Returns n crosses ordered most recent -> least recent.
             new_cross_list = self.bean_graph_client.get_last_crosses(n=number_of_new_crosses)
         else:
             new_cross_list = [last_cross]
+
+        # We cannot rely on very recent data of the subgraph to be accurate/consistent. So double
+        # check the id and try again later if it is wrong.
+        if int(new_cross_list[0]['id']) != last_known_cross_id + number_of_new_crosses:
+            logging.warning(f'Subgraph data discrepency on latest peg crosses. Latest cross id ' \
+                            f'is {new_cross_list[0]["id"]} but expected id of {last_cross_id}. ' \
+                            'Trying again later.')
+            return [PegCrossType.NO_CROSS]
 
         # Set the last known cross to be the latest new cross.
         self.last_known_cross = last_cross
