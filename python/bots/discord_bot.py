@@ -1,8 +1,8 @@
 from enum import Enum
 import logging
 import logging.handlers
-import signal
 import os
+import signal
 import subprocess
 
 import discord
@@ -146,6 +146,8 @@ if __name__ == '__main__':
                                 "discord_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
+
+    util.configure_main_thread_exception_logging()
 
     # Automatically detect if this is a production environment.
     try:

@@ -12,17 +12,6 @@ from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
-# Configure uncaught exception handling for main and threads.
-def log_exceptions(exc_type, exc_value, exc_traceback):
-    """Log uncaught exceptions for main thread."""
-    logging.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-sys.excepthook = log_exceptions
-def log_thread_exceptions(args):
-    """Log uncaught exceptions for threads."""
-    logging.critical("Uncaught exception", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
-threading.excepthook = log_thread_exceptions
-
-
 # Strongly encourage Python 3.8+.
 # If not 3.8+ uncaught exceptions on threads will not be logged.
 MIN_PYTHON = (3, 8)
@@ -658,6 +647,24 @@ def handle_sigterm(signal_number, stack_frame):
     """Process a sigterm with a python exception for clean exiting."""
     logging.warning("Handling SIGTERM. Exiting.")
     raise SystemExit
+
+# Configure uncaught exception handling for threads.
+
+
+def log_thread_exceptions(args):
+    """Log uncaught exceptions for threads."""
+    logging.critical("Uncaught exception", exc_info=(
+        args.exc_type, args.exc_value, args.exc_traceback))
+threading.excepthook = log_thread_exceptions
+
+
+def log_exceptions(exc_type, exc_value, exc_traceback):
+    """Log uncaught exceptions for main thread."""
+    logging.critical("Uncaught exception", exc_info=(
+        exc_type, exc_value, exc_traceback))
+def configure_main_thread_exception_logging():
+    sys.excepthook = log_exceptions
+
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
