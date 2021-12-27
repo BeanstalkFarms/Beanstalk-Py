@@ -287,8 +287,11 @@ class WalletMonitoring(commands.Cog):
         """List all addresses you are currently watching."""
         logging.warning(f'list request from channel id == {channel_id(ctx)}')
         watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
-        addr_list_str = ', '.join([f'`{addr}`' for addr in watched_addrs]) or 'None'
-        await ctx.send(f'Wallets you are watching:\n{addr_list_str}')
+        addr_list_str = ', '.join([f'`{addr}`' for addr in watched_addrs])
+        if addr_list_str:
+            await ctx.send(f'Wallets you are watching:\n{addr_list_str}')
+        else:
+            await ctx.send(f'You are not currently watching any wallets.')
 
 
     # This is challenging because the synchronous subgraph access cannot be called by the
@@ -336,8 +339,8 @@ class WalletMonitoring(commands.Cog):
         self.bot.add_to_watched_addresses(address, channel_id(ctx))
 
         # If DM channel is new, cache the channel.
-        if channel_id(ctx) not in self.channel_id_to_channel:
-            self.channel_id_to_channel[channel_id(ctx)] = ctx.channel
+        if channel_id(ctx) not in self.bot.channel_id_to_channel:
+            self.bot.channel_id_to_channel[channel_id(ctx)] = ctx.channel
 
         await ctx.send(f'You are now watching `{address}` in this DM conversation.')
 
