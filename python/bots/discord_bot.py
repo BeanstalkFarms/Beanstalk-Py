@@ -1,4 +1,8 @@
+import abc
 from enum import Enum
+from google.cloud import storage
+import google.api_core.exceptions as google_api_exceptions
+import json
 import logging
 import logging.handlers
 import os
@@ -9,6 +13,7 @@ import discord
 from discord.ext import tasks, commands
 
 from bots import util
+from data_access.eth_chain import is_valid_wallet_address
 
 
 DISCORD_CHANNEL_ID_PEG_CROSSES = 911338190198169710
@@ -16,7 +21,10 @@ DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
 DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
-
+BUCKET_NAME = 'beanstalk_bots_data'
+PROD_BLOB_NAME = 'prod_channel_to_wallets'
+STAGE_BLOB_NAME = 'stage_channel_to_wallets'
+WALLET_WATCH_LIMIT = 10
 
 class DiscordClient(discord.ext.commands.Bot):
 
@@ -28,19 +36,31 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def __init__(self, prod=False):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
+        self.add_cog(WalletMonitoring(self))
+        configure_bot_commands(self)
+        
+        # Retrieve bucket.
+        bucket = self.retrieve_or_init_bucket()
 
         if prod:
+            self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
             logging.info('Configured as a production instance.')
         else:
+            self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
+
+        # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
+        if not self.download_channel_to_wallets():
+            logging.critical('Failed to download wallet data. Exiting...')
+            exit(1)
 
         self.msg_queue = []
 
@@ -62,6 +82,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.send_queued_messages.start()
 
     def stop(self):
+        self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.pool_monitor.stop()
@@ -132,12 +153,177 @@ class DiscordClient(discord.ext.commands.Bot):
         # Process commands.
         await self.process_commands(message)
 
+    def retrieve_or_init_bucket(self):
+        """Get the Google Cloud Storage bucket, or create a new one with pertinent files."""
+        storage_client = storage.Client()
+        bucket = storage_client.lookup_bucket(BUCKET_NAME) 
+        
+        # If no bucket, this bucket did not exist and a new empty bucket has been created.
+        # This could indicate a very bad data loss event has occurred if it is not the first run.
+        if bucket is None:
+            logging.critical('Existing bucket not detected. New bucket created. '
+                             'This is likely a data loss event.')
+            # Initialize new bucket.
+            bucket = storage_client.create_bucket(BUCKET_NAME, location='US-CENTRAL1')
+        
+        return bucket
+
+    def add_to_watched_addresses(self, address, channel_id):
+        try:
+            wallets = self.channel_to_wallets[channel_id]
+        except KeyError:
+            # If nothing is being watched for this channel_id, initialize list.
+            wallets = []
+            self.channel_to_wallets[channel_id] = wallets
+        
+        # If this address is already being watched in this channel, do nothing.
+        if address in wallets:
+            return
+        
+        # Append the address to the existing watch list.
+        wallets.append(address)
+
+        # Update cloud source of truth with new data.
+        self.upload_channel_to_wallets()
+
+    def remove_from_watched_addresses(self, address, channel_id):
+        try:
+            wallets = self.channel_to_wallets[channel_id]
+        except KeyError:
+            # If nothing is being watched for this channel_id, then nothing to remove.
+            return
+        
+        # If this address not already being watched in this channel, do nothing.
+        if address not in wallets:
+            return
+        
+        # Remove the address from the existing watch list.
+        wallets.remove(address)
+
+        # Update cloud source of truth with new data.
+        self.upload_channel_to_wallets()
+
+    def download_channel_to_wallets(self):
+        """Pull down data from cloud source of truth. Returns True/False based on success."""
+        try:
+            map_str = self.wallets_blob.download_as_string(timeout=120).decode('utf8')
+            logging.info(f'Channel to wallets map string pulled from cloud source:\n{map_str}')
+            self.channel_to_wallets = json.loads(map_str)
+        except google_api_exceptions.NotFound as e:
+            # Data blob not found. Confirm it does not exist, then init to empty file.
+            if not self.wallets_blob.exists():
+                logging.critical(f'Blob file {self.wallets_blob.name} does not exist. May be a '
+                                 'data loss event. Creating empty blob file.')
+                self.channel_to_wallets = {}
+                self.upload_channel_to_wallets()
+            else:
+                logging.exception(e)
+                return False
+        except Exception as e:
+            logging.error('Failed to download wallet watching list.')
+            logging.exception(e)
+            return False
+        logging.info('Successfully downloaded channel_to_wallets map.')
+        return True
+
+
+    def upload_channel_to_wallets(self):
+        """Update cloud source of truth with new data. Returns True/False based on success."""
+        try:
+            self.wallets_blob.upload_from_string(json.dumps(self.channel_to_wallets), num_retries=3, timeout=20)
+        except Exception as e:
+            logging.error('Failed to upload wallet watching changes to cloud. Will attempt again ' \
+                          'on next change.')
+            logging.exception(e)
+            return False
+        logging.info('Successfully uploaded channel_to_wallets map.')
+        return True
+
+    @abc.abstractmethod
+    def isDM(self, channel):
+        """Return True is this context is from a dm, else False."""
+        return isinstance(channel, discord.channel.DMChannel)
 
 def configure_bot_commands(bot):
+    """Define all bot chat commands that users can utilize.
+    
+    Due to quirks of the discord.py lib, these commands must be defined outside of the bot class
+    definition.
+    """
     @bot.command(pass_context=True)
     async def botstatus(ctx):
+        """Check if bot is currently running."""
         await ctx.send('I am alive and running!')
 
+class WalletMonitoring(commands.Cog):
+    """Wallet watching commands."""
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command(pass_context=True)
+    @commands.dm_only()
+    async def list(self, ctx):
+        """List all addresses you are currently watching."""
+        watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
+        addr_list_str = ', '.join([f'`{addr}`' for addr in watched_addrs]) or 'None'
+        await ctx.send(f'Wallets you are watching:\n{addr_list_str}')
+
+
+    @commands.command(pass_context=True)
+    @commands.dm_only()
+    async def add(self, ctx, *, address=None):
+        """Get regular updates about the Beanstalk status of an address."""
+        if address is None:
+            await ctx.send(f'You must provide a wallet address to add. No change to watch list.')
+            return
+
+        # Address must be a valid ETH address.
+        if not is_valid_wallet_address(address):
+            await ctx.send(f'Invalid address provided (`{address}`). No change to watch list.')
+            return
+
+        # Limit user to 5 watched wallets. This prevents abuse/spam.
+        watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
+        if len(watched_addrs) >= WALLET_WATCH_LIMIT:
+            await ctx.send(f'Each user may only monitor up to {WALLET_WATCH_LIMIT} wallets. '
+                           'No change to watch list.')
+            return
+        
+        # Check if address is already being watched.
+        if address in watched_addrs:
+            await ctx.send(f'You are already watching `{address}`. No change to watch list.')
+            return
+        
+        # Append the address to the list of watched addresses.
+        self.bot.add_to_watched_addresses(address, channel_id(ctx))
+        await ctx.send(f'You are now watching `{address}` in this DM conversation.')
+
+
+    @commands.command(pass_context=True)
+    @commands.dm_only()
+    async def remove(self, ctx, *, address=None):
+        """Stop getting updates about the Beanstalk status of an address."""
+        if address is None:
+            await ctx.send(f'You must provide a wallet address to remove. No change to watch list.')
+            return
+
+        # Address must be a valid ETH address.
+        if not is_valid_wallet_address(address):
+            await ctx.send(f'Invalid address provided (`{address}`). No change to watch list.')
+            return
+        
+        # Check if address is already being watched.
+        watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
+        if address not in watched_addrs:
+            await ctx.send(f'You are not already watching `{address}`. No change to watch list.')
+            return
+        
+        self.bot.remove_from_watched_addresses(address, channel_id(ctx))
+        await ctx.send(f'You are no longer watching `{address}` in this DM conversation.')
+
+def channel_id(ctx):
+    """Returns a string representation of the channel id from a context object."""
+    return str(ctx.channel.id)
 
 if __name__ == '__main__':
     logging.basicConfig(format='Discord Bot : %(levelname)s : %(asctime)s : %(message)s',
@@ -158,7 +344,6 @@ if __name__ == '__main__':
         prod = False
 
     discord_client = DiscordClient(prod=prod)
-    configure_bot_commands(discord_client)
 
     try:
         discord_client.run(token)

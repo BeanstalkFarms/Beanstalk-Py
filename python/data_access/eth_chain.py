@@ -315,6 +315,12 @@ class EthEventsClient():
         return []
 
 
+def is_valid_wallet_address(address):
+    """Return True is address is a valid ETH address. Else False."""
+    if not Web3.isAddress(address):
+        return False
+    return True
+
 def txn_topic_combo_id(entry):
     """Return a unique string identifying this transaction and topic combo."""
     return entry['transactionHash'].hex() + entry['topics'][0].hex()
