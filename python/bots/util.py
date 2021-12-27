@@ -205,9 +205,11 @@ class PegCrossMonitor(Monitor):
 
 
 class SunriseMonitor(Monitor):
-    def __init__(self, message_function, prod=False):
+    def __init__(self, message_function, channel_to_wallets=None, prod=False):
         super().__init__('sunrise', message_function,
                          SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
+        # Read-only access to self.channel_to_wallets, which may be modified by other threads.
+        self.channel_to_wallets = channel_to_wallets
         self.beanstalk_graph_client = BeanstalkSqlClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
@@ -222,6 +224,8 @@ class SunriseMonitor(Monitor):
             if current_season_stats:
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats))
+            if self.channel_to_wallets:
+                self.update_all_wallet_watchers()
 
             # # For testing.
             # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
@@ -308,6 +312,30 @@ class SunriseMonitor(Monitor):
         ret_string += '\n_ _'  # empty line that does not get stripped
         return ret_string
 
+    def update_all_wallet_watchers(self):
+        for channel_id, wallets in self.channel_to_wallets.items():
+            self.message_function(self.wallets_str(wallets), channel_id)
+
+    def wallets_str(self, wallets):
+        ret_str = ''
+        account_id_to_addr = {str.lower(addr):addr for addr in wallets}
+        accounts_status = self.beanstalk_graph_client.wallets_stats(list(account_id_to_addr.keys()))
+        for account_status in accounts_status:
+            ret_str += self.wallet_str(account_id_to_addr[account_status['id']], account_status)
+            ret_str += '\n'
+
+    def wallet_str(self, address, account_status):
+        """Create a standard string representing a wallet status.
+
+        address is a string of the wallet address (with standard capitalization).
+        account_stats is a map of data about an account from the subgraph.
+        """
+        ret_string = f'Beanstalk status of `{address}`:\n'
+        # wallet_str += f'Circulating Beans: {account_stats[""]}'
+        ret_string += f'Deposited Beans: {round_num(account_status["depositedBeans"])}\n'
+        ret_string += f'Deposited LP: {round_num(account_status["depositedLP"], 10)}\n'
+        ret_string += f'Pods: {round_num(account_status["pods"])}\n'
+        return ret_string
 
 class PoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""

@@ -167,6 +167,33 @@ class BeanstalkSqlClient(object):
                 'Killing all processes due to inability to access Beanstalk subgraph...')
             os._exit(os.EX_UNAVAILABLE)
 
+    def wallet_stats(self, account_id):
+        return self.wallets_stats([account_id])[0]
+
+    def wallets_stats(self, account_ids):
+        """Returns list of maps, where each map represents a single account."""
+        # General query string.
+        query_str = """
+            query wallets_stats {
+                accounts(subgraphError:deny, first: """ + str(len(account_ids)) + """
+                    where: {
+                        id_in: [ """ + ','.join([f'"{id}"' for id in account_ids]) + """ ]
+                    }
+                ) {
+                    id, depositedLP, depositedBeans, pods
+                }
+            }
+        """
+
+        # Create gql query and execute.
+        try:
+            return execute(self._client, query_str)['accounts']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
+
 
 class GraphAccessException(Exception):
     """Failed to access the graph."""
