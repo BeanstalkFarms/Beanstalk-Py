@@ -204,6 +204,7 @@ def execute(client, query_str, max_tries=0):
     query = gql(query_str)
 
     try_count = 0
+    retry_delay = 1 # seconds
     while not max_tries or try_count < max_tries:
         logging.info(f'GraphQL query:'
                      f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
@@ -224,7 +225,9 @@ def execute(client, query_str, max_tries=0):
             logging.exception(e)
             logging.warning(f'Unexpected error on {client_subgraph_name(client)} subgraph access.'
                             f'\nRetrying...')
-        time.sleep(1)
+        # Exponential backoff to prevent eating up all subgraph API calls.
+        time.sleep(retry_delay)
+        retry_delay *= 2
         try_count += 1
     raise GraphAccessException
 

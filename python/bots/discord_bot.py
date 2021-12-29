@@ -203,6 +203,7 @@ class DiscordClient(discord.ext.commands.Bot):
         
         # Append the address to the existing watch list.
         wallets.append(address)
+        logging.info(f'Discord channel {channel_id} is now watching {address}')
 
         # Update cloud source of truth with new data.
         self.upload_channel_to_wallets()
@@ -220,6 +221,7 @@ class DiscordClient(discord.ext.commands.Bot):
         
         # Remove the address from the existing watch list.
         wallets.remove(address)
+        logging.info(f'Discord channel {channel_id} is no longer watching {address}')
 
         # Update cloud source of truth with new data.
         self.upload_channel_to_wallets()
