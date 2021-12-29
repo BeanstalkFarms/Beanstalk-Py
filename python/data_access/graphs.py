@@ -175,7 +175,7 @@ class BeanstalkSqlClient(object):
         # General query string.
         query_str = """
             query wallets_stats {
-                accounts(subgraphError:deny, first: """ + str(len(account_ids)) + """
+                accounts(subgraphError:deny, first: """ + str(len(account_ids)) + """ 
                     where: {
                         id_in: [ """ + ','.join([f'"{id}"' for id in account_ids]) + """ ]
                     }

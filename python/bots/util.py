@@ -317,6 +317,9 @@ class SunriseMonitor(Monitor):
         current_season_stats = self.beanstalk_graph_client.current_season_stats()
         bean_price = self.blockchain_client.current_bean_price()
         for channel_id, wallets in self.channel_to_wallets.items():
+            # Ignore users with empty watch lists.
+            if not wallets:
+                continue
             self.message_function(self.wallets_str(wallets, current_season_stats, bean_price), channel_id)
 
     def wallets_str(self, wallets, current_season_stats, bean_price):
