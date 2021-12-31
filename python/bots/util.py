@@ -205,10 +205,13 @@ class PegCrossMonitor(Monitor):
 
 
 class SunriseMonitor(Monitor):
-    def __init__(self, message_function, prod=False):
+    def __init__(self, message_function, channel_to_wallets=None, prod=False):
         super().__init__('sunrise', message_function,
                          SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
+        # Read-only access to self.channel_to_wallets, which may be modified by other threads.
+        self.channel_to_wallets = channel_to_wallets
         self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.blockchain_client = eth_chain.BlockchainClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
@@ -222,6 +225,8 @@ class SunriseMonitor(Monitor):
             if current_season_stats:
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats))
+            if self.channel_to_wallets:
+                self.update_all_wallet_watchers()
 
             # # For testing.
             # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
@@ -308,6 +313,44 @@ class SunriseMonitor(Monitor):
         ret_string += '\n_ _'  # empty line that does not get stripped
         return ret_string
 
+    def update_all_wallet_watchers(self):
+        current_season_stats = self.beanstalk_graph_client.current_season_stats()
+        bean_price = self.blockchain_client.current_bean_price()
+        for channel_id, wallets in self.channel_to_wallets.items():
+            # Ignore users with empty watch lists.
+            if not wallets:
+                continue
+            self.message_function(self.wallets_str(wallets, current_season_stats, bean_price), channel_id)
+
+    def wallets_str(self, wallets, current_season_stats, bean_price):
+        ret_str = ''
+        account_id_to_addr = {str.lower(addr):addr for addr in wallets}
+        accounts_status = self.beanstalk_graph_client.wallets_stats(list(account_id_to_addr.keys()))
+        for account_status in accounts_status:
+            ret_str += self.wallet_str(account_id_to_addr[account_status['id']], account_status, current_season_stats, bean_price)
+            ret_str += '\n'
+        return ret_str
+
+    def wallet_str(self, address, account_status, current_season_stats, bean_price):
+        """Create a standard string representing a wallet status.
+
+        address is a string of the wallet address (with standard capitalization).
+        account_stats is a map of data about an account from the subgraph.
+        """
+        deposited_beans = float(account_status["depositedBeans"])
+        lp_eth, lp_beans = lp_eq_values(
+            float(account_status["depositedLP"]),
+            total_lp=float(current_season_stats['lp']),
+            pooled_eth=float(current_season_stats['pooledEth']),
+            pooled_beans=float(current_season_stats['pooledBeans']),
+        )
+
+        ret_string = f'📜 `{address}`\n'
+        # wallet_str += f'Circulating Beans: {account_stats[""]}'
+        ret_string += f'🌱 Deposited Beans: {round_num(deposited_beans)}  (${round_num(deposited_beans*bean_price)})\n'
+        ret_string += f'🌿 Deposited LP: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
+        ret_string += f'🌾 Pods: {round_num(account_status["pods"])}\n'
+        return ret_string
 
 class PoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
@@ -590,6 +633,13 @@ def sig_compare(signature, signatures):
             return True
     return False
 
+def lp_properties(beanstalk_graph_client):
+    current_season_stats = beanstalk_graph_client.current_season_stats()
+    pooled_eth = float(current_season_stats['pooledEth'])
+    pooled_beans = float(current_season_stats['pooledBeans'])
+    total_lp = float(current_season_stats['lp'])
+    return pooled_eth, pooled_beans, total_lp
+
 def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstalk_graph_client=None):
     """Return the amount of ETH and beans equivalent to an amount of LP.
 
@@ -601,10 +651,7 @@ def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstal
             be retrieved and used.
     """
     if beanstalk_graph_client:
-        current_season_stats = beanstalk_graph_client.current_season_stats()
-        pooled_eth = float(current_season_stats['pooledEth'])
-        pooled_beans = float(current_season_stats['pooledBeans'])
-        total_lp = float(current_season_stats['lp'])
+        pooled_eth, pooled_beans, total_lp = lp_properties(beanstalk_graph_client)
 
     if None in [total_lp, pooled_eth, pooled_beans]:
         raise ValueError(

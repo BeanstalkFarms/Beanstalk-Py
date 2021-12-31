@@ -167,6 +167,33 @@ class BeanstalkSqlClient(object):
                 'Killing all processes due to inability to access Beanstalk subgraph...')
             os._exit(os.EX_UNAVAILABLE)
 
+    def wallet_stats(self, account_id):
+        return self.wallets_stats([account_id])[0]
+
+    def wallets_stats(self, account_ids):
+        """Returns list of maps, where each map represents a single account."""
+        # General query string.
+        query_str = """
+            query wallets_stats {
+                accounts(subgraphError:deny, first: """ + str(len(account_ids)) + """ 
+                    where: {
+                        id_in: [ """ + ','.join([f'"{id}"' for id in account_ids]) + """ ]
+                    }
+                ) {
+                    id, depositedLP, depositedBeans, pods
+                }
+            }
+        """
+
+        # Create gql query and execute.
+        try:
+            return execute(self._client, query_str)['accounts']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
+
 
 class GraphAccessException(Exception):
     """Failed to access the graph."""
@@ -177,6 +204,7 @@ def execute(client, query_str, max_tries=0):
     query = gql(query_str)
 
     try_count = 0
+    retry_delay = 1 # seconds
     while not max_tries or try_count < max_tries:
         logging.info(f'GraphQL query:'
                      f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
@@ -197,7 +225,9 @@ def execute(client, query_str, max_tries=0):
             logging.exception(e)
             logging.warning(f'Unexpected error on {client_subgraph_name(client)} subgraph access.'
                             f'\nRetrying...')
-        time.sleep(1)
+        # Exponential backoff to prevent eating up all subgraph API calls.
+        time.sleep(retry_delay)
+        retry_delay *= 2
         try_count += 1
     raise GraphAccessException
 
