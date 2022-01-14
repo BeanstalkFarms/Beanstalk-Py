@@ -81,6 +81,8 @@ class DiscordClient(discord.ext.commands.Bot):
         self.beanstalk_monitor.start()
 
         # Start the message queue sending task in the background.
+        # # Ignore exceptions of this type and retry. Note that no logs will be generated.
+        # self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
         self.send_queued_messages.start()
 
     def stop(self):
@@ -139,26 +141,41 @@ class DiscordClient(discord.ext.commands.Bot):
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):
-        """Send messages in queue."""
-        for channel, msg in self.msg_queue:
-            # Ignore empty messages.
-            if not msg:
-                pass
-            elif channel is Channel.PEG:
-                await self._channel_peg.send(msg)
-            elif channel is Channel.SEASONS:
-                await self._channel_seasons.send(msg)
-            elif channel is Channel.POOL:
-                await self._channel_pool.send(msg)
-            elif channel is Channel.BEANSTALK:
-                await self._channel_beanstalk.send(msg)
-            # If channel is a channel_id string.
-            elif type(channel) == str:
-                await self.send_dm(channel, msg)
-            else:
-                logging.error('Unknown channel seen in msg queue: {channel}')
-            self.msg_queue = self.msg_queue[1:]
-            logging.info(f'Message sent through {channel} channel:\n{msg}\n')
+        """Send messages in queue.
+
+        Reconnect logic applies to Loop._valid_exception (OSError, discord.GatewayNotFound,
+        discord.ConnectionClosed, aiohttp.ClientError, asyncio.TimeoutError).
+        
+        We handle unexpected exceptions in this method so that:
+        1. We can log them usefully.
+        2. This thread does not crash forever.
+        The Discord.py lib allows us to ignore an exception and restart, or die on the exception. 
+        We want to log it _and_ not die.
+        """
+        try:
+            for channel, msg in self.msg_queue:
+                # Ignore empty messages.
+                if not msg:
+                    pass
+                elif channel is Channel.PEG:
+                    await self._channel_peg.send(msg)
+                elif channel is Channel.SEASONS:
+                    await self._channel_seasons.send(msg)
+                elif channel is Channel.POOL:
+                    await self._channel_pool.send(msg)
+                elif channel is Channel.BEANSTALK:
+                    await self._channel_beanstalk.send(msg)
+                # If channel is a channel_id string.
+                elif type(channel) == str:
+                    await self.send_dm(channel, msg)
+                else:
+                    logging.error('Unknown channel seen in msg queue: {channel}')
+                self.msg_queue = self.msg_queue[1:]
+                logging.info(f'Message sent through {channel} channel:\n{msg}\n')
+        except Exception as e:
+            logging.error('Failed to send message to Discord server. Will retry.')
+            logging.exception(e)
+            return
 
     @send_queued_messages.before_loop
     async def before_send_queued_messages_loop(self):
