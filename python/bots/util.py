@@ -205,9 +205,11 @@ class PegCrossMonitor(Monitor):
 
 
 class SunriseMonitor(Monitor):
-    def __init__(self, message_function, channel_to_wallets=None, prod=False):
+    def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False):
         super().__init__('sunrise', message_function,
                          SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
+        # Toggle shorter messages (must fit into <280 character safely).
+        self.short_msgs = short_msgs
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
         self.beanstalk_graph_client = BeanstalkSqlClient()
@@ -224,13 +226,13 @@ class SunriseMonitor(Monitor):
             # Report season summary to users.
             if current_season_stats:
                 self.message_function(self.season_summary_string(
-                    last_season_stats, current_season_stats))
+                    last_season_stats, current_season_stats, short_str=self.short_msgs))
             if self.channel_to_wallets:
                 self.update_all_wallet_watchers()
 
             # # For testing.
             # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
-            # self.message_function(self.season_summary_string(last_season_stats, current_season_stats))
+            # self.message_function(self.season_summary_string(last_season_stats, current_season_stats, short_str=self.short_msgs))
             # time.sleep(5)
 
     def _wait_until_expected_sunrise(self):
@@ -268,7 +270,7 @@ class SunriseMonitor(Monitor):
             time.sleep(SUNRISE_CHECK_PERIOD)
         return None, None
 
-    def season_summary_string(self, last_season_stats, current_season_stats):
+    def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
         new_farmable_beans = float(current_season_stats['newFarmableBeans'])
         new_harvestable_pods = float(
             current_season_stats['newHarvestablePods'])
@@ -297,20 +299,29 @@ class SunriseMonitor(Monitor):
         ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
         # ret_string += f'\nThere is {current_season_stats["soil"]} soil available' # Coming in graph version 1.1.10
         if newMintedBeans:
-            ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted'
-            ret_string += f'\n👩‍🌾 {round_num(new_farmable_beans)} Beans are newly farmable'
-            ret_string += f'\n👨‍🌾 {round_num(new_harvestable_pods)} Pods are newly harvestable'
+            if not short_str:
+                ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted'
+                ret_string += f'\n👩‍🌾 {round_num(new_farmable_beans)} Beans are newly farmable'
+                ret_string += f'\n👨‍🌾 {round_num(new_harvestable_pods)} Pods are newly harvestable'
+            else:
+                ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted between the silo and field'
         else:
             ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
         #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
-        ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
-        ret_string += f'\n📥 {round_num(deposited_bean_lp)} Beans and {round_num(deposited_eth_lp)} ETH of LP deposited'
-        ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
-        ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
-        ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
-        ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
-        ret_string += '\n_ _'  # empty line that does not get stripped
+        if not short_str:
+            ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
+            ret_string += f'\n📥 {round_num(deposited_bean_lp)} Beans and {round_num(deposited_eth_lp)} ETH of LP deposited'
+            ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
+            ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
+            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
+            ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
+            ret_string += '\n_ _'  # empty line that does not get stripped
+        else:
+            ret_string += f'\n\n📥 {round_num(float(last_season_stats["newDepositedBeans"]) + deposited_bean_lp * 2)} Beans worth of deposits'
+            ret_string += f'\n📤 {round_num(float(last_season_stats["newWithdrawnBeans"]) + withdrawn_bean_lp * 2)} Beans worth of withdraws'
+            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} pods'
+
         return ret_string
 
     def update_all_wallet_watchers(self):
