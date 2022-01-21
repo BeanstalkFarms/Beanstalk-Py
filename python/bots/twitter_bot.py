@@ -13,10 +13,12 @@ class TwitterBot(object):
     def __init__(self, prod=False):
 
         if prod:
-            # token = os.environ["TWITTER_BOT_API_KEY_PROD"]
+            api_key = os.environ["TWITTER_BOT_API_KEY_PROD"]
+            api_key_secret = os.environ["TWITTER_BOT_API_KEY_SECRET_PROD"]
+            access_token = os.environ["TWITTER_BOT_ACCESS_TOKEN_PROD"]
+            access_token_secret = os.environ["TWITTER_BOT_ACCESS_TOKEN_SECRET_PROD"]
             logging.info('Configured as a production instance.')
         else:
-            # token = 
             api_key = os.environ["TWITTER_BOT_API_KEY"]
             api_key_secret = os.environ["TWITTER_BOT_API_KEY_SECRET"]
             access_token = os.environ["TWITTER_BOT_ACCESS_TOKEN"]
