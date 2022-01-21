@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     # Automatically detect if this is a production environment.
     try:
-        token = os.environ["TWITTER_BOT_TOKEN_PROD"]
+        token = os.environ["TWITTER_BOT_API_KEY_PROD"]
         prod = True
     except KeyError:
         prod = False
