@@ -26,6 +26,8 @@ TIMESTAMP_KEY = 'timestamp'
 PEG_UPDATE_FREQUENCY = 0.1  # hz
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
+# How long to wait between price updates.
+PRICE_CHECK_PERIOD = 10
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 10
 # Rate at which to check chain for new Uniswap V2 pool interactions.
@@ -202,6 +204,31 @@ class PegCrossMonitor(Monitor):
             return '🟥↘ BEAN crossed below peg!'
         else:
             return 'Peg not crossed.'
+
+class PriceMonitor(Monitor):
+    """Monitor bean price from subgraph and update bot status."""
+
+    def __init__(self, message_function, prod=False):
+        super().__init__('price', message_function, 
+                         PRICE_CHECK_PERIOD, prod=prod, dry_run=False)
+        self.bean_graph_client = BeanSqlClient()
+        self.last_status = ''
+
+    def _monitor_method(self):
+        # Delay startup to protect against crash loops.
+        min_update_time = time.time() + 1
+        while self._thread_active:
+            # Attempt to check as quickly as the graph allows, but no faster than set frequency.
+            if not time.time() > min_update_time:
+                time.sleep(1)
+                continue
+            min_update_time = time.time() + PRICE_CHECK_PERIOD
+
+            bean_price = self.bean_graph_client.current_bean_price()
+            status_str = f'${round_num(bean_price, 4)}'
+            if status_str != self.last_status:
+                self.message_function(status_str)
+                self.last_status = status_str
 
 
 class SunriseMonitor(Monitor):

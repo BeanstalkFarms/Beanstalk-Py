@@ -65,6 +65,11 @@ class DiscordClient(discord.ext.commands.Bot):
         self.channel_id_to_channel = {}
 
         self.msg_queue = []
+        self.status_text = ''
+
+        self.price_monitor = util.PriceMonitor(
+            self.set_status, prod=prod)
+        self.price_monitor.start()
 
         self.peg_cross_monitor = util.PegCrossMonitor(
             self.send_msg_peg, prod=prod)
@@ -85,12 +90,20 @@ class DiscordClient(discord.ext.commands.Bot):
         # self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
         self.send_queued_messages.start()
 
+        # Start the price display task in the background.
+        self.set_presence.start()
+
     def stop(self):
         self.upload_channel_to_wallets()
+        self.price_monitor.stop()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.pool_monitor.stop()
         self.beanstalk_monitor.stop()
+
+    def set_status(self, text):
+        """Set bot custom status text."""
+        self.status_text = text
 
     def send_msg_peg(self, text):
         """Send a message through the Discord bot in the peg channel."""
@@ -138,6 +151,19 @@ class DiscordClient(discord.ext.commands.Bot):
         except AttributeError as e:
             logging.error('Failed to send DM')
             logging.exception(e)
+
+    @tasks.loop(seconds=0.1, reconnect=True)
+    async def set_presence(self):
+        if self.status_text:
+            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
+                                                                 name=self.status_text))
+            logging.info(f'Bot status changed to {self.status_text}')
+            self.status_text = ''
+
+    @set_presence.before_loop
+    async def before_set_presence_loop(self):
+        """Wait until the bot logs in."""
+        await self.wait_until_ready()
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):
