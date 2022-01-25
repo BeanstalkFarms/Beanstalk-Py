@@ -74,8 +74,11 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
         self.sunrise_monitor.start()
 
-        self.pool_monitor = util.PoolMonitor(self.send_msg_pool, prod=prod)
-        self.pool_monitor.start()
+        self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
+        self.uniswap_pool_monitor.start()
+
+        self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg_pool, prod=prod)
+        self.curve_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
@@ -89,8 +92,9 @@ class DiscordClient(discord.ext.commands.Bot):
         self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
-        self.pool_monitor.stop()
+        self.uniswap_pool_monitor.stop()
         self.beanstalk_monitor.stop()
+        self.curve_pool_monitor.stop()
 
     def send_msg_peg(self, text):
         """Send a message through the Discord bot in the peg channel."""
