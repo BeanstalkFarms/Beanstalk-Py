@@ -47,7 +47,7 @@ class DiscordPriceClient(discord.ext.commands.Bot):
     async def _update_nickname(self):
         if self.nickname != self.last_nickname:
             # Note(funderberker): Is this rate limited?
-            logging.info(await self.beanstalk_guild.me.edit(nick=self.nickname))
+            await self.beanstalk_guild.me.edit(nick=self.nickname)
             logging.info(f'Bot nickname changed to {self.nickname}')
             self.last_nickname = self.nickname
 
