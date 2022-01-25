@@ -30,8 +30,11 @@ class TelegramBot(object):
         self.sunrise_monitor = util.SunriseMonitor(self.send_msg, prod=prod)
         self.sunrise_monitor.start()
 
-        self.pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
-        self.pool_monitor.start()
+        self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
+        self.uniswap_pool_monitor.start()
+
+        self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg, prod=prod)
+        self.curve_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
         self.beanstalk_monitor.start()
@@ -49,7 +52,8 @@ class TelegramBot(object):
     def stop(self):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
-        self.pool_monitor.stop()
+        self.uniswap_pool_monitor.stop()
+        self.curve_pool_monitor.stop()
         self.beanstalk_monitor.stop()
 
 
