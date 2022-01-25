@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     util.configure_main_thread_exception_logging()
 
-    price_bot_token= os.environ["DISCORD_PRICE_BOT_TOKEN"]
+    price_bot_token= os.environ["DISCORD_PRICE_BOT_TOKEN_PROD"]
 
     discord_price_client = DiscordPriceClient()
 
