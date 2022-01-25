@@ -190,7 +190,7 @@ class CurveClient():
 
     def bean_twap(self):
         # NOTE(funderberker): These calcs do not work. Staying with Uniswap price for now.
-        
+
         # Unknown time window for TWAP. This calculation shows bean price to be $0.55, so something must be off in calculation logic.
         bean_balance, crv_balance = self.bean_3crv_contract.functions.get_price_cumulative_last().call()
         bean_balance = bean_to_float(bean_balance)
