@@ -85,11 +85,13 @@ class DiscordClient(discord.ext.commands.Bot):
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
 
+        # Ignore exceptions of this type and retry. Note that no logs will be generated.
+        self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
         # Start the message queue sending task in the background.
-        # # Ignore exceptions of this type and retry. Note that no logs will be generated.
-        # self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
         self.send_queued_messages.start()
 
+        # Ignore exceptions of this type and retry. Note that no logs will be generated.
+        self.set_presence.add_exception_type(discord.errors.DiscordServerError)
         # Start the price display task in the background.
         self.set_presence.start()
 

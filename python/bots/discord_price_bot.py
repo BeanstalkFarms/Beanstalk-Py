@@ -23,6 +23,8 @@ class DiscordPriceClient(discord.ext.commands.Bot):
             self.set_nickname_price)
         self.price_monitor.start()
 
+        # Ignore exceptions of this type and retry. Note that no logs will be generated.
+        self._update_nickname.add_exception_type(discord.errors.DiscordServerError)
         # Start the price display task in the background.
         self._update_nickname.start()
 
