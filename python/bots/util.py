@@ -72,15 +72,15 @@ class Monitor():
         logging.info(f'Starting {self.name} monitoring thread...')
         if self._dry_run:
             self.message_function(f'{self.name} monitoring started (with simulated data).')
-        # elif not self.prod:
-        #     self.message_function(f'{self.name} monitoring started.')
+        elif not self.prod:
+            self.message_function(f'{self.name} monitoring started.')
         self._thread_active = True
         self._thread_wrapper.start()
 
     def stop(self):
         logging.info(f'Stopping {self.name} monitoring thread...')
-        # if not self.prod:
-            # self.message_function(f'{self.name} monitoring stopped.')
+        if not self.prod:
+            self.message_function(f'{self.name} monitoring stopped.')
         self._thread_active = False
         self._thread_wrapper.join(3 * self.query_rate)
 
@@ -240,7 +240,7 @@ class SunriseMonitor(Monitor):
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        self.blockchain_client = eth_chain.BlockchainClient()
+        self.blockchain_client = eth_chain.UniswapClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
@@ -390,15 +390,15 @@ class SunriseMonitor(Monitor):
         ret_string += f'🌾 Pods: {round_num(account_status["pods"])}\n'
         return ret_string
 
-class PoolMonitor(Monitor):
+class UniswapPoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
 
     def __init__(self, message_function, prod=False, dry_run=False):
-        super().__init__('pool', message_function,
+        super().__init__('Uniswap Pool', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._eth_event_client = eth_chain.EthEventsClient(
-            eth_chain.EventClientType.POOL)
-        self.blockchain_client = eth_chain.BlockchainClient()
+            eth_chain.EventClientType.UNISWAP_POOL)
+        self.uniswap_client = eth_chain.UniswapClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -412,7 +412,7 @@ class PoolMonitor(Monitor):
             
             # # For testing purposes, track the price on each check.
             # if not self.prod:
-            #     self.blockchain_client.current_eth_and_bean_price()
+            #     self.uniswap_client.current_eth_and_bean_price()
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the pool event logs for a single txn.
@@ -421,7 +421,7 @@ class PoolMonitor(Monitor):
         Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
         """
         # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction = self.blockchain_client._web3.eth.get_transaction(txn_hash)
+        transaction = self.uniswap_client._web3.eth.get_transaction(txn_hash)
         txn_method_sig_prefix = transaction['input'][:9]
 
         # Process the txn logs based on the method.
@@ -439,13 +439,12 @@ class PoolMonitor(Monitor):
         if len(event_logs) > 1:
             logging.warning(f'Multiple swaps of interest seen in a single txn ({str(event_logs)}).')
         for event_log in event_logs:
-            event_str = default_pool_event_str(
-                event_log, *self.blockchain_client.current_eth_and_bean_price())
+            event_str = uniswap_any_event_str(
+                event_log, *self.uniswap_client.current_eth_and_bean_price())
             if event_str:
                 self.message_function(event_str)
 
-
-def default_pool_event_str(event_log, eth_price, bean_price):
+def uniswap_any_event_str(event_log, eth_price, bean_price):
     event_str = ''
     # Parse possible values of interest from the event log. Not all will be populated.
     eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
@@ -466,16 +465,16 @@ def default_pool_event_str(event_log, eth_price, bean_price):
         event_str += f'\n{value_to_emojis(lp_value)}'
     elif event_log.event == 'Swap':
         if eth_in:
-            event_str += swap_event_str(eth_price, bean_price, eth_in=eth_in, bean_out=bean_out)
+            event_str += uniswap_swap_event_str(eth_price, bean_price, eth_in=eth_in, bean_out=bean_out)
         elif bean_in:
-            event_str += swap_event_str(eth_price, bean_price, bean_in=bean_in, eth_out=eth_out)
+            event_str += uniswap_swap_event_str(eth_price, bean_price, bean_in=bean_in, eth_out=eth_out)
 
     event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
     # empty line that does not get stripped
     event_str += '\n_ _'
     return event_str
 
-def swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
+def uniswap_swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
     event_str = ''
     if ((not eth_in and not bean_in) or (not eth_out and not bean_out)):
         logging.error('Must set at least one input and one output of swap.')
@@ -496,6 +495,134 @@ def swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=Non
     event_str += f'\n{value_to_emojis(swap_value)}'
     return event_str
 
+class CurvePoolMonitor(Monitor):
+    """Monitor the BEAN:3CRV Curve pool for events."""
+
+    def __init__(self, message_function, prod=False, dry_run=False):
+        super().__init__('Curve Pool', message_function,
+                         POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._eth_event_client = eth_chain.EthEventsClient(
+            eth_chain.EventClientType.CURVE_POOL)
+        self.uniswap_client = eth_chain.UniswapClient()
+
+    def _monitor_method(self):
+        last_check_time = 0
+        while self._thread_active:
+            if time.time() < last_check_time + POOL_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
+                self._handle_txn_logs(txn_hash, event_logs)
+
+    def _handle_txn_logs(self, txn_hash, event_logs):
+        """Process the curve pool event logs for a single txn.
+
+        Assumes that there are no non-Bean:3CRV TokenExchangeUnderlying events in logs.
+        Note that Event Log Object is not the same as Event object.
+        """
+        for event_log in event_logs:
+            event_str = curve_any_event_str(
+                event_log, self.uniswap_client.current_bean_price())
+            if event_str:
+                self.message_function(event_str)
+
+def curve_any_event_str(event_log, bean_price):
+    event_str = ''
+    # Parse possible values of interest from the event log. Not all will be populated.
+    sold_id = event_log.args.get('sold_id')
+    tokens_sold = event_log.args.get('tokens_sold')
+    bought_id = event_log.args.get('bought_id')
+    tokens_bought = event_log.args.get('tokens_bought')
+    token_amounts = event_log.args.get('token_amounts')
+    # Coin is the non-pool token non-crv token, Bean. Unclear why this is the naming Curve used.
+    coin_amount = event_log.args.get('coin_amount')
+
+    if token_amounts is not None:
+        bean_lp_amount = eth_chain.bean_to_float(token_amounts[eth_chain.FACTORY_INDEX_BEAN])
+        crv_lp_amount = eth_chain.crv_to_float(token_amounts[eth_chain.FACTORY_INDEX_3CRV])
+    if coin_amount is not None:
+        coin_lp_amount = eth_chain.bean_to_float(coin_amount)
+
+    if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
+        # Set the variables of quantity and direction of exchange.
+        bean_out = stable_in = bean_in = stable_out = None
+        if bought_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
+            bean_out = eth_chain.bean_to_float(tokens_bought)
+            stable_in = tokens_sold
+            stable_id = sold_id
+        elif sold_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
+            bean_in = eth_chain.bean_to_float(tokens_sold)
+            stable_out = tokens_bought
+            stable_id = bought_id
+        else:
+            logging.error('Exchange detected between two non-Bean tokens. Ignoring.')
+            return ''
+
+        # Set the stable name string and convert value to float.
+        if event_log.event == 'TokenExchange':
+            stable_name = '3CRV'
+            stable_in = eth_chain.crv_to_float(stable_in)
+            stable_out = eth_chain.crv_to_float(stable_out)
+        elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_DAI:
+            stable_name = 'DAI'
+            stable_in = eth_chain.dai_to_float(stable_in)
+            stable_out = eth_chain.dai_to_float(stable_out)
+        elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDC:
+            stable_name = 'USDC'
+            stable_in = eth_chain.usdc_to_float(stable_in)
+            stable_out = eth_chain.usdc_to_float(stable_out)
+        elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDT:
+            stable_name = 'USDT'
+            stable_in = eth_chain.usdt_to_float(stable_in)
+            stable_out = eth_chain.usdt_to_float(stable_out)
+        else:
+            logging.error(f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
+            return ''
+
+        event_str += curve_exchange_event_str(event_log, bean_price, stable_name,
+                                              bean_out=bean_out, bean_in=bean_in,
+                                              stable_in=stable_in, stable_out=stable_out)
+    elif event_log.event == 'AddLiquidity':
+        event_str += f'📥 LP added - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount)} 3CRV'
+    elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
+        event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount, 4)} 3CRV'
+    elif event_log.event == 'RemoveLiquidityOne':
+        event_str += f'📤 LP removed - {round_num(coin_lp_amount)} Beans'
+    else:
+        logging.warning(f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
+        return ''
+
+    event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+    # empty line that does not get stripped
+    event_str += '\n_ _'
+    return event_str
+
+def curve_exchange_event_str(event_log, bean_price, stable_name, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+    """Generate a standard token exchange string.
+
+    Note that we assume all tokens in 3CRV have a value of $1.
+    """
+    event_str = ''
+    if ((not stable_in and not bean_in) or (not stable_out and not bean_out)):
+        logging.error('Must set at least one input and one output of swap.')
+        return ''
+    if ((stable_in and bean_in) or (stable_out and bean_out)):
+        logging.error('Cannot set two inputs or two outputs of swap.')
+        return ''
+    if stable_in:
+        event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(stable_in)} {stable_name}'
+        swap_price = stable_in / bean_out
+        swap_value = stable_in
+    elif bean_in:
+        event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(stable_out)} {stable_name}'
+        swap_price = stable_out / bean_in
+        swap_value = stable_out
+    event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+    event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
+    event_str += f'\n{value_to_emojis(swap_value)}'
+    return event_str
+
 class BeanstalkMonitor(Monitor):
     """Monitor the Beanstalk contract for events."""
 
@@ -504,7 +631,7 @@ class BeanstalkMonitor(Monitor):
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._eth_event_client = eth_chain.EthEventsClient(eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        self.blockchain_client = eth_chain.BlockchainClient()
+        self.blockchain_client = eth_chain.UniswapClient()
 
     def _monitor_method(self):
         last_check_time = 0
