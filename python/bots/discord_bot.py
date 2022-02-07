@@ -67,23 +67,23 @@ class DiscordClient(discord.ext.commands.Bot):
         self.msg_queue = []
         self.status_text = ''
 
-        self.price_monitor = util.PriceMonitor(
-            self.set_status, prod=prod)
-        self.price_monitor.start()
+        # self.price_monitor = util.PriceMonitor(
+        #     self.set_status, prod=prod)
+        # self.price_monitor.start()
 
-        self.peg_cross_monitor = util.PegCrossMonitor(
-            self.send_msg_peg, prod=prod)
-        self.peg_cross_monitor.start()
+        # self.peg_cross_monitor = util.PegCrossMonitor(
+        #     self.send_msg_peg, prod=prod)
+        # self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(
-            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        self.sunrise_monitor.start()
+        # self.sunrise_monitor = util.SunriseMonitor(
+        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+        # self.sunrise_monitor.start()
 
-        self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
-        self.uniswap_pool_monitor.start()
+        # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
+        # self.uniswap_pool_monitor.start()
 
-        self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg_pool, prod=prod)
-        self.curve_pool_monitor.start()
+        # self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg_pool, prod=prod)
+        # self.curve_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
@@ -100,12 +100,12 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.upload_channel_to_wallets()
-        self.price_monitor.stop()
-        self.peg_cross_monitor.stop()
-        self.sunrise_monitor.stop()
-        self.uniswap_pool_monitor.stop()
+        # self.price_monitor.stop()
+        # self.peg_cross_monitor.stop()
+        # self.sunrise_monitor.stop()
+        # self.uniswap_pool_monitor.stop()
+        # self.curve_pool_monitor.stop()
         self.beanstalk_monitor.stop()
-        self.curve_pool_monitor.stop()
 
     def set_status(self, text):
         """Set bot custom status text."""
