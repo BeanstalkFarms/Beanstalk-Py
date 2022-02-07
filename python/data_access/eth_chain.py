@@ -17,6 +17,7 @@ URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
 ETH_DECIMALS = 18
 LP_DECIMALS = 18
 BEAN_DECIMALS = 6
+POD_DECIMALS = 6
 DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
@@ -106,6 +107,20 @@ add_event_to_dict('BeanWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('LPWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# Farmer's market events.
+add_event_to_dict('PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,bool)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodListingFilled(address,address,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodListingCancelled(address,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodOrderCreated(address,bytes32,uint256,uint24,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodOrderCancelled(address,bytes32)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+print(BEANSTALK_EVENT_MAP)
 
 # Method signatures. We handle some logs differently when derived from different methods.
 # Silo conversion signatures.
@@ -232,6 +247,10 @@ def bean_to_float(bean_long):
         return 0
     return int(bean_long) / (10 ** BEAN_DECIMALS)
 
+def pods_to_float(pod_long):
+    if not pod_long:
+        return 0
+    return int(pod_long) / (10 ** POD_DECIMALS)
 
 def dai_to_float(dai_long):
     if not dai_long:
@@ -348,9 +367,10 @@ class EthEventsClient():
             for signature in self._signature_list:
                 decoded_logs.extend(self._contract.events[
                     self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
-            print(decoded_logs)
+            logging.info(f'Decoded logs:\n{decoded_logs}')
 
-            # Prune unrelated logs.
+            # Prune unrelated logs - logs that are of the same event types we watch, but are
+            # not related to Beanstalk (i.e. swaps of non-Bean tokens).
             decoded_logs_copy = decoded_logs.copy()
             decoded_logs.clear()
             for log in decoded_logs_copy:
@@ -446,7 +466,10 @@ def get_test_entries():
                       'logIndex': 9, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x7b7cec2b1c72053945390818320ba08e8b2c2d8fb2fd24319c19519db4b2629e'), 'transactionIndex': 0}),
         # Curve pool: TokenExchangeUnderlying BEAN->USDC.
         AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'blockHash': HexBytes('0xdce039037dac5caade192e8f583289b146aa15526c23eacc6b27ed4e69e6c300'), 'blockNumber': 14058200, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000048c0b871d0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000041bbe9aa8',
-                      'logIndex': 77, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x2076ddf03449a024290c4123ad69bde5fb2629770ea76577fb59574b359859ba'), 'transactionIndex': 8})
+                      'logIndex': 77, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x2076ddf03449a024290c4123ad69bde5fb2629770ea76577fb59574b359859ba'), 'transactionIndex': 8}),
+        # Farmer's market:
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x5a58c8f670a0f15fc8903b13e247cb567481d9d5896167a7328e5f9c3aa313a1'), 'blockNumber': 14161259, 'data': '0x0000000000000000000000000000000000000000000000000000ee106d3ea0da0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065094de03000000000000000000000000000000000000000000000000000000000000ea600000000000000000000000000000000000000000000000000000ee106d3ea0da0000000000000000000000000000000000000000000000000000000000000000',
+                      'logIndex': 149, 'removed': False, 'topics': [HexBytes('0xdbb99ae82f53a8f7a558e71f0c098ebc981afc0379125c7e03d87fc3282bfbc0'), HexBytes('0x000000000000000000000000550586fc064315b54af25024415786843131c8c1')], 'transactionHash': HexBytes('0x924d01c17607cb48cdd64545a560431a651d122682d95e7a076291a88481640e'), 'transactionIndex': 112})
     ]
     return entries
 

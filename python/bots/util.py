@@ -107,7 +107,7 @@ class PegCrossMonitor(Monitor):
     """Monitor bean graph for peg crosses and send out messages on detection."""
 
     def __init__(self, message_function, prod=False):
-        super().__init__('peg', message_function, 1 /
+        super().__init__('Peg', message_function, 1 /
                          PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = None
@@ -209,7 +209,7 @@ class PriceMonitor(Monitor):
     """Monitor bean price from subgraph and update bot status."""
 
     def __init__(self, message_function, prod=False):
-        super().__init__('price', message_function, 
+        super().__init__('Price', message_function, 
                          PRICE_CHECK_PERIOD, prod=prod, dry_run=False)
         self.bean_graph_client = BeanSqlClient()
         self.last_status = ''
@@ -233,7 +233,7 @@ class PriceMonitor(Monitor):
 
 class SunriseMonitor(Monitor):
     def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False):
-        super().__init__('sunrise', message_function,
+        super().__init__('Sunrise', message_function,
                          SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
         # Toggle shorter messages (must fit into <280 character safely).
         self.short_msgs = short_msgs
@@ -439,61 +439,66 @@ class UniswapPoolMonitor(Monitor):
         if len(event_logs) > 1:
             logging.warning(f'Multiple swaps of interest seen in a single txn ({str(event_logs)}).')
         for event_log in event_logs:
-            event_str = uniswap_any_event_str(
+            event_str = UniswapPoolMonitor.any_event_str(
                 event_log, *self.uniswap_client.current_eth_and_bean_price())
             if event_str:
                 self.message_function(event_str)
 
-def uniswap_any_event_str(event_log, eth_price, bean_price):
-    event_str = ''
-    # Parse possible values of interest from the event log. Not all will be populated.
-    eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
-    bean_amount = eth_chain.bean_to_float(event_log.args.get('amount1'))
-    eth_in = eth_chain.eth_to_float(event_log.args.get('amount0In'))
-    eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
-    bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
-    bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
+    @abstractmethod
+    def any_event_str(event_log, eth_price, bean_price):
+        event_str = ''
+        # Parse possible values of interest from the event log. Not all will be populated.
+        eth_amount = eth_chain.eth_to_float(event_log.args.get('amount0'))
+        bean_amount = eth_chain.bean_to_float(event_log.args.get('amount1'))
+        eth_in = eth_chain.eth_to_float(event_log.args.get('amount0In'))
+        eth_out = eth_chain.eth_to_float(event_log.args.get('amount0Out'))
+        bean_in = eth_chain.bean_to_float(event_log.args.get('amount1In'))
+        bean_out = eth_chain.bean_to_float(event_log.args.get('amount1Out'))
 
-    if event_log.event in ['Mint', 'Burn']:
-        if event_log.event == 'Mint':
-            event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
-        if event_log.event == 'Burn':
-            event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
-        # LP add/remove always takes equal value of both assets.
-        lp_value = bean_amount * bean_price * 2
-        event_str += f' (${round_num(lp_value)})'
-        event_str += f'\n{value_to_emojis(lp_value)}'
-    elif event_log.event == 'Swap':
+        if event_log.event in ['Mint', 'Burn']:
+            if event_log.event == 'Mint':
+                event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
+            if event_log.event == 'Burn':
+                event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
+            # LP add/remove always takes equal value of both assets.
+            lp_value = bean_amount * bean_price * 2
+            event_str += f' (${round_num(lp_value)})'
+            event_str += f'\n{value_to_emojis(lp_value)}'
+        elif event_log.event == 'Swap':
+            if eth_in:
+                event_str += UniswapPoolMonitor.swap_event_str(
+                    eth_price, bean_price, eth_in=eth_in, bean_out=bean_out)
+            elif bean_in:
+                event_str += UniswapPoolMonitor.swap_event_str(
+                    eth_price, bean_price, bean_in=bean_in, eth_out=eth_out)
+
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # empty line that does not get stripped
+        event_str += '\n_ _'
+        return event_str
+
+    @abstractmethod
+    def swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
+        event_str = ''
+        if ((not eth_in and not bean_in) or (not eth_out and not bean_out)):
+            logging.error(
+                'Must set at least one input and one output of swap.')
+            return ''
+        if ((eth_in and bean_in) or (eth_out and bean_out)):
+            logging.error('Cannot set two inputs or two outputs of swap.')
+            return ''
         if eth_in:
-            event_str += uniswap_swap_event_str(eth_price, bean_price, eth_in=eth_in, bean_out=bean_out)
+            event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
+            swap_price = eth_chain.avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price)
+            swap_value = swap_price * bean_out
         elif bean_in:
-            event_str += uniswap_swap_event_str(eth_price, bean_price, bean_in=bean_in, eth_out=eth_out)
-
-    event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-    # empty line that does not get stripped
-    event_str += '\n_ _'
-    return event_str
-
-def uniswap_swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
-    event_str = ''
-    if ((not eth_in and not bean_in) or (not eth_out and not bean_out)):
-        logging.error('Must set at least one input and one output of swap.')
-        return ''
-    if ((eth_in and bean_in) or (eth_out and bean_out)):
-        logging.error('Cannot set two inputs or two outputs of swap.')
-        return ''
-    if eth_in:
-        event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
-        swap_price = eth_chain.avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price)
-        swap_value = swap_price * bean_out
-    elif bean_in:
-        event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
-        swap_price = eth_chain.avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
-        swap_value = swap_price * bean_in
-    event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-    event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
-    event_str += f'\n{value_to_emojis(swap_value)}'
-    return event_str
+            event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
+            swap_price = eth_chain.avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
+            swap_value = swap_price * bean_in
+        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+        event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
+        event_str += f'\n{value_to_emojis(swap_value)}'
+        return event_str
 
 class CurvePoolMonitor(Monitor):
     """Monitor the BEAN:3CRV Curve pool for events."""
@@ -522,112 +527,114 @@ class CurvePoolMonitor(Monitor):
         Note that Event Log Object is not the same as Event object.
         """
         for event_log in event_logs:
-            event_str = curve_any_event_str(
+            event_str = CurvePoolMonitor.any_event_str(
                 event_log, self.uniswap_client.current_bean_price())
             if event_str:
                 self.message_function(event_str)
 
-def curve_any_event_str(event_log, bean_price):
-    event_str = ''
-    # Parse possible values of interest from the event log. Not all will be populated.
-    sold_id = event_log.args.get('sold_id')
-    tokens_sold = event_log.args.get('tokens_sold')
-    bought_id = event_log.args.get('bought_id')
-    tokens_bought = event_log.args.get('tokens_bought')
-    token_amounts = event_log.args.get('token_amounts')
-    # Coin is the non-pool token non-crv token, Bean. Unclear why this is the naming Curve used.
-    coin_amount = event_log.args.get('coin_amount')
+    @abstractmethod
+    def any_event_str(event_log, bean_price):
+        event_str = ''
+        # Parse possible values of interest from the event log. Not all will be populated.
+        sold_id = event_log.args.get('sold_id')
+        tokens_sold = event_log.args.get('tokens_sold')
+        bought_id = event_log.args.get('bought_id')
+        tokens_bought = event_log.args.get('tokens_bought')
+        token_amounts = event_log.args.get('token_amounts')
+        # Coin is the non-pool token non-crv token, Bean. Unclear why this is the naming Curve used.
+        coin_amount = event_log.args.get('coin_amount')
 
-    if token_amounts is not None:
-        bean_lp_amount = eth_chain.bean_to_float(token_amounts[eth_chain.FACTORY_INDEX_BEAN])
-        crv_lp_amount = eth_chain.crv_to_float(token_amounts[eth_chain.FACTORY_INDEX_3CRV])
-    if coin_amount is not None:
-        coin_lp_amount = eth_chain.bean_to_float(coin_amount)
+        if token_amounts is not None:
+            bean_lp_amount = eth_chain.bean_to_float(token_amounts[eth_chain.FACTORY_INDEX_BEAN])
+            crv_lp_amount = eth_chain.crv_to_float(token_amounts[eth_chain.FACTORY_INDEX_3CRV])
+        if coin_amount is not None:
+            coin_lp_amount = eth_chain.bean_to_float(coin_amount)
 
-    if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
-        # Set the variables of quantity and direction of exchange.
-        bean_out = stable_in = bean_in = stable_out = None
-        if bought_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
-            bean_out = eth_chain.bean_to_float(tokens_bought)
-            stable_in = tokens_sold
-            stable_id = sold_id
-        elif sold_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
-            bean_in = eth_chain.bean_to_float(tokens_sold)
-            stable_out = tokens_bought
-            stable_id = bought_id
+        if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
+            # Set the variables of quantity and direction of exchange.
+            bean_out = stable_in = bean_in = stable_out = None
+            if bought_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
+                bean_out = eth_chain.bean_to_float(tokens_bought)
+                stable_in = tokens_sold
+                stable_id = sold_id
+            elif sold_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
+                bean_in = eth_chain.bean_to_float(tokens_sold)
+                stable_out = tokens_bought
+                stable_id = bought_id
+            else:
+                logging.error('Exchange detected between two non-Bean tokens. Ignoring.')
+                return ''
+
+            # Set the stable name string and convert value to float.
+            if event_log.event == 'TokenExchange':
+                stable_name = '3CRV'
+                stable_in = eth_chain.crv_to_float(stable_in)
+                stable_out = eth_chain.crv_to_float(stable_out)
+            elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_DAI:
+                stable_name = 'DAI'
+                stable_in = eth_chain.dai_to_float(stable_in)
+                stable_out = eth_chain.dai_to_float(stable_out)
+            elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDC:
+                stable_name = 'USDC'
+                stable_in = eth_chain.usdc_to_float(stable_in)
+                stable_out = eth_chain.usdc_to_float(stable_out)
+            elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDT:
+                stable_name = 'USDT'
+                stable_in = eth_chain.usdt_to_float(stable_in)
+                stable_out = eth_chain.usdt_to_float(stable_out)
+            else:
+                logging.error(f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
+                return ''
+
+            event_str += CurvePoolMonitor.exchange_event_str(event_log, bean_price, stable_name,
+                                                bean_out=bean_out, bean_in=bean_in,
+                                                stable_in=stable_in, stable_out=stable_out)
+        elif event_log.event == 'AddLiquidity':
+            event_str += f'📥 LP added - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount)} 3CRV'
+        elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
+            event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount, 4)} 3CRV'
+        elif event_log.event == 'RemoveLiquidityOne':
+            event_str += f'📤 LP removed - {round_num(coin_lp_amount)} Beans'
         else:
-            logging.error('Exchange detected between two non-Bean tokens. Ignoring.')
+            logging.warning(f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
             return ''
 
-        # Set the stable name string and convert value to float.
-        if event_log.event == 'TokenExchange':
-            stable_name = '3CRV'
-            stable_in = eth_chain.crv_to_float(stable_in)
-            stable_out = eth_chain.crv_to_float(stable_out)
-        elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_DAI:
-            stable_name = 'DAI'
-            stable_in = eth_chain.dai_to_float(stable_in)
-            stable_out = eth_chain.dai_to_float(stable_out)
-        elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDC:
-            stable_name = 'USDC'
-            stable_in = eth_chain.usdc_to_float(stable_in)
-            stable_out = eth_chain.usdc_to_float(stable_out)
-        elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDT:
-            stable_name = 'USDT'
-            stable_in = eth_chain.usdt_to_float(stable_in)
-            stable_out = eth_chain.usdt_to_float(stable_out)
-        else:
-            logging.error(f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # empty line that does not get stripped
+        event_str += '\n_ _'
+        return event_str
+
+    @abstractmethod
+    def exchange_event_str(event_log, bean_price, stable_name, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+        """Generate a standard token exchange string.
+
+        Note that we assume all tokens in 3CRV have a value of $1.
+        """
+        event_str = ''
+        if ((not stable_in and not bean_in) or (not stable_out and not bean_out)):
+            logging.error('Must set at least one input and one output of swap.')
             return ''
-
-        event_str += curve_exchange_event_str(event_log, bean_price, stable_name,
-                                              bean_out=bean_out, bean_in=bean_in,
-                                              stable_in=stable_in, stable_out=stable_out)
-    elif event_log.event == 'AddLiquidity':
-        event_str += f'📥 LP added - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount)} 3CRV'
-    elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
-        event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount, 4)} 3CRV'
-    elif event_log.event == 'RemoveLiquidityOne':
-        event_str += f'📤 LP removed - {round_num(coin_lp_amount)} Beans'
-    else:
-        logging.warning(f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
-        return ''
-
-    event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-    # empty line that does not get stripped
-    event_str += '\n_ _'
-    return event_str
-
-def curve_exchange_event_str(event_log, bean_price, stable_name, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
-    """Generate a standard token exchange string.
-
-    Note that we assume all tokens in 3CRV have a value of $1.
-    """
-    event_str = ''
-    if ((not stable_in and not bean_in) or (not stable_out and not bean_out)):
-        logging.error('Must set at least one input and one output of swap.')
-        return ''
-    if ((stable_in and bean_in) or (stable_out and bean_out)):
-        logging.error('Cannot set two inputs or two outputs of swap.')
-        return ''
-    if stable_in:
-        event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(stable_in)} {stable_name}'
-        swap_price = stable_in / bean_out
-        swap_value = stable_in
-    elif bean_in:
-        event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(stable_out)} {stable_name}'
-        swap_price = stable_out / bean_in
-        swap_value = stable_out
-    event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-    event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
-    event_str += f'\n{value_to_emojis(swap_value)}'
-    return event_str
+        if ((stable_in and bean_in) or (stable_out and bean_out)):
+            logging.error('Cannot set two inputs or two outputs of swap.')
+            return ''
+        if stable_in:
+            event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(stable_in)} {stable_name}'
+            swap_price = stable_in / bean_out
+            swap_value = stable_in
+        elif bean_in:
+            event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(stable_out)} {stable_name}'
+            swap_price = stable_out / bean_in
+            swap_value = stable_out
+        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+        event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
+        event_str += f'\n{value_to_emojis(swap_value)}'
+        return event_str
 
 class BeanstalkMonitor(Monitor):
     """Monitor the Beanstalk contract for events."""
 
     def __init__(self, message_function, prod=False, dry_run=False):
-        super().__init__('beanstalk', message_function,
+        super().__init__('Beanstalk', message_function,
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._eth_event_client = eth_chain.EthEventsClient(eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
@@ -666,14 +673,14 @@ class BeanstalkMonitor(Monitor):
             # Remove this log from the list.
             event_logs.remove(event_log)
 
-        # Process the txn logs based on the method.
+        # Process some txn logs as groups, based on the contract function signature.
         # Compile all events within a silo conversion to a single action.
         if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
             logging.info(f'Silo conversion txn seen ({txn_hash.hex()}).')
             # If this is a conversion into beans, include last bean deposit log.
             if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
                 event_logs.append(last_bean_deposit)
-            self.message_function(silo_conversion_str(
+            self.message_function(BeanstalkMonitor.silo_conversion_str(
                 event_logs, self.blockchain_client, self.beanstalk_graph_client))
             return
         # If there is a direct bean deposit, do not ignore the last bean deposit event.
@@ -684,106 +691,149 @@ class BeanstalkMonitor(Monitor):
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
-            event_str = default_beanstalk_event_str(event_log, self.blockchain_client,
+            event_str = BeanstalkMonitor.any_event_str(event_log, self.blockchain_client,
                                                     self.beanstalk_graph_client)
             self.message_function(event_str)
 
-def default_beanstalk_event_str(event_log, blockchain_client, beanstalk_graph_client):
+    @abstractmethod
+    def any_event_str(event_log, blockchain_client, beanstalk_graph_client):
+            event_str = ''
+
+            # Pull args from the event log. Not all will be populated.
+            eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
+            lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
+            lp_eth, lp_beans = lp_eq_values(
+                lp_amount, beanstalk_graph_client=beanstalk_graph_client)
+            lp_value = lp_eth * eth_price + lp_beans * bean_price
+            beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
+            beans_value = beans_amount * bean_price
+            pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
+
+            # Ignore these events. They are uninteresting clutter.
+            if event_log.event in ['BeanRemove', 'LPRemove']:
+                return ''
+            # LP Events.
+            elif event_log.event in ['LPDeposit', 'LPWithdraw', 'LPClaim']:
+                if event_log.event == 'LPDeposit':
+                    event_str += f'📥 LP deposited'
+                elif event_log.event == 'LPWithdraw':
+                    event_str += f'📭 LP withdrawn'
+                elif event_log.event == 'LPClaim':
+                    event_str += f'🛍 LP claimed'
+                event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
+                event_str += f'\n{value_to_emojis(lp_value)}'
+            # Bean events.
+            elif event_log.event in ['BeanDeposit', 'BeanWithdraw', 'BeanClaim']:
+                if event_log.event == 'BeanDeposit':
+                    event_str += f'📥 Beans deposited'
+                elif event_log.event == 'BeanWithdraw':
+                    event_str += f'📭 Beans withdrawn'
+                elif event_log.event == 'BeanClaim':
+                    event_str += f'🛍 Beans claimed'
+                event_str += f' - {round_num(beans_amount)} Beans (${round_num(beans_value)})'
+                event_str += f'\n{value_to_emojis(beans_value)}'
+            # Sow event.
+            elif event_log.event == 'Sow':
+                event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
+                            f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
+                event_str += f'\n{value_to_emojis(beans_value)}'
+            elif event_log.event in ['PodListingCreated', 'PodListingFilled', 'PodListingCancelled',
+                                     'PodOrderCreated','PodOrderFilled','PodOrderCancelled']:
+                event_str += BeanstalkMonitor.farmers_market_str(event_log)
+            else:
+                logging.warning(
+                    f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
+                return ''
+
+            event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+            # empty line that does not get stripped
+            event_str += '\n_ _'
+            return event_str
+
+    def farmers_market_str(event_log):
+        """Create a human-readable string representing an event related to the farmer's market.
+
+        Assumes event_log is an event of one of the types implemented below.
+        Uses events from Beanstalk contract.
+        """
         event_str = ''
+        # Pull args from event logs. Not all will be populated.
+        id = event_log.args.get('id')
+        amount = eth_chain.pods_to_float(event_log.args.get('amount'))
+        price_per_pod = eth_chain.bean_to_float(event_log.args.get('pricePerPod'))
+        max_place_in_line = event_log.args.get('maxPlaceInLine')
+        max_harvestable_index = event_log.args.get('maxHarvestableIndex')
 
-        eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
-        lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
-        lp_eth, lp_beans = lp_eq_values(
-            lp_amount, beanstalk_graph_client=beanstalk_graph_client)
-        lp_value = lp_eth * eth_price + lp_beans * bean_price
-        beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
-        beans_value = beans_amount * bean_price
-        pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
+        # Calculated values. Not all will be populated.
+        value = amount * price_per_pod
 
-        # Ignore these events. They are uninteresting clutter.
-        if event_log.event in ['BeanRemove', 'LPRemove']:
-            return ''
-        # LP Events.
-        elif event_log.event in ['LPDeposit', 'LPWithdraw', 'LPClaim']:
-            if event_log.event == 'LPDeposit':
-                event_str += f'📥 LP deposited'
-            elif event_log.event == 'LPWithdraw':
-                event_str += f'📭 LP withdrawn'
-            elif event_log.event == 'LPClaim':
-                event_str += f'🛍 LP claimed'
-            event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
-            event_str += f'\n{value_to_emojis(lp_value)}'
-        # Bean events.
-        elif event_log.event in ['BeanDeposit', 'BeanWithdraw', 'BeanClaim']:
-            if event_log.event == 'BeanDeposit':
-                event_str += f'📥 Beans deposited'
-            elif event_log.event == 'BeanWithdraw':
-                event_str += f'📭 Beans withdrawn'
-            elif event_log.event == 'BeanClaim':
-                event_str += f'🛍 Beans claimed'
-            event_str += f' - {round_num(beans_amount)} Beans (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
-        # Sow event.
-        elif event_log.event == 'Sow':
-            event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
-                         f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
-        else:
-            logging.warning(
-                f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
-            return ''
+        amount = round_num(amount, 0)
+        price_per_pod = round_num(price_per_pod, 4)
+        value = round_num(value, 2)
 
-        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-        # empty line that does not get stripped
-        event_str += '\n_ _'
+        if event_log.event == 'PodListingCreated':
+            event_str += f'📰 Pods listed - {amount} Pods @ {price_per_pod} Beans/Pod'
+        elif event_log.event == 'PodOrderCreated':
+            event_str += f'📑 Pods ordered - {amount} Pods @ {price_per_pod} Beans/Pod'
+        elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
+            event_str += f'💰 Pods Exchanged - {amount} Pods'
+            # We will need to pull info from other event logs.
+        elif event_log.event == 'PodListingCancelled':
+            event_str += f'❌ Listing removed - '
+            # We will need to pull info from other event logs.
+        elif event_log.event == 'PodOrderCancelled':
+            event_str += f'❌ Order removed - '
+            # We will need to pull info from other event logs.
         return event_str
 
-def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
-    """Create a human-readable string representing a silo position conversion.
-    
-    Assumes that there are no non-Bean swaps contained in the event logs.
-    Assumes event_logs is not empty.
-    Assumes embedded beanDeposits have been removed from logs.
-    Uses events from Beanstalk contract.
-    """
-    beans_converted = lp_converted = None
-    eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
-    # Find the relevant logs (Swap + Mint/Burn).
-    for event_log in event_logs:
-        # One Swap event will always be present.
-        # But we cannot parse the Swap event because it is only seen by the pool monitor.
-        # if event_log.event == 'Swap':
+    @abstractmethod
+    def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
+        """Create a human-readable string representing a silo position conversion.
         
-        # One of the below two events will always be present.
-        if event_log.event == 'BeanRemove':
-            beans_converted = eth_chain.bean_to_float(event_log.args.get('beans'))
-        elif event_log.event == 'LPRemove':
-            lp_converted = eth_chain.lp_to_float(event_log.args.get('lp'))
-            lp_converted_eth, lp_converted_beans = lp_eq_values(lp_converted, beanstalk_graph_client=beanstalk_graph_client)
+        Assumes that there are no non-Bean swaps contained in the event logs.
+        Assumes event_logs is not empty.
+        Assumes embedded beanDeposits have been removed from logs.
+        Uses events from Beanstalk contract.
+        """
+        beans_converted = lp_converted = None
+        eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
+        # Find the relevant logs (Swap + Mint/Burn).
+        for event_log in event_logs:
+            # One Swap event will always be present.
+            # But we cannot parse the Swap event because it is only seen by the pool monitor.
+            # if event_log.event == 'Swap':
+            
+            # One of the below two events will always be present.
+            if event_log.event == 'BeanRemove':
+                beans_converted = eth_chain.bean_to_float(event_log.args.get('beans'))
+            elif event_log.event == 'LPRemove':
+                lp_converted = eth_chain.lp_to_float(event_log.args.get('lp'))
+                lp_converted_eth, lp_converted_beans = lp_eq_values(lp_converted, beanstalk_graph_client=beanstalk_graph_client)
 
-        # One of the below two events will always be present.
-        elif event_log.event == 'BeanDeposit':
-            beans_deposited = eth_chain.bean_to_float(event_log.args.get('beans'))
-            value = beans_deposited * bean_price
-        elif event_log.event == 'LPDeposit':
-            lp_deposited = eth_chain.lp_to_float(event_log.args.get('lp'))
-            lp_deposited_eth, lp_deposited_beans = lp_eq_values(lp_deposited, beanstalk_graph_client=beanstalk_graph_client)
-            value = lp_deposited_beans * 2 * bean_price
+            # One of the below two events will always be present.
+            elif event_log.event == 'BeanDeposit':
+                beans_deposited = eth_chain.bean_to_float(event_log.args.get('beans'))
+                value = beans_deposited * bean_price
+            elif event_log.event == 'LPDeposit':
+                lp_deposited = eth_chain.lp_to_float(event_log.args.get('lp'))
+                lp_deposited_eth, lp_deposited_beans = lp_eq_values(lp_deposited, beanstalk_graph_client=beanstalk_graph_client)
+                value = lp_deposited_beans * 2 * bean_price
 
-        # elif event_log.event == 'Burn':
-        # elif event_log.event == 'Mint':
+            # elif event_log.event == 'Burn':
+            # elif event_log.event == 'Mint':
 
-    # If converting to LP.
-    if beans_converted:
-        event_str = f'🔃 {round_num(beans_converted)} siloed Beans converted to {round_num(lp_deposited_eth,4)} ETH & {round_num(lp_deposited_beans)} Beans of LP (${round_num(value)})'
-    # If converting to Beans.
-    elif lp_converted:
-        event_str = f'🔄 {round_num(lp_converted_eth,4)} ETH and {round_num(lp_converted_beans)} Beans of siloed LP converted to {round_num(beans_deposited)} siloed Beans (${round_num(value)})'
-    
-    event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
-    event_str += f'\n{value_to_emojis(value)}'
-    event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
-    return event_str
+        # If converting to LP.
+        if beans_converted:
+            event_str = f'🔃 {round_num(beans_converted)} siloed Beans converted to {round_num(lp_deposited_eth,4)} ETH & {round_num(lp_deposited_beans)} Beans of LP (${round_num(value)})'
+        # If converting to Beans.
+        elif lp_converted:
+            event_str = f'🔄 {round_num(lp_converted_eth,4)} ETH and {round_num(lp_converted_beans)} Beans of siloed LP converted to {round_num(beans_deposited)} siloed Beans (${round_num(value)})'
+        
+        event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
+        event_str += f'\n{value_to_emojis(value)}'
+        event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
+        return event_str
+
 
 def sig_compare(signature, signatures):
     """Compare a signature to one or many signatures and return if there are any matches. 
