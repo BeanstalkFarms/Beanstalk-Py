@@ -778,12 +778,11 @@ class BeanstalkMonitor(Monitor):
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             event_str += f'💰 Pods Exchanged - {amount} Pods'
             # We will need to pull info from other event logs.
-        elif event_log.event == 'PodListingCancelled':
-            event_str += f'❌ Listing removed - '
-            # We will need to pull info from other event logs.
-        elif event_log.event == 'PodOrderCancelled':
-            event_str += f'❌ Order removed - '
-            # We will need to pull info from other event logs.
+        # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
+        # terms of amount/cost/etc. We could parse all previous creation events to find matching
+        # index, but it is not clear that it is worth it.
+        # elif event_log.event == 'PodListingCancelled':
+        # elif event_log.event == 'PodOrderCancelled':
         return event_str
 
     @abstractmethod

@@ -112,15 +112,14 @@ add_event_to_dict('PodListingCreated(address,uint256,uint256,uint256,uint24,uint
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('PodListingFilled(address,address,uint256,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('PodListingCancelled(address,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('PodListingCancelled(address,uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('PodOrderCreated(address,bytes32,uint256,uint24,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('PodOrderCancelled(address,bytes32)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-print(BEANSTALK_EVENT_MAP)
+# add_event_to_dict('PodOrderCancelled(address,bytes32)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
 # Method signatures. We handle some logs differently when derived from different methods.
 # Silo conversion signatures.
