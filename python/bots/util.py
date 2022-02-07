@@ -205,30 +205,57 @@ class PegCrossMonitor(Monitor):
         else:
             return 'Peg not crossed.'
 
-class PriceMonitor(Monitor):
-    """Monitor bean price from subgraph and update bot status."""
+class PreviewMonitor(Monitor):
+    """Monitor data that offers a peek into current Bean status and update bot name/status."""
 
-    def __init__(self, message_function, prod=False):
-        super().__init__('price', message_function, 
-                         PRICE_CHECK_PERIOD, prod=prod, dry_run=False)
+    def __init__(self, name_function, status_function):
+        super().__init__('price', status_function, 
+                         PRICE_CHECK_PERIOD, prod=True, dry_run=False)
+        self.STATUS_DISPLAYS_COUNT = 3
+        self.HOURS = 24
         self.bean_graph_client = BeanSqlClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
         self.last_status = ''
+        self.status_display_index = 0
+        self.name_function = name_function
+        self.status_function = status_function
 
     def _monitor_method(self):
         # Delay startup to protect against crash loops.
         min_update_time = time.time() + 1
         while self._thread_active:
-            # Attempt to check as quickly as the graph allows, but no faster than set frequency.
+            # Attempt to check as quickly as the graph allows, but no faster than set period.
             if not time.time() > min_update_time:
                 time.sleep(1)
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
 
             bean_price = self.bean_graph_client.current_bean_price()
-            status_str = f'${round_num(bean_price, 4)}'
+            status_str = f'BEAN: ${round_num(bean_price, 4)}'
             if status_str != self.last_status:
-                self.message_function(status_str)
+                self.name_function(status_str)
                 self.last_status = status_str
+
+            # Rotate data and update status.
+            self.status_display_index = (
+                self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
+            if self.status_display_index == 0:
+                seasons = self.beanstalk_graph_client.seasons_stats(
+                    list(range(self.HOURS)), fields=['price'])
+                prices = [float(season['price']) for season in seasons]
+                self.status_function(
+                    f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
+            elif self.status_display_index in [1, 2]:
+                seasons = self.beanstalk_graph_client.seasons_stats(
+                    list(range(self.HOURS)), fields=['newFarmableBeans', 'newHarvestablePods'])
+                mints = [float(season['newFarmableBeans']) +
+                         float(season['newHarvestablePods']) for season in seasons]
+                if self.status_display_index == 1:
+                    self.status_function(
+                        f'{round_num(sum(mints)/self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
+                if self.status_display_index == 2:
+                    self.status_function(
+                        f'{round_num(sum(mints), 0)} Minted - {self.HOURS}hr')
 
 
 class SunriseMonitor(Monitor):

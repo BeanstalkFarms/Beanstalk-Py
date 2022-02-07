@@ -227,6 +227,7 @@ def lp_to_float(lp_long):
         return 0
     return int(lp_long) / (10 ** LP_DECIMALS)
 
+
 def bean_to_float(bean_long):
     if not bean_long:
         return 0

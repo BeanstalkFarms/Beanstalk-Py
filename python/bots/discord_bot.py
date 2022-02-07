@@ -67,9 +67,12 @@ class DiscordClient(discord.ext.commands.Bot):
         self.msg_queue = []
         self.status_text = ''
 
-        self.price_monitor = util.PriceMonitor(
-            self.set_status, prod=prod)
-        self.price_monitor.start()
+        # Because this changes the bot name, prod vs stage is handled differently. This prevents
+        # the publicly visible BeanBot from having its name changed.
+        if not prod:
+            self.price_monitor = util.PreviewMonitor(
+                self.set_nickname_price, self.set_status)
+            self.price_monitor.start()
 
         self.peg_cross_monitor = util.PegCrossMonitor(
             self.send_msg_peg, prod=prod)
@@ -106,6 +109,12 @@ class DiscordClient(discord.ext.commands.Bot):
         self.uniswap_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.curve_pool_monitor.stop()
+
+    # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
+    # silently do nothing.
+    def set_nickname_price(self, text):
+        """Set bot server nickname price."""
+        self.nickname = f'(stage) BEAN: {text}'
 
     def set_status(self, text):
         """Set bot custom status text."""

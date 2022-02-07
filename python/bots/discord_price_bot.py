@@ -18,22 +18,27 @@ class DiscordPriceClient(discord.ext.commands.Bot):
         # There is only production for this bot.
         logging.info('Configured as a production instance.')
 
-        self.nickname = self.last_nickname = ''
-        self.price_monitor = util.PriceMonitor(
-            self.set_nickname_price)
+        self.nickname = ''
+        self.status_text = ''
+        self.price_monitor = util.PreviewMonitor(
+            self.set_nickname, self.set_status)
         self.price_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
-        self._update_nickname.add_exception_type(discord.errors.DiscordServerError)
+        self._update_naming.add_exception_type(discord.errors.DiscordServerError)
         # Start the price display task in the background.
-        self._update_nickname.start()
+        self._update_naming.start()
 
     def stop(self):
         self.price_monitor.stop()
 
-    def set_nickname_price(self, text):
-        """Set bot server nickname price."""
-        self.nickname = f'BEAN: {text}'
+    def set_nickname(self, text):
+        """Set bot server nickname."""
+        self.nickname = text
+
+    def set_status(self, text):
+        """Set bot custom status text."""
+        self.status_text = text
 
     async def on_ready(self):
         # Log the commit of this run.
@@ -46,14 +51,19 @@ class DiscordPriceClient(discord.ext.commands.Bot):
         self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
 
     @tasks.loop(seconds=0.1, reconnect=True)
-    async def _update_nickname(self):
-        if self.nickname != self.last_nickname:
+    async def _update_naming(self):
+        if self.nickname:
             # Note(funderberker): Is this rate limited?
             await self.beanstalk_guild.me.edit(nick=self.nickname)
             logging.info(f'Bot nickname changed to {self.nickname}')
-            self.last_nickname = self.nickname
+            self.nickname = ''
+        if self.status_text:
+            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
+                                                                 name=self.status_text))
+            logging.info(f'Bot status changed to {self.status_text}')
+            self.status_text = ''
 
-    @_update_nickname.before_loop
+    @_update_naming.before_loop
     async def before__update_nickname_loop(self):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
