@@ -92,10 +92,10 @@ class DiscordClient(discord.ext.commands.Bot):
         self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg_pool, prod=prod)
         self.curve_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod, dry_run=True)
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
 
-        self.beanstalk_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=True)
+        self.beanstalk_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
         self.beanstalk_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
