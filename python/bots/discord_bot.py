@@ -107,8 +107,8 @@ class DiscordClient(discord.ext.commands.Bot):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.uniswap_pool_monitor.stop()
-        self.beanstalk_monitor.stop()
         self.curve_pool_monitor.stop()
+        self.beanstalk_monitor.stop()
 
     # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
     # silently do nothing.

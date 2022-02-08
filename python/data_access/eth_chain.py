@@ -17,6 +17,7 @@ URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
 ETH_DECIMALS = 18
 LP_DECIMALS = 18
 BEAN_DECIMALS = 6
+POD_DECIMALS = 6
 DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
@@ -27,6 +28,7 @@ POOL_FEE = 0.003 # %
 # BEAN_TOKEN_ADDR = '0xDC59ac4FeFa32293A95889Dc396682858d52e5Db'
 ETH_BEAN_POOL_ADDR = '0x87898263B6C5BABe34b4ec53F22d98430b91e371'
 ETH_USDC_POOL_ADDR = '0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc'
+BEAN_ADDR = '0xDC59ac4FeFa32293A95889Dc396682858d52e5Db'
 BEANSTALK_ADDR = '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5'
 BEAN_3CRV_POOL_ADDR = '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD'
 
@@ -106,6 +108,19 @@ add_event_to_dict('BeanWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('LPWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# Farmer's market events.
+add_event_to_dict('PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,bool)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodListingFilled(address,address,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('PodListingCancelled(address,uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodOrderCreated(address,bytes32,uint256,uint24,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('PodOrderCancelled(address,bytes32)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
 # Method signatures. We handle some logs differently when derived from different methods.
 # Silo conversion signatures.
@@ -126,9 +141,15 @@ with open(os.path.join(os.path.dirname(__file__),
                        '../../contracts/ethereum/curve_pool_abi.json')) as curve_pool_abi_file:
     curve_pool_abi = json.load(curve_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
+                       '../../contracts/ethereum/bean_abi.json')) as bean_abi_file:
+    bean_abi = json.load(bean_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
                        '../../contracts/ethereum/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 
+def get_web3_instance():
+    """Get an instance of web3 lib."""
+    return Web3(WebsocketProvider(URL, websocket_timeout=60))
 
 def get_eth_bean_pool_contract(web3):
     """Get a web.eth.contract object for the ETH:BEAN pool. Contract is not thread safe."""
@@ -148,6 +169,12 @@ def get_bean_3crv_pool_contract(web3):
         address=BEAN_3CRV_POOL_ADDR, abi=curve_pool_abi)
 
 
+def get_bean_contract(web3):
+    """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=BEAN_ADDR, abi=bean_abi)
+
+
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
     return web3.eth.contract(
@@ -156,7 +183,7 @@ def get_beanstalk_contract(web3):
 
 class UniswapClient():
     def __init__(self):
-        self._web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
+        self._web3 = get_web3_instance()
         self.eth_usdc_pool_contract = get_eth_usdc_pool_contract(self._web3)
         self.eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
 
@@ -185,7 +212,7 @@ class UniswapClient():
 
 class CurveClient():
     def __init__(self):
-        self._web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
+        self._web3 = get_web3_instance()
         self.bean_3crv_contract = get_bean_3crv_pool_contract(self._web3)
 
     def bean_twap(self):
@@ -233,6 +260,10 @@ def bean_to_float(bean_long):
         return 0
     return int(bean_long) / (10 ** BEAN_DECIMALS)
 
+def pods_to_float(pod_long):
+    if not pod_long:
+        return 0
+    return int(pod_long) / (10 ** POD_DECIMALS)
 
 def dai_to_float(dai_long):
     if not dai_long:
@@ -265,7 +296,7 @@ class EventClientType(Enum):
 
 class EthEventsClient():
     def __init__(self, event_client_type):
-        self._web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
+        self._web3 = get_web3_instance()
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.UNISWAP_POOL:
             self._contract = get_eth_bean_pool_contract(self._web3)
@@ -349,9 +380,10 @@ class EthEventsClient():
             for signature in self._signature_list:
                 decoded_logs.extend(self._contract.events[
                     self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
-            print(decoded_logs)
+            logging.info(f'Decoded logs:\n{decoded_logs}')
 
-            # Prune unrelated logs.
+            # Prune unrelated logs - logs that are of the same event types we watch, but are
+            # not related to Beanstalk (i.e. swaps of non-Bean tokens).
             decoded_logs_copy = decoded_logs.copy()
             decoded_logs.clear()
             for log in decoded_logs_copy:
@@ -447,7 +479,20 @@ def get_test_entries():
                       'logIndex': 9, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x7b7cec2b1c72053945390818320ba08e8b2c2d8fb2fd24319c19519db4b2629e'), 'transactionIndex': 0}),
         # Curve pool: TokenExchangeUnderlying BEAN->USDC.
         AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'blockHash': HexBytes('0xdce039037dac5caade192e8f583289b146aa15526c23eacc6b27ed4e69e6c300'), 'blockNumber': 14058200, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000048c0b871d0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000041bbe9aa8',
-                      'logIndex': 77, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x2076ddf03449a024290c4123ad69bde5fb2629770ea76577fb59574b359859ba'), 'transactionIndex': 8})
+                      'logIndex': 77, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x2076ddf03449a024290c4123ad69bde5fb2629770ea76577fb59574b359859ba'), 'transactionIndex': 8}),
+        # Farmer's market: Pods ordered.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xfaef7c069fe09ea1bd4f6cdfbd1550ebb7bd2986e2759c4e8d6a9db6a16e19e4'), 'blockNumber': 14163350, 'data': '0x0087d1b16afbd5fbcb2b99f57ad11fa160135b88e203781b2142cbc1823219810000000000000000000000000000000000000000000000000000000b2d05e000000000000000000000000000000000000000000000000000000000000003d09000000000000000000000000000000000000000000000000000000da475abf000',
+                      'logIndex': 175, 'removed': False, 'topics': [HexBytes('0x9d0f352519bb87be0593a36adf8feb8ee677ef1b9932894db339a3537ca2df8b'), HexBytes('0x000000000000000000000000eafc0e4acf147e53398a4c9ae5f15950332cce06')], 'transactionHash': HexBytes('0x153a103e21cce2f7847325c2c3ca47dafb20a83ba8e18f1e549298edab7cf629'), 'transactionIndex': 81}),
+        # Farmer's market: Pods listing.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc4545c2140e05b6200efa7ecf6c626135eeb85a91aea76f9c5563af925d1abfe'), 'blockNumber': 14161745, 'data': '0x0000000000000000000000000000000000000000000000000000287d7bdf723600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b11ece81400000000000000000000000000000000000000000000000000000000000aae600000000000000000000000000000000000000000000000000000287d7bdf72360000000000000000000000000000000000000000000000000000000000000000',
+                      'logIndex': 364, 'removed': False, 'topics': [HexBytes('0xdbb99ae82f53a8f7a558e71f0c098ebc981afc0379125c7e03d87fc3282bfbc0'), HexBytes('0x0000000000000000000000002cd896e533983c61b0f72e6f4bbf809711acc5ce')], 'transactionHash': HexBytes('0x4d46a09d387a62430cea83011badc60a5ba62f14423303de0b94778c01951f40'), 'transactionIndex': 200}),
+        # Farmer's market: Pod relist
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x4f669728e4379119b3f0ee5666c24ef82f1bdcfa7e68b4c5356f8de0ac14cd08'), 'blockNumber': 14161840, 'data': '0x00000000000000000000000000000000000000000000000000002526b89139260000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000231485252b000000000000000000000000000000000000000000000000000000000009eb1000000000000000000000000000000000000000000000000000002526b89139260000000000000000000000000000000000000000000000000000000000000000',
+                      'logIndex': 262, 'removed': False, 'topics': [HexBytes('0xdbb99ae82f53a8f7a558e71f0c098ebc981afc0379125c7e03d87fc3282bfbc0'), HexBytes('0x000000000000000000000000c1e607b7730c43c8d15562ffa1ad27b4463dc4c4')], 'transactionHash': HexBytes('0x04597926ca1e080b510d9c7b1450a8b80570707b74436a69c6779377cf01668d'), 'transactionIndex': 188}),
+        # Farmer's market: Exchange
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x7c19f6c2ff0b120aa59e7e47b4bb7ca8517e9e2968fdad559a1c1caa7b0c23e0'), 'blockNumber': 14162025, 'data': '0x0000000000000000000000000000000000000000000000000000ee106d3ea0da0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065094de03', 'logIndex': 260,
+                      'removed': False, 'topics': [HexBytes('0x04747662e13fb76b3eed402e26661377c3ddf3b1fdaf2ebf22638037754677da'), HexBytes('0x000000000000000000000000550586fc064315b54af25024415786843131c8c1'), HexBytes('0x00000000000000000000000041dd131e460e18befd262cf4fe2e2b2f43f6fb7b')], 'transactionHash': HexBytes('0xca33aef9a4f5fb9b52da37f17e19d06bf92b3a880656e6c839f7fba78dbaccd9'), 'transactionIndex': 118})
+
     ]
     return entries
 
