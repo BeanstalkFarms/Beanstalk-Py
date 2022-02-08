@@ -20,6 +20,7 @@ DISCORD_CHANNEL_ID_PEG_CROSSES = 911338190198169710
 DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
 DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
+DISCORD_CHANNEL_ID_MARKET = 908035718859874374
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 BUCKET_NAME = 'beanstalk_bots_data'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
@@ -31,6 +32,7 @@ class Channel(Enum):
     SEASONS = 1
     POOL = 2
     BEANSTALK = 3
+    MARKET = 4
 
 class DiscordClient(discord.ext.commands.Bot):
 
@@ -48,6 +50,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
+            self._chat_id_market = DISCORD_CHANNEL_ID_MARKET
             logging.info('Configured as a production instance.')
         else:
             self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
@@ -55,6 +58,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_market = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
@@ -88,7 +92,10 @@ class DiscordClient(discord.ext.commands.Bot):
         self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg_pool, prod=prod)
         self.curve_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod, dry_run=True)
+        self.beanstalk_monitor.start()
+
+        self.beanstalk_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=True)
         self.beanstalk_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
@@ -136,12 +143,17 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the beanstalk channel."""
         self.msg_queue.append((Channel.BEANSTALK, text))
 
+    def send_msg_market(self, text):
+        """Send a message through the Discord bot in the market channel."""
+        self.msg_queue.append((Channel.MARKET, text))
+
     async def on_ready(self):
         self._channel_peg = self.get_channel(self._chat_id_peg)
         self._channel_seasons = self.get_channel(
             self._chat_id_seasons)
         self._channel_pool = self.get_channel(self._chat_id_pool)
         self._channel_beanstalk = self.get_channel(self._chat_id_beanstalk)
+        self._channel_market = self.get_channel(self._chat_id_market)
 
         # Init DM channels.
         for channel_id in self.channel_to_wallets.keys():
@@ -149,7 +161,7 @@ class DiscordClient(discord.ext.commands.Bot):
         
         logging.info(
             f'Discord channels are {self._channel_peg}, {self._channel_seasons}, '
-            f'{self._channel_pool}, {self._channel_beanstalk}')
+            f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}')
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
@@ -206,6 +218,8 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_pool.send(msg)
                 elif channel is Channel.BEANSTALK:
                     await self._channel_beanstalk.send(msg)
+                elif channel is Channel.MARKET:
+                    await self._channel_market.send(msg)
                 # If channel is a channel_id string.
                 elif type(channel) == str:
                     await self.send_dm(channel, msg)

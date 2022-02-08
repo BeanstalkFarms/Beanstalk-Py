@@ -108,19 +108,22 @@ add_event_to_dict('BeanWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('LPWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+
 # Farmer's market events.
+MARKET_EVENT_MAP = {}
+MARKET_SIGNATURES_LIST = []
 add_event_to_dict('PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,bool)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+                  MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 add_event_to_dict('PodListingFilled(address,address,uint256,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+                  MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 # add_event_to_dict('PodListingCancelled(address,uint256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+#                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 add_event_to_dict('PodOrderCreated(address,bytes32,uint256,uint24,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+                  MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+                  MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 # add_event_to_dict('PodOrderCancelled(address,bytes32)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+#                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 
 # Method signatures. We handle some logs differently when derived from different methods.
 # Silo conversion signatures.
@@ -292,6 +295,7 @@ class EventClientType(Enum):
     UNISWAP_POOL = 0
     CURVE_POOL = 1
     BEANSTALK = 2
+    MARKET = 3
 
 
 class EthEventsClient():
@@ -315,6 +319,12 @@ class EthEventsClient():
             self._contract_address = BEANSTALK_ADDR
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
+            self._set_filter()
+        elif self._event_client_type == EventClientType.MARKET:
+            self._contract = get_beanstalk_contract(self._web3)
+            self._contract_address = BEANSTALK_ADDR
+            self._events_dict = MARKET_EVENT_MAP
+            self._signature_list = MARKET_SIGNATURES_LIST
             self._set_filter()
         else:
             raise ValueError("Illegal event client type.")
