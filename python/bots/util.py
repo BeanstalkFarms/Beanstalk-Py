@@ -639,6 +639,9 @@ class BeanstalkMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.blockchain_client = eth_chain.UniswapClient()
+        self._web3 = eth_chain.get_web3_instance()
+        self.bean_contract = eth_chain.get_bean_contract(self._web3)
+        self.beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
 
     def _monitor_method(self):
         last_check_time = 0
@@ -658,6 +661,7 @@ class BeanstalkMonitor(Monitor):
         # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
         transaction = self.blockchain_client._web3.eth.get_transaction(txn_hash)
         txn_method_sig_prefix = transaction['input'][:9]
+        transaction_receipt = self._web3.eth.get_transaction_receipt(txn_hash)
 
         # Prune embedded bean deposit logs. They are uninteresting clutter.
         last_bean_deposit = None
@@ -673,6 +677,8 @@ class BeanstalkMonitor(Monitor):
             # Remove this log from the list.
             event_logs.remove(event_log)
 
+        # NOTE(funderberker): Can this logic that uses the txn method be pushed down lower with
+        # use of the txn receipt?
         # Process some txn logs as groups, based on the contract function signature.
         # Compile all events within a silo conversion to a single action.
         if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
@@ -691,12 +697,12 @@ class BeanstalkMonitor(Monitor):
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
-            event_str = BeanstalkMonitor.any_event_str(event_log, self.blockchain_client,
-                                                    self.beanstalk_graph_client)
+            event_str = self.any_event_str(event_log, self.blockchain_client,
+                                                       self.beanstalk_graph_client, 
+                                                       transaction_receipt)
             self.message_function(event_str)
 
-    @abstractmethod
-    def any_event_str(event_log, blockchain_client, beanstalk_graph_client):
+    def any_event_str(self, event_log, blockchain_client, beanstalk_graph_client, transaction_receipt):
             event_str = ''
 
             # Pull args from the event log. Not all will be populated.
@@ -739,7 +745,7 @@ class BeanstalkMonitor(Monitor):
                 event_str += f'\n{value_to_emojis(beans_value)}'
             elif event_log.event in ['PodListingCreated', 'PodListingFilled', 'PodListingCancelled',
                                      'PodOrderCreated','PodOrderFilled','PodOrderCancelled']:
-                event_str += BeanstalkMonitor.farmers_market_str(event_log)
+                event_str += self.farmers_market_str(event_log, transaction_receipt)
             else:
                 logging.warning(
                     f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
@@ -750,7 +756,7 @@ class BeanstalkMonitor(Monitor):
             event_str += '\n_ _'
             return event_str
 
-    def farmers_market_str(event_log):
+    def farmers_market_str(self, event_log, transaction_receipt):
         """Create a human-readable string representing an event related to the farmer's market.
 
         Assumes event_log is an event of one of the types implemented below.
@@ -761,23 +767,45 @@ class BeanstalkMonitor(Monitor):
         id = event_log.args.get('id')
         amount = eth_chain.pods_to_float(event_log.args.get('amount'))
         price_per_pod = eth_chain.bean_to_float(event_log.args.get('pricePerPod'))
-        max_place_in_line = event_log.args.get('maxPlaceInLine')
-        max_harvestable_index = event_log.args.get('maxHarvestableIndex')
+        # max_place_in_line = event_log.args.get('maxPlaceInLine')
+        # max_harvestable_index = event_log.args.get('maxHarvestableIndex')
 
-        # Calculated values. Not all will be populated.
-        value = amount * price_per_pod
+        bean_price = self.blockchain_client.current_bean_price()
+        amount_str = round_num(amount, 0)
+        price_per_pod_str = round_num(price_per_pod)
 
-        amount = round_num(amount, 0)
-        price_per_pod = round_num(price_per_pod, 4)
-        value = round_num(value, 2)
 
         if event_log.event == 'PodListingCreated':
-            event_str += f'📰 Pods listed - {amount} Pods @ {price_per_pod} Beans/Pod'
+            # Check if this was a relist.
+            listing_cancelled_log = self.beanstalk_contract.events['PodListingCancelled']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
+            if listing_cancelled_log:
+                event_str += f'♻ Pods relisted'
+            else:
+                event_str += f'✏ Pods listed'
+            event_str += f' - {amount_str} Pods @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod * amount)})'
         elif event_log.event == 'PodOrderCreated':
-            event_str += f'📑 Pods ordered - {amount} Pods @ {price_per_pod} Beans/Pod'
+            # Check if this was a relist.
+            order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
+            if order_cancelled_log:
+                event_str += f'♻ Pods reordered'
+            else:
+                event_str += f'🖌 Pods ordered'
+            event_str += f' - {amount_str} Pods @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod * amount)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
-            event_str += f'💰 Pods Exchanged - {amount} Pods'
-            # We will need to pull info from other event logs.
+            # Pull the Transfer log to find cost.
+            transfer_logs = self.bean_contract.events['Transfer']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
+            logging.info(f'Transfer log(s):\n{transfer_logs}')
+            # There should be exactly one transfer log of Beans.
+            bean_transfer_log = None
+            for log in transfer_logs:
+                if log.address == eth_chain.BEAN_ADDR:
+                    bean_transfer_log = log
+                    break
+            if not bean_transfer_log:
+                logging.error('Unexpected Transfer event count in market fill txn. Exiting...')
+                raise ValueError('Unexpected txn logs')
+            beans_paid = eth_chain.bean_to_float(bean_transfer_log.args.get('value'))
+            event_str += f'💰 Pods Exchanged - {amount_str} Pods @ {round_num(beans_paid/amount)} Beans/Pod (${round_num(bean_price * beans_paid)})'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
         # index, but it is not clear that it is worth it.
