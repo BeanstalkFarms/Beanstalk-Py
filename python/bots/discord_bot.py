@@ -95,8 +95,8 @@ class DiscordClient(discord.ext.commands.Bot):
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
 
-        self.beanstalk_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
-        self.beanstalk_monitor.start()
+        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
+        self.market_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
@@ -116,6 +116,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.uniswap_pool_monitor.stop()
         self.curve_pool_monitor.stop()
         self.beanstalk_monitor.stop()
+        self.market_monitor.stop()
 
     # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
     # silently do nothing.
