@@ -787,6 +787,9 @@ class BeanstalkMonitor(Monitor):
             event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
                 f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
             event_str += f'\n{value_to_emojis(beans_value)}'
+        elif event_log.event == 'Harvest':
+            event_str += f'👩‍🌾 {round_num(beans_amount)} Pods harvested for Beans (${round_num(beans_value)})'
+            event_str += f'\n{value_to_emojis(beans_value)}'
         else:
             logging.warning(
                 f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
