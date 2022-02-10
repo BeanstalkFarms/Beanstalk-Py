@@ -39,6 +39,9 @@ class TelegramBot(object):
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
         self.beanstalk_monitor.start()
 
+        self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod)
+        self.market_monitor.start()
+
     def send_msg(self, msg):
         # Ignore empty messages.
         if not msg:
@@ -55,6 +58,7 @@ class TelegramBot(object):
         self.uniswap_pool_monitor.stop()
         self.curve_pool_monitor.stop()
         self.beanstalk_monitor.stop()
+        self.market_monitor.stop()
 
 
 if __name__ == '__main__':
