@@ -898,16 +898,29 @@ class MarketMonitor(Monitor):
         """
         event_str = ''
         # Pull args from event logs. Not all will be populated.
-        id = event_log.args.get('id')
+        # Amount of pods being listed/ordered.
         amount = eth_chain.pods_to_float(event_log.args.get('amount'))
         price_per_pod = eth_chain.bean_to_float(
             event_log.args.get('pricePerPod'))
-        # max_place_in_line = event_log.args.get('maxPlaceInLine')
-        # max_harvestable_index = event_log.args.get('maxHarvestableIndex')
+
+        # Index of the plot (place in line of first pod of the plot).
+        plot_index = eth_chain.pods_to_float(event_log.args.get('index'))
+        # Index of earliest pod to list, relative to start of plot.
+        relative_start_index = eth_chain.pods_to_float(event_log.args.get('start'))
+        # Absolute index of the first pod to list.
+        start_index = plot_index + relative_start_index
+        # Current index at start of pod line (number of pods ever harvested).
+        pods_harvested = eth_chain.pods_to_float(self.beanstalk_contract.functions.harvestableIndex().call())
+        # Lowest place in line of a listing.
+        start_place_in_line = start_index - pods_harvested
+        # Highest place in line an order will purchase.
+        order_max_place_in_line = eth_chain.pods_to_float(event_log.args.get('maxPlaceInLine'))
 
         bean_price = self.blockchain_client.current_bean_price()
         amount_str = round_num(amount, 0)
         price_per_pod_str = round_num(price_per_pod)
+        start_place_in_line_str = round_num(start_place_in_line, 0)
+        order_max_place_in_line_str = round_num(order_max_place_in_line, 0)
 
         if event_log.event == 'PodListingCreated':
             # Check if this was a relist.
@@ -917,7 +930,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods relisted'
             else:
                 event_str += f'✏ Pods listed'
-            event_str += f' - {amount_str} Pods @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod * amount)})'
+            event_str += f' - {amount_str} Pods queued at {start_place_in_line_str} listed @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod)})'
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
             order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
@@ -926,7 +939,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods reordered'
             else:
                 event_str += f'🖌 Pods ordered'
-            event_str += f' - {amount_str} Pods @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod * amount)})'
+            event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             # Pull the Transfer log to find cost.
             transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
@@ -944,7 +957,7 @@ class MarketMonitor(Monitor):
                 raise ValueError('Unexpected txn logs')
             beans_paid = eth_chain.bean_to_float(
                 bean_transfer_log.args.get('value'))
-            event_str += f'💰 Pods Exchanged - {amount_str} Pods @ {round_num(beans_paid/amount)} Beans/Pod (${round_num(bean_price * beans_paid)})'
+            event_str += f'💰 Pods Exchanged - {amount_str} Pods queued at {start_place_in_line_str} purchased @ {round_num(beans_paid/amount)} Beans/Pod (${round_num(bean_price * beans_paid)})'
             event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
