@@ -18,6 +18,7 @@ MIN_PYTHON = (3, 8)
 if sys.version_info < MIN_PYTHON:
     logging.critical(
         "Python %s.%s or later is required for proper exception logging.\n" % MIN_PYTHON)
+LOGGING_FORMAT_STR_SUFFIX = '%(levelname)s : %(asctime)s : %(message)s'
 
 
 TIMESTAMP_KEY = 'timestamp'
@@ -965,6 +966,33 @@ class MarketMonitor(Monitor):
         # elif event_log.event == 'PodListingCancelled':
         # elif event_log.event == 'PodOrderCancelled':
         return event_str
+
+
+class MsgHandler(logging.Handler):
+    """A handler class which sends a message on a text channel."""
+    def __init__(self, message_function):
+        """
+        Initialize the handler.
+        """
+        logging.Handler.__init__(self)
+        self.message_function = message_function
+
+    def emit(self, record):
+        """
+        Emit a record.
+
+        If a formatter is specified, it is used to format the record.
+        """
+        try:
+            msg = self.format(record)
+            self.message_function(msg)
+        except Exception:
+            self.handleError(record)
+
+    def __repr__(self):
+        level = getLevelName(self.level)
+        return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
+
 
 
 def sig_compare(signature, signatures):

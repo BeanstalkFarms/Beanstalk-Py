@@ -536,8 +536,7 @@ def monitor_beanstalk_events():
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
-    logging.basicConfig(format='ETH Chain : %(levelname)s : %(asctime)s : %(message)s',
-                        level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     # monitor_uni_v2_pair_events()
     # monitor_beanstalk_events()
     monitor_curve_pool_events()

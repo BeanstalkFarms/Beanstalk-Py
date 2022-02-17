@@ -69,7 +69,7 @@ class DiscordPriceClient(discord.ext.commands.Bot):
         await self.wait_until_ready()
 
 if __name__ == '__main__':
-    logging.basicConfig(format='Discord Price Bot : %(levelname)s : %(asctime)s : %(message)s',
+    logging.basicConfig(format=f'Discord Price Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
                                 "discord_price_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES/5),

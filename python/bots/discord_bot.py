@@ -21,6 +21,7 @@ DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
 DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
 DISCORD_CHANNEL_ID_MARKET = 940729085095723069
+DISCORD_CHANNEL_ID_REPORT = 908035718859874374
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 BUCKET_NAME = 'beanstalk_bots_data'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
@@ -33,6 +34,7 @@ class Channel(Enum):
     POOL = 2
     BEANSTALK = 3
     MARKET = 4
+    REPORT = 5
 
 class DiscordClient(discord.ext.commands.Bot):
 
@@ -46,6 +48,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
         if prod:
             self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
+            self._chat_id_report = DISCORD_CHANNEL_ID_REPORT
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
@@ -54,6 +57,7 @@ class DiscordClient(discord.ext.commands.Bot):
             logging.info('Configured as a production instance.')
         else:
             self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
+            self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
@@ -70,6 +74,12 @@ class DiscordClient(discord.ext.commands.Bot):
 
         self.msg_queue = []
         self.status_text = ''
+
+        # Update root logger to send logging Errors in a Discord channel.
+        discord_report_handler = util.MsgHandler(self.send_msg_report)
+        discord_report_handler.setLevel(logging.ERROR)
+        discord_report_handler.setFormatter(util.LOGGING_FORMAT_STR_SUFFIX)
+        logging.getLogger().addHandler(discord_report_handler)
 
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
         # the publicly visible BeanBot from having its name changed.
@@ -128,6 +138,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """Set bot custom status text."""
         self.status_text = text
 
+    def send_msg_report(self, text):
+        """Send a message through the Discord bot in the error reporting channel."""
+        self.msg_queue.append((Channel.REPORT, text))
+
     def send_msg_peg(self, text):
         """Send a message through the Discord bot in the peg channel."""
         self.msg_queue.append((Channel.PEG, text))
@@ -149,6 +163,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.msg_queue.append((Channel.MARKET, text))
 
     async def on_ready(self):
+        self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_peg = self.get_channel(self._chat_id_peg)
         self._channel_seasons = self.get_channel(
             self._chat_id_seasons)
@@ -161,7 +176,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self.channel_id_to_channel[channel_id] = await self.fetch_channel(channel_id)
         
         logging.info(
-            f'Discord channels are {self._channel_peg}, {self._channel_seasons}, '
+            f'Discord channels are {self._channel_report, self._channel_peg}, {self._channel_seasons}, '
             f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}')
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(
@@ -211,6 +226,8 @@ class DiscordClient(discord.ext.commands.Bot):
                 # Ignore empty messages.
                 if not msg:
                     pass
+                elif channel is Channel.REPORT:
+                    await self._channel_report.send(msg)
                 elif channel is Channel.PEG:
                     await self._channel_peg.send(msg)
                 elif channel is Channel.SEASONS:
@@ -447,7 +464,7 @@ def channel_id(ctx):
     return str(ctx.channel.id)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='Discord Bot : %(levelname)s : %(asctime)s : %(message)s',
+    logging.basicConfig(format=f'Discord Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
                                 "discord_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),

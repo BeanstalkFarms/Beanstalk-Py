@@ -63,7 +63,7 @@ class TelegramBot(object):
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
-    logging.basicConfig(format='Telegram Bot : %(levelname)s : %(asctime)s : %(message)s',
+    logging.basicConfig(format=f'Telegram Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
                                 "telegram_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),

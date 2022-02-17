@@ -60,7 +60,7 @@ class TwitterBot(object):
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
-    logging.basicConfig(format='Twitter Bot : %(levelname)s : %(asctime)s : %(message)s',
+    logging.basicConfig(format=f'Twitter Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
                                 "twitter_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),
