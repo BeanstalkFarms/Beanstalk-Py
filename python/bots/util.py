@@ -752,15 +752,19 @@ class BeanstalkMonitor(Monitor):
         event_str = ''
 
         # Pull args from the event log. Not all will be populated.
+        token_address = event_log.args.get('token')
         eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
         lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
-        lp_eth, lp_beans = lp_eq_values(
-            lp_amount, beanstalk_graph_client=beanstalk_graph_client)
-        lp_value = lp_eth * eth_price + lp_beans * bean_price
+        if lp_amount:
+            lp_eth, lp_beans = lp_eq_values(
+                lp_amount, beanstalk_graph_client=beanstalk_graph_client)
+            token_address = UNI_V2_BEAN_ETH_ADDR
+            lp_value = lp_eth * eth_price + lp_beans * bean_price
         beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
-        beans_value = beans_amount * bean_price
+        if beans_amount:
+            beans_value = beans_amount * bean_price
+            token_address = BEAN_ADDR
         pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
-        token_address = event_log.args.get('token')
         token_amount_long = event_log.args.get('amount')
         token_amounts_long = event_log.args.get('amounts')
         bdv = eth_chain.bean_to_float(event_log.args.get('bdv'))
@@ -769,35 +773,43 @@ class BeanstalkMonitor(Monitor):
         # Ignore these events. They are uninteresting clutter.
         if event_log.event in ['BeanRemove', 'LPRemove', 'RemoveSeason', 'RemoveSeasons']:
             return ''
-        # LP Events.
-        elif event_log.event in ['LPDeposit', 'LPWithdraw']:
-            if event_log.event == 'LPDeposit':
-                event_str += f'📥 Uniswap LP deposited'
-            elif event_log.event == 'LPWithdraw':
-                event_str += f'📭 Uniswap LP withdrawn'
-            event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
-            event_str += f'\n{value_to_emojis(lp_value)}'
-        # Bean events.
-        elif event_log.event in ['BeanDeposit', 'BeanWithdraw']:
-            if event_log.event == 'BeanDeposit':
-                event_str += f'📥 Beans deposited'
-            elif event_log.event == 'BeanWithdraw':
-                event_str += f'📭 Beans withdrawn'
-            event_str += f' - {round_num(beans_amount)} Beans (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
-        # Generalized token events.
-        # NOTE(funderberker): It is non-trivial to find the price of an arbitrary ERC-20 token.
-        elif event_log.event in ['Deposit', 'Withdraw']:
+        
+        # # LP Events.
+        # # NOTE(funderberker): These events will be deprecated eventually in favor of generalized
+        # # Deposit and Withdraw.
+        # elif event_log.event in ['LPDeposit', 'LPWithdraw']:
+        #     if event_log.event == 'LPDeposit':
+        #         event_str += f'📥 Uniswap LP Deposit'
+        #     elif event_log.event == 'LPWithdraw':
+        #         event_str += f'📭 Uniswap LP Withdrawal'
+        #     event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
+        #     event_str += f'\n{value_to_emojis(lp_value)}'
+        
+        # Deposit & Withdraw events.
+        # NOTE(funderberker): Bean and LP specific events will be deprecated eventually in favor of
+        # generalized Deposit and Withdraw.
+        elif event_log.event in ['Deposit', 'Withdraw', 'BeanDeposit', 'BeanWithdraw', 'LPDeposit', 'LPWithdraw']:
             token_name, token_symbol, decimals = eth_chain.get_erc20_info(token_address, web3=self._web3)
-            amount = eth_chain.token_to_float(token_amount_long or sum(token_amounts_long), decimals)
-            if event_log.event == 'Deposit':
-                event_str += f'📥 Tokens deposited'
-            elif event_log.event == 'Withdraw':
-                event_str += f'📭 Tokens withdrawn'
+            # If this event is a BeanDeposit or BeanWithdraw.
+            if beans_amount:
+                amount = beans_amount
+                value = beans_value
+            elif lp_amount:
+                amount = lp_amount
+                value = lp_value
+            else:
+                amount = eth_chain.token_to_float(token_amount_long or sum(token_amounts_long), decimals)
+                value = bdv_value
+            if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
+                event_str += f'📥 Deposit'
+            elif event_log.event == ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
+                event_str += f'📭 Withdrawal'
             event_str += f' - {round_num_auto(amount)} {token_symbol}'
-            if bdv:
-                event_str += f' (${round_num(bdv_value)})'
-                event_str += f'\n{value_to_emojis(beans_value)}'
+            # NOTE(funderberker): Value is not known for generalized withdrawals. This should be
+            # fixed when more infrastructure is in place.
+            if value:
+                event_str += f' (${round_num(value)})'
+                event_str += f'\n{value_to_emojis(value)}'
         # Sow event.
         elif event_log.event == 'Sow':
             event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
@@ -1061,10 +1073,14 @@ def round_num(number, precision=2):
     """Round a string or float to requested precision and return as a string."""
     return f'{float(number):,.{precision}f}'
 
-def round_num_auto(number, sig_fig_min=3, precision=2):
-    """Round a string or float with a min number of significant figures and return as a string."""
+def round_num_auto(number, sig_fig_min=3, min_precision=2):
+    """Round a string or float and return as a string.
+    
+    Caller specifies the minimum significant figures and precision that that very large and very
+    small numbers can both be handled.
+    """
     if number > 1:
-        return round_num(number, precision)
+        return round_num(number, min_precision)
     return '%s' % float(f'%.{sig_fig_min}g' % float(number))
 
 def value_to_emojis(value):
