@@ -426,7 +426,7 @@ class EthEventsClient():
         """
         logging.info(
             f'Checking for new {self._event_client_type.name} entries with ' \
-            f'filter {self._event_filter}.')
+            f'{self._event_filter}.')
         try_count = 0
         while try_count < 5:
             try_count += 1

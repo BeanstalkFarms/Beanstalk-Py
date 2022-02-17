@@ -21,7 +21,7 @@ DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
 DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
 DISCORD_CHANNEL_ID_MARKET = 940729085095723069
-DISCORD_CHANNEL_ID_REPORT = 908035718859874374
+DISCORD_CHANNEL_ID_REPORT = 943711736391933972
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 BUCKET_NAME = 'beanstalk_bots_data'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
@@ -78,7 +78,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
         discord_report_handler.setLevel(logging.ERROR)
-        discord_report_handler.setFormatter(util.LOGGING_FORMAT_STR_SUFFIX)
+        discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
@@ -176,7 +176,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self.channel_id_to_channel[channel_id] = await self.fetch_channel(channel_id)
         
         logging.info(
-            f'Discord channels are {self._channel_report, self._channel_peg}, {self._channel_seasons}, '
+            f'Discord channels are {self._channel_report}, {self._channel_peg}, {self._channel_seasons}, '
             f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}')
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(

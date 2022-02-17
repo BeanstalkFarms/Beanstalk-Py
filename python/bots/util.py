@@ -19,7 +19,7 @@ if sys.version_info < MIN_PYTHON:
     logging.critical(
         "Python %s.%s or later is required for proper exception logging.\n" % MIN_PYTHON)
 LOGGING_FORMAT_STR_SUFFIX = '%(levelname)s : %(asctime)s : %(message)s'
-
+LOGGING_FORMATTER = logging.Formatter(LOGGING_FORMAT_STR_SUFFIX)
 
 TIMESTAMP_KEY = 'timestamp'
 # There is a built in assumption that we will update at least once per
@@ -101,8 +101,8 @@ class Monitor():
             try:
                 self._monitor_method()
             except Exception as e:
-                logging.exception(f'Unhandled exception in the {self.name} thread.'
-                                  f'\nLogging here and restarting monitor.')
+                logging.error(f'Unhandled exception in the {self.name} thread.'
+                              f'\nLogging and **restarting the monitor**.')
                 logging.exception(e)
             retry_time = time.time() + MONITOR_RESET_DELAY
 
