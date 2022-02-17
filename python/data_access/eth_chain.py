@@ -152,19 +152,19 @@ bean_deposit_sigs = ['depositBeans(uint256)',
 bean_deposit_sigs = {sig.split('(')[0]:Web3.keccak(text=sig).hex() for sig in bean_deposit_sigs}
 
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../constants/abi/erc20_abi.json')) as erc20_abi_file:
+                       '../constants/abi/erc20_abi.json')) as erc20_abi_file:
     erc20_abi = json.load(erc20_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../constants/abi/IUniswapV2Pair.json')) as uniswap_pool_abi_file:
+                       '../constants/abi/IUniswapV2Pair.json')) as uniswap_pool_abi_file:
     uniswap_pool_abi = json.load(uniswap_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../constants/abi/curve_pool_abi.json')) as curve_pool_abi_file:
+                       '../constants/abi/curve_pool_abi.json')) as curve_pool_abi_file:
     curve_pool_abi = json.load(curve_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../constants/abi/bean_abi.json')) as bean_abi_file:
+                       '../constants/abi/bean_abi.json')) as bean_abi_file:
     bean_abi = json.load(bean_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../constants/abi/beanstalk_abi.json')) as beanstalk_abi_file:
+                       '../constants/abi/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 
 def get_web3_instance():
