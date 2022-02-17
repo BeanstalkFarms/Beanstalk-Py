@@ -356,7 +356,7 @@ class EthEventsClient():
         self._event_filter = self._web3.eth.filter({
             "address": self._contract_address,
             "topics": [self._signature_list],
-            # "fromBlock": 'latest',
+            # "fromBlock": 0, # Use this to search for old events.
             "toBlock": 'latest'
             })
 
@@ -452,7 +452,7 @@ class EthEventsClient():
             try_count += 1
             try:
                 return filter.get_new_entries()
-                # return filter.get_all_entries()
+                # return filter.get_all_entries() # Use this to search for old events.
             except (ValueError, asyncio.TimeoutError, Exception) as e:
                 logging.exception(e)
                 logging.info(
