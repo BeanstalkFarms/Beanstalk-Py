@@ -10,6 +10,8 @@ from discord.ext.commands.errors import ArgumentParsingError
 from web3 import Web3, WebsocketProvider
 from web3.logs import DISCARD
 
+from constants.addresses import *
+
 API_KEY = os.environ['ETH_CHAIN_API_KEY']
 URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
 
@@ -23,14 +25,7 @@ USDC_DECIMALS = 6
 USDT_DECIMALS = 6
 CRV_DECIMALS = 18
 
-POOL_FEE = 0.003 # %
-
-# BEAN_TOKEN_ADDR = '0xDC59ac4FeFa32293A95889Dc396682858d52e5Db'
-ETH_BEAN_POOL_ADDR = '0x87898263B6C5BABe34b4ec53F22d98430b91e371'
-ETH_USDC_POOL_ADDR = '0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc'
-BEAN_ADDR = '0xDC59ac4FeFa32293A95889Dc396682858d52e5Db'
-BEANSTALK_ADDR = '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5'
-BEAN_3CRV_POOL_ADDR = '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD'
+UNI_V2_POOL_FEE = 0.003 # %
 
 # Indices of tokens in Curve factory pool [bean, 3crv].
 FACTORY_INDEX_BEAN = 0
@@ -110,6 +105,23 @@ add_event_to_dict('LPWithdraw(address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Harvest(address,uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# Generalized silo interactions.
+add_event_to_dict('Deposit(address,address,uint256,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# Removes indicate the removal of a deposit, but not a withdraw. Seen in converts.
+add_event_to_dict('RemoveSeasons(address,address,uint32[],uint256[],uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('RemoveSeason(address,address,uint32,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# Withdrawls indicate the removal of a deposit as well as adding a withdrawl. Not seen in converts.
+add_event_to_dict('Withdraw(address,address,uint32,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# Claim withdrawl(s).
+# add_event_to_dict('ClaimSeasons(address,address,uint32[],uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('ClaimSeason(address,address,uint32,uint256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+
 
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
@@ -140,16 +152,19 @@ bean_deposit_sigs = ['depositBeans(uint256)',
 bean_deposit_sigs = {sig.split('(')[0]:Web3.keccak(text=sig).hex() for sig in bean_deposit_sigs}
 
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../contracts/ethereum/IUniswapV2Pair.json')) as uniswap_pool_abi_file:
+                       '../../constants/abi/erc20_abi.json')) as erc20_abi_file:
+    erc20_abi = json.load(erc20_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../../constants/abi/IUniswapV2Pair.json')) as uniswap_pool_abi_file:
     uniswap_pool_abi = json.load(uniswap_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../contracts/ethereum/curve_pool_abi.json')) as curve_pool_abi_file:
+                       '../../constants/abi/curve_pool_abi.json')) as curve_pool_abi_file:
     curve_pool_abi = json.load(curve_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../contracts/ethereum/bean_abi.json')) as bean_abi_file:
+                       '../../constants/abi/bean_abi.json')) as bean_abi_file:
     bean_abi = json.load(bean_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../../contracts/ethereum/beanstalk_abi.json')) as beanstalk_abi_file:
+                       '../../constants/abi/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 
 def get_web3_instance():
@@ -159,19 +174,19 @@ def get_web3_instance():
 def get_eth_bean_pool_contract(web3):
     """Get a web.eth.contract object for the ETH:BEAN pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=ETH_BEAN_POOL_ADDR, abi=uniswap_pool_abi)
+        address=UNI_V2_BEAN_ETH_ADDR, abi=uniswap_pool_abi)
 
 
 def get_eth_usdc_pool_contract(web3):
     """Get a web.eth.contract object for the ETH:USDC pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=ETH_USDC_POOL_ADDR, abi=uniswap_pool_abi)
+        address=UNI_V2_ETH_USDC_ADDR, abi=uniswap_pool_abi)
 
 
 def get_bean_3crv_pool_contract(web3):
     """Get a web.eth.contract object for the curve BEAN:3CRV pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=BEAN_3CRV_POOL_ADDR, abi=curve_pool_abi)
+        address=CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
 
 
 def get_bean_contract(web3):
@@ -237,15 +252,20 @@ class CurveClient():
 def avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price):
     """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
     # Approximate fee by reducing input amount by pool fee %.
-    eth_in = eth_in * (1 - POOL_FEE)
+    eth_in = eth_in * (1 - UNI_V2_POOL_FEE)
     return eth_price * (eth_in / bean_out)
 
 
 def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
     """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
     # Approximate fee by reducing input amount by pool fee %.
-    bean_in = bean_in * (1 - POOL_FEE)
+    bean_in = bean_in * (1 - UNI_V2_POOL_FEE)
     return eth_price * (eth_out / bean_in)
+
+def token_to_float(token_long, decimals):
+    if not token_long:
+        return 0
+    return int(token_long) / (10 ** decimals)
 
 
 def eth_to_float(gwei):
@@ -306,13 +326,13 @@ class EthEventsClient():
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.UNISWAP_POOL:
             self._contract = get_eth_bean_pool_contract(self._web3)
-            self._contract_address = ETH_BEAN_POOL_ADDR
+            self._contract_address = UNI_V2_BEAN_ETH_ADDR
             self._events_dict = UNISWAP_POOL_EVENT_MAP
             self._signature_list = UNISWAP_POOL_SIGNATURES_LIST
             self._set_filter()
         elif self._event_client_type == EventClientType.CURVE_POOL:
             self._contract = get_bean_3crv_pool_contract(self._web3)
-            self._contract_address = BEAN_3CRV_POOL_ADDR
+            self._contract_address = CURVE_BEAN_3CRV_ADDR
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
             self._set_filter()
@@ -401,11 +421,11 @@ class EthEventsClient():
             for log in decoded_logs_copy:
                 if log.event == 'Swap':
                     # Only process uniswap swaps with the ETH:BEAN pool.
-                    if log.address != ETH_BEAN_POOL_ADDR:
+                    if log.address != UNI_V2_BEAN_ETH_ADDR:
                         continue
                 elif log.event == 'TokenExchangeUnderlying' or log.event == 'TokenExchange':
                     # Only process curve exchanges in the BEAN:3CRV pool.
-                    if log.address != BEAN_3CRV_POOL_ADDR:
+                    if log.address != CURVE_BEAN_3CRV_ADDR:
                         continue
                 decoded_logs.append(log)
 
@@ -445,6 +465,15 @@ class EthEventsClient():
         logging.error('Failed to get new event entries. Passing.')
         return []
 
+def get_erc20_info(addr, web3=None):
+    """Get the name, symbol, and decimals of an ERC-20 token."""
+    if not web3:
+        web3 = get_web3_instance()
+    partial_contract = web3.eth.contract(address=addr, abi=erc20_abi)
+    name = partial_contract.functions.name().call()
+    symbol = partial_contract.functions.symbol().call()
+    decimals = partial_contract.functions.decimals().call()
+    return name, symbol, decimals
 
 def is_valid_wallet_address(address):
     """Return True is address is a valid ETH address. Else False."""
@@ -506,8 +535,10 @@ def get_test_entries():
                       'logIndex': 262, 'removed': False, 'topics': [HexBytes('0xdbb99ae82f53a8f7a558e71f0c098ebc981afc0379125c7e03d87fc3282bfbc0'), HexBytes('0x000000000000000000000000c1e607b7730c43c8d15562ffa1ad27b4463dc4c4')], 'transactionHash': HexBytes('0x04597926ca1e080b510d9c7b1450a8b80570707b74436a69c6779377cf01668d'), 'transactionIndex': 188}),
         # Farmer's market: Exchange
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x7c19f6c2ff0b120aa59e7e47b4bb7ca8517e9e2968fdad559a1c1caa7b0c23e0'), 'blockNumber': 14162025, 'data': '0x0000000000000000000000000000000000000000000000000000ee106d3ea0da0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065094de03', 'logIndex': 260,
-                      'removed': False, 'topics': [HexBytes('0x04747662e13fb76b3eed402e26661377c3ddf3b1fdaf2ebf22638037754677da'), HexBytes('0x000000000000000000000000550586fc064315b54af25024415786843131c8c1'), HexBytes('0x00000000000000000000000041dd131e460e18befd262cf4fe2e2b2f43f6fb7b')], 'transactionHash': HexBytes('0xca33aef9a4f5fb9b52da37f17e19d06bf92b3a880656e6c839f7fba78dbaccd9'), 'transactionIndex': 118})
-
+                      'removed': False, 'topics': [HexBytes('0x04747662e13fb76b3eed402e26661377c3ddf3b1fdaf2ebf22638037754677da'), HexBytes('0x000000000000000000000000550586fc064315b54af25024415786843131c8c1'), HexBytes('0x00000000000000000000000041dd131e460e18befd262cf4fe2e2b2f43f6fb7b')], 'transactionHash': HexBytes('0xca33aef9a4f5fb9b52da37f17e19d06bf92b3a880656e6c839f7fba78dbaccd9'), 'transactionIndex': 118}),
+        # Deposit.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc029ec31661394b8aeb2a4598bf332b51272255c4843c7401de2f2624a53b59a'), 'blockNumber': 14219352, 'data': '0x000000000000000000000000000000000000000000000000000000000000122200000000000000000000000000000000000000000000021d92c60f1bf35400b10000000000000000000000000000000000000000000000000000000254274980', 'logIndex': 225,
+        'removed': False, 'topics': [HexBytes('0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6'), HexBytes('0x000000000000000000000000771433c3bb5b9ef6e97d452d265cfff930e6dddb'), HexBytes('0x0000000000000000000000003a70dfa7d2262988064a2d051dd47521e43c9bdd')], 'transactionHash': HexBytes('0x697e588801005031f905f3fbd009a24d643cfb4d715deaff92059d15f4143320'), 'transactionIndex': 167})
     ]
     return entries
 
