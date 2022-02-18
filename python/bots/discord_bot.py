@@ -223,6 +223,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """
         try:
             for channel, msg in self.msg_queue:
+                if len(msg) > 2000:
+                    msg = msg[-2000:]
+                    logging.warning(f'Clipping message length down to 2000.')
+                logging.info(f'Sending message through {channel} channel:\n{msg}\n')
                 # Ignore empty messages.
                 if not msg:
                     pass
@@ -244,7 +248,6 @@ class DiscordClient(discord.ext.commands.Bot):
                 else:
                     logging.error('Unknown channel seen in msg queue: {channel}')
                 self.msg_queue = self.msg_queue[1:]
-                logging.info(f'Message sent through {channel} channel:\n{msg}\n')
         except Exception as e:
             logging.error('Failed to send message to Discord server. Will retry.')
             logging.exception(e)
