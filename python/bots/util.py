@@ -101,9 +101,9 @@ class Monitor():
             try:
                 self._monitor_method()
             except Exception as e:
+                logging.exception(e)
                 logging.error(f'Unhandled exception in the {self.name} thread.'
                               f'\nLogging and **restarting the monitor**.')
-                logging.exception(e)
             retry_time = time.time() + MONITOR_RESET_DELAY
 
 

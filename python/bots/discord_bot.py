@@ -249,8 +249,8 @@ class DiscordClient(discord.ext.commands.Bot):
                     logging.error('Unknown channel seen in msg queue: {channel}')
                 self.msg_queue = self.msg_queue[1:]
         except Exception as e:
-            logging.error('Failed to send message to Discord server. Will retry.')
-            logging.exception(e)
+            logging.warning(e, exc_info=True)
+            logging.warning('Failed to send message to Discord server. Will retry.')
             return
 
     @send_queued_messages.before_loop

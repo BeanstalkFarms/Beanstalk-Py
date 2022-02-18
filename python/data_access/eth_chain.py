@@ -454,8 +454,8 @@ class EthEventsClient():
                 return filter.get_new_entries()
                 # return filter.get_all_entries() # Use this to search for old events.
             except (ValueError, asyncio.TimeoutError, Exception) as e:
-                logging.exception(e)
-                logging.info(
+                logging.warning(e, exc_info=True)
+                logging.warning(
                     'filter.get_new_entries() failed or timed out. Retrying...')
                 time.sleep(1)
         # Filters rely on server state and may be arbitrarily uninstalled by server.
