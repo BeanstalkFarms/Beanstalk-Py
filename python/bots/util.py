@@ -800,9 +800,10 @@ class BeanstalkMonitor(Monitor):
             else:
                 amount = eth_chain.token_to_float(token_amount_long or sum(token_amounts_long), decimals)
                 value = bdv_value
+            
             if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
                 event_str += f'📥 Deposit'
-            elif event_log.event == ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
+            elif event_log.event in ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
                 event_str += f'📭 Withdrawal'
             event_str += f' - {round_num_auto(amount)} {token_symbol}'
             # NOTE(funderberker): Value is not known for generalized withdrawals. This should be
