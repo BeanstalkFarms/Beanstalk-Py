@@ -40,7 +40,7 @@ class BeanSqlClient(object):
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
 
-    def current_bean_price(self):
+    def bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
         return float(self.get_bean_field(PRICE_FIELD))
 
@@ -247,12 +247,11 @@ if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
 
-    bean_client = BeanSqlClient()
-    print(f'Price: {bean_client.current_bean_price()}')
-    print(f'Last peg cross: {bean_client.last_cross()}')
+    bean_sql_client = BeanSqlClient()
+    print(f'Last peg cross: {bean_sql_client.last_cross()}')
     print(
-        f'Total Supply (USD): {bean_client.get_bean_field("totalSupplyUSD")}')
-    print(bean_client.get_bean_fields(['id', 'totalCrosses']))
+        f'Total Supply (USD): {bean_sql_client.get_bean_field("totalSupplyUSD")}')
+    print(bean_sql_client.get_bean_fields(['id', 'totalCrosses']))
 
     beanstalk_client = BeanstalkSqlClient()
     print(

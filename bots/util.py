@@ -228,7 +228,7 @@ class PreviewMonitor(Monitor):
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
         self.STATUS_DISPLAYS_COUNT = 3
         self.HOURS = 24
-        self.bean_graph_client = BeanSqlClient()
+        self.bean_client = eth_chain.BeanClient()
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.last_status = ''
         self.status_display_index = 0
@@ -245,7 +245,7 @@ class PreviewMonitor(Monitor):
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
 
-            bean_price = self.bean_graph_client.current_bean_price()
+            bean_price = self.bean_client.avg_bean_price()
             status_str = f'BEAN: ${round_num(bean_price, 4)}'
             if status_str != self.last_status:
                 self.name_function(status_str)
@@ -282,7 +282,7 @@ class SunriseMonitor(Monitor):
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        self.blockchain_client = eth_chain.UniswapClient()
+        self.bean_client = eth_chain.BeanClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
@@ -395,7 +395,7 @@ class SunriseMonitor(Monitor):
 
     def update_all_wallet_watchers(self):
         current_season_stats = self.beanstalk_graph_client.current_season_stats()
-        bean_price = self.blockchain_client.current_bean_price()
+        bean_price = self.bean_client.avg_bean_price()
         for channel_id, wallets in self.channel_to_wallets.items():
             # Ignore users with empty watch lists.
             if not wallets:
@@ -558,7 +558,7 @@ class CurvePoolMonitor(Monitor):
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.CURVE_POOL)
-        self.uniswap_client = eth_chain.UniswapClient()
+        self.bean_client = eth_chain.BeanClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -578,7 +578,7 @@ class CurvePoolMonitor(Monitor):
         """
         for event_log in event_logs:
             event_str = CurvePoolMonitor.any_event_str(
-                event_log, self.uniswap_client.current_bean_price())
+                event_log, self.bean_client.avg_bean_price())
             if event_str:
                 self.message_function(event_str)
 
@@ -697,7 +697,8 @@ class BeanstalkMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        self.blockchain_client = eth_chain.UniswapClient()
+        self.bean_client = eth_chain.BeanClient()
+        self.uniswap_client = eth_chain.UniswapClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -743,7 +744,7 @@ class BeanstalkMonitor(Monitor):
             if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
                 event_logs.append(last_bean_deposit)
             self.message_function(BeanstalkMonitor.silo_conversion_str(
-                event_logs, self.blockchain_client, self.beanstalk_graph_client))
+                event_logs, self.uniswap_client, self.beanstalk_graph_client))
             return
         # If there is a direct bean deposit, do not ignore the last bean deposit event.
         elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
@@ -753,16 +754,16 @@ class BeanstalkMonitor(Monitor):
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
-            event_str = self.any_event_str(event_log, self.blockchain_client,
+            event_str = self.any_event_str(event_log, self.uniswap_client,
                                            self.beanstalk_graph_client)
             self.message_function(event_str)
 
-    def any_event_str(self, event_log, blockchain_client, beanstalk_graph_client):
+    def any_event_str(self, event_log, uniswap_client, beanstalk_graph_client):
         event_str = ''
 
         # Pull args from the event log. Not all will be populated.
         token_address = event_log.args.get('token')
-        eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
+        eth_price, bean_price = uniswap_client.current_eth_and_bean_price()
         lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
         if lp_amount:
             lp_eth, lp_beans = lp_eq_values(
@@ -839,7 +840,7 @@ class BeanstalkMonitor(Monitor):
         return event_str
 
     @abstractmethod
-    def silo_conversion_str(event_logs, blockchain_client, beanstalk_graph_client):
+    def silo_conversion_str(event_logs, uniswap_client, beanstalk_graph_client):
         """Create a human-readable string representing a silo position conversion.
 
         Assumes that there are no non-Bean swaps contained in the event logs.
@@ -848,7 +849,7 @@ class BeanstalkMonitor(Monitor):
         Uses events from Beanstalk contract.
         """
         beans_converted = lp_converted = None
-        eth_price, bean_price = blockchain_client.current_eth_and_bean_price()
+        eth_price, bean_price = uniswap_client.current_eth_and_bean_price()
         # Find the relevant logs (Swap + Mint/Burn).
         for event_log in event_logs:
             # One Swap event will always be present.
@@ -899,8 +900,8 @@ class MarketMonitor(Monitor):
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.MARKET)
-        self.blockchain_client = eth_chain.UniswapClient()
         self._web3 = eth_chain.get_web3_instance()
+        self.bean_client = eth_chain.BeanClient(self._web3)
         self.bean_contract = eth_chain.get_bean_contract(self._web3)
         self.beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
 
@@ -954,7 +955,7 @@ class MarketMonitor(Monitor):
         # Highest place in line an order will purchase.
         order_max_place_in_line = eth_chain.pods_to_float(event_log.args.get('maxPlaceInLine'))
 
-        bean_price = self.blockchain_client.current_bean_price()
+        bean_price = self.bean_client.avg_bean_price()
         amount_str = round_num(amount, 0)
         price_per_pod_str = round_num(price_per_pod)
         start_place_in_line_str = round_num(start_place_in_line, 0)
