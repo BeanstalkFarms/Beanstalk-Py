@@ -37,8 +37,8 @@ POOL_CHECK_RATE = 10  # seconds
 BEANSTALK_CHECK_RATE = 10  # seconds
 # Bytes in 50 megabytes.
 FIVE_HUNDRED_MEGABYTES = 500**6
-# Time to wait before restarting a monitor after an unhandled exception.
-MONITOR_RESET_DELAY = 5
+# Initial time to wait before reseting dead monitor.
+RESET_MONITOR_DELAY_INIT = 5 # seconds
 
 
 class PegCrossType(Enum):
@@ -63,6 +63,8 @@ class Monitor():
         self.query_rate = query_rate
         self.prod = prod
         self._dry_run = dry_run
+        # Time to wait before restarting monitor after an unhandled exception. Exponential backoff.
+        self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
         self._thread_active = False
         self._thread_wrapper = threading.Thread(
             target=self._thread_wrapper_method)
@@ -90,8 +92,10 @@ class Monitor():
 
     def _thread_wrapper_method(self):
         """
-        Many of the web3 calls can fail arbitrarily on external calls. Gracefully log all
-        excpetions and continue.
+        If an unhandled exception occurs in the monitor and it is killed, log the exception here
+        and restart the monitor.
+
+        The most common failures are web3 calls, which can fail arbitrarily on external access.
         """
         retry_time = 0
         while self._thread_active:
@@ -104,7 +108,12 @@ class Monitor():
                 logging.exception(e)
                 logging.error(f'Unhandled exception in the {self.name} thread.'
                               f'\nLogging and **restarting the monitor**.')
-            retry_time = time.time() + MONITOR_RESET_DELAY
+            # Reset the reset delay after a stretch of successful running.
+            if time.time() > retry_time + 3600:
+                self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
+            else:
+                self.monitor_reset_delay *= 2
+            retry_time = time.time() + self.monitor_reset_delay
 
 
 class PegCrossMonitor(Monitor):
