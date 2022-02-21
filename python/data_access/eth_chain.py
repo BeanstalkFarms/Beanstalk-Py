@@ -13,18 +13,21 @@ from web3.logs import DISCARD
 from constants.addresses import *
 
 # Production instances use a different key to avoid overloading either request limit.
+URL = ''
 try:
     API_KEY = os.environ['ETH_CHAIN_API_KEY_PROD']  
 except:
     API_KEY = os.environ['ETH_CHAIN_API_KEY']
-else:
+finally:
     URL = 'wss://mainnet.infura.io/ws/v3/' + API_KEY
 
 # Test using Alchemy.
 try:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
     URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+    print('Using Alchemy node')
 except:
+    print('Using Infura node.')
     pass
 
 # Decimals for conversion from chain int values to float decimal values.
