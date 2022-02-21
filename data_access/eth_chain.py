@@ -170,7 +170,7 @@ with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/erc20_abi.json')) as erc20_abi_file:
     erc20_abi = json.load(erc20_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../constants/abi/IUniswapV2Pair.json')) as uniswap_pool_abi_file:
+                       '../constants/abi/uniswap_v2_pool_abi.json')) as uniswap_pool_abi_file:
     uniswap_pool_abi = json.load(uniswap_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/curve_pool_abi.json')) as curve_pool_abi_file:

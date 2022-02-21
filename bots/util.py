@@ -968,7 +968,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods relisted'
             else:
                 event_str += f'✏ Pods listed'
-            event_str += f' - {amount_str} Pods queued at {start_place_in_line_str} listed @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods queued at {start_place_in_line_str} listed @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
             order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
@@ -977,7 +977,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods reordered'
             else:
                 event_str += f'🖌 Pods ordered'
-            event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             # Pull the Transfer log to find cost.
             transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
