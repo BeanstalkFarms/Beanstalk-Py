@@ -22,19 +22,20 @@ LOGGING_FORMAT_STR_SUFFIX = '%(levelname)s : %(asctime)s : %(message)s'
 LOGGING_FORMATTER = logging.Formatter(LOGGING_FORMAT_STR_SUFFIX)
 
 TIMESTAMP_KEY = 'timestamp'
-# There is a built in assumption that we will update at least once per
-# Ethereum block (~13.5 seconds), so frequency should not be set too low.
-PEG_UPDATE_FREQUENCY = 0.1  # hz
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
+# For all check periods there is a built in assumption that we will update at least once per
+# Ethereum block (~13.5 seconds).
+# How long to wait between peg checks.
+PEG_CHECK_PERIOD = 12  # seconds
 # How long to wait between price updates.
-PRICE_CHECK_PERIOD = 10
+PRICE_CHECK_PERIOD = 12  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
-SUNRISE_CHECK_PERIOD = 10
+SUNRISE_CHECK_PERIOD = 12  # seconds
 # Rate at which to check chain for new Uniswap V2 pool interactions.
-POOL_CHECK_RATE = 10  # seconds
+POOL_CHECK_RATE = 12  # seconds
 # Rate at which to check for events on the Beanstalk contract.
-BEANSTALK_CHECK_RATE = 10  # seconds
+BEANSTALK_CHECK_RATE = 12  # seconds
 # Bytes in 50 megabytes.
 FIVE_HUNDRED_MEGABYTES = 500**6
 # Initial time to wait before reseting dead monitor.
@@ -120,8 +121,7 @@ class PegCrossMonitor(Monitor):
     """Monitor bean graph for peg crosses and send out messages on detection."""
 
     def __init__(self, message_function, prod=False):
-        super().__init__('Peg', message_function, 1 /
-                         PEG_UPDATE_FREQUENCY, prod=prod, dry_run=False)
+        super().__init__('Peg', message_function, PEG_CHECK_PERIOD, prod=prod, dry_run=False)
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = None
 
@@ -137,7 +137,7 @@ class PegCrossMonitor(Monitor):
             if not time.time() > min_update_time:
                 time.sleep(1)
                 continue
-            min_update_time = time.time() + 1 / PEG_UPDATE_FREQUENCY
+            min_update_time = time.time() + PEG_CHECK_PERIOD
 
             cross_types = self._check_for_peg_crosses()
             for cross_type in cross_types:
