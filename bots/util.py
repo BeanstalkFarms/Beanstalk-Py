@@ -445,6 +445,7 @@ class UniswapPoolMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.UNISWAP_POOL)
         self.uniswap_client = eth_chain.UniswapClient()
+        self.bean_client = eth_chain.BeanClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -487,7 +488,8 @@ class UniswapPoolMonitor(Monitor):
                 f'Multiple swaps of interest seen in a single txn ({str(event_logs)}).')
         for event_log in event_logs:
             event_str = UniswapPoolMonitor.any_event_str(
-                event_log, *self.uniswap_client.current_eth_and_bean_price())
+                event_log, self.uniswap_client.current_eth_price(),
+                self.bean_client.avg_bean_price())
             if event_str:
                 self.message_function(event_str)
 
@@ -743,8 +745,8 @@ class BeanstalkMonitor(Monitor):
             # If this is a conversion into beans, include last bean deposit log.
             if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
                 event_logs.append(last_bean_deposit)
-            self.message_function(BeanstalkMonitor.silo_conversion_str(
-                event_logs, self.uniswap_client, self.beanstalk_graph_client))
+            self.message_function(self.silo_conversion_str(
+                event_logs, self.beanstalk_graph_client))
             return
         # If there is a direct bean deposit, do not ignore the last bean deposit event.
         elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
@@ -754,16 +756,17 @@ class BeanstalkMonitor(Monitor):
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
-            event_str = self.any_event_str(event_log, self.uniswap_client,
+            event_str = self.any_event_str(event_log,
                                            self.beanstalk_graph_client)
             self.message_function(event_str)
 
-    def any_event_str(self, event_log, uniswap_client, beanstalk_graph_client):
+    def any_event_str(self, event_log, beanstalk_graph_client):
         event_str = ''
 
         # Pull args from the event log. Not all will be populated.
         token_address = event_log.args.get('token')
-        eth_price, bean_price = uniswap_client.current_eth_and_bean_price()
+        eth_price = self.uniswap_client.current_eth_price()
+        bean_price = self.bean_client.avg_bean_price()
         lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
         if lp_amount:
             lp_eth, lp_beans = lp_eq_values(
@@ -812,9 +815,9 @@ class BeanstalkMonitor(Monitor):
                 value = bdv_value
             
             if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
-                event_str += f'📥 Deposit'
+                event_str += f'📥 Silo Deposit'
             elif event_log.event in ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
-                event_str += f'📭 Withdrawal'
+                event_str += f'📭 Silo Withdrawal'
             event_str += f' - {round_num_auto(amount)} {token_symbol}'
             # NOTE(funderberker): Value is not known for generalized withdrawals. This should be
             # fixed when more infrastructure is in place.
@@ -839,8 +842,7 @@ class BeanstalkMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    @abstractmethod
-    def silo_conversion_str(event_logs, uniswap_client, beanstalk_graph_client):
+    def silo_conversion_str(self, event_logs, beanstalk_graph_client):
         """Create a human-readable string representing a silo position conversion.
 
         Assumes that there are no non-Bean swaps contained in the event logs.
@@ -849,7 +851,7 @@ class BeanstalkMonitor(Monitor):
         Uses events from Beanstalk contract.
         """
         beans_converted = lp_converted = None
-        eth_price, bean_price = uniswap_client.current_eth_and_bean_price()
+        bean_price = self.bean_client.avg_bean_price()
         # Find the relevant logs (Swap + Mint/Burn).
         for event_log in event_logs:
             # One Swap event will always be present.
@@ -889,6 +891,8 @@ class BeanstalkMonitor(Monitor):
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(value)}'
         event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
+        # empty line that does not get stripped
+        event_str += '\n_ _'
         return event_str
 
 
@@ -927,6 +931,8 @@ class MarketMonitor(Monitor):
         for event_log in event_logs:
             event_str = self.farmers_market_str(event_log, transaction_receipt)
             event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
+            # empty line that does not get stripped
+            event_str += '\n_ _'
             self.message_function(event_str)
 
     def farmers_market_str(self, event_log, transaction_receipt):
