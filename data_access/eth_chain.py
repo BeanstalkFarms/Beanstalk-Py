@@ -264,8 +264,8 @@ class BeanClient(ChainClient):
         return price_dict
 
     def avg_bean_price(self):
-        """Get the current bean price average across LPs from the Bean price oracle contract."""
-        return self.get_price_info()['price']
+        """Current float bean price average across LPs from the Bean price oracle contract."""
+        return bean_to_float(self.get_price_info()['price'])
 
     def uniswap_v2_pool_info(self):
         return self.get_price_info()['pool_infos'][addresses.UNI_V2_BEAN_ETH_ADDR]
@@ -274,12 +274,12 @@ class BeanClient(ChainClient):
         return self.get_price_info()['pool_infos'][addresses.CURVE_BEAN_3CRV_ADDR]
 
     def uniswap_v2_bean_price(self):
-        """Current Bean price in the Uniswap V2 Bean:ETH pool."""
-        return self.uniswap_v2_pool_info()['price']
+        """Current float Bean price in the Uniswap V2 Bean:ETH pool."""
+        return bean_to_float(self.uniswap_v2_pool_info()['price'])
 
     def curve_bean_price(self):
-        """Current Bean price in the Curve Bean:3CRV pool."""
-        return self.curve_pool_info()['price']
+        """Current float Bean price in the Curve Bean:3CRV pool."""
+        return bean_to_float(self.curve_pool_info()['price'])
 
 
 class UniswapClient(ChainClient):
@@ -633,6 +633,9 @@ def get_test_entries():
         # Farmer's market: Exchange
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x7c19f6c2ff0b120aa59e7e47b4bb7ca8517e9e2968fdad559a1c1caa7b0c23e0'), 'blockNumber': 14162025, 'data': '0x0000000000000000000000000000000000000000000000000000ee106d3ea0da0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065094de03', 'logIndex': 260,
                       'removed': False, 'topics': [HexBytes('0x04747662e13fb76b3eed402e26661377c3ddf3b1fdaf2ebf22638037754677da'), HexBytes('0x000000000000000000000000550586fc064315b54af25024415786843131c8c1'), HexBytes('0x00000000000000000000000041dd131e460e18befd262cf4fe2e2b2f43f6fb7b')], 'transactionHash': HexBytes('0xca33aef9a4f5fb9b52da37f17e19d06bf92b3a880656e6c839f7fba78dbaccd9'), 'transactionIndex': 118}),
+        # Farmer's market: PodOrderFilled.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'topics': [HexBytes('0xcde76f76bb5e9a4f97126b0428845b44e01404c9fc99ce9eeb029533f77e5ca9'), HexBytes('0x0000000000000000000000005a57107a58a0447066c376b211059352b617c3ba'), HexBytes('0x0000000000000000000000003efcb1c1b64e2ddd3ff1cab28ad4e5ba9cc90c1c')],
+                      'data': '0x1b2239b4a2ea5dd08c9a089a3616784ba9b7d541bbe955fc1dc8b04b2e69680e0000000000000000000000000000000000000000000000000000170f1d7b91e90000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001dc5639c', 'blockNumber': 14252611, 'transactionHash': HexBytes('0xad8f724dcd1214a00ad290904c1c8f4682c81dccd70c063fdf66be0cff616c9c'), 'transactionIndex': 156, 'blockHash': HexBytes('0x407233b0e6db85babb42286b135b21c89e6d866882c4414d32efe123ccb74adf'), 'logIndex': 289, 'removed': False}),
         # Deposit.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc029ec31661394b8aeb2a4598bf332b51272255c4843c7401de2f2624a53b59a'), 'blockNumber': 14219352, 'data': '0x000000000000000000000000000000000000000000000000000000000000122200000000000000000000000000000000000000000000021d92c60f1bf35400b10000000000000000000000000000000000000000000000000000000254274980', 'logIndex': 225,
                        'removed': False, 'topics': [HexBytes('0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6'), HexBytes('0x000000000000000000000000771433c3bb5b9ef6e97d452d265cfff930e6dddb'), HexBytes('0x0000000000000000000000003a70dfa7d2262988064a2d051dd47521e43c9bdd')], 'transactionHash': HexBytes('0x697e588801005031f905f3fbd009a24d643cfb4d715deaff92059d15f4143320'), 'transactionIndex': 167})
