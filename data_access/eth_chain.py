@@ -486,7 +486,7 @@ class EthEventsClient():
             decoded_logs = []
             for signature in self._signature_list:
                 decoded_logs.extend(self._contract.events[
-                    self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
+                    self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD)) 
             logging.info(f'Decoded logs:\n{decoded_logs}')
 
             # Prune unrelated logs - logs that are of the same event types we watch, but are

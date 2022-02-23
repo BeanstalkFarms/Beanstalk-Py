@@ -986,23 +986,53 @@ class MarketMonitor(Monitor):
                 event_str += f'🖌 Pods ordered'
             event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
-            # Pull the Transfer log to find cost.
-            transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
-                transaction_receipt, errors=eth_chain.DISCARD)
-            logging.info(f'Transfer log(s):\n{transfer_logs}')
-            # There should be exactly one transfer log of Beans.
-            bean_transfer_log = None
-            for log in transfer_logs:
-                if log.address == BEAN_ADDR:
-                    bean_transfer_log = log
-                    break
-            if not bean_transfer_log:
-                logging.error(
-                    'Unexpected Transfer event count in market fill txn. Exiting...')
-                raise ValueError('Unexpected txn logs')
-            beans_paid = eth_chain.bean_to_float(
-                bean_transfer_log.args.get('value'))
-            event_str += f'💰 Pods Exchanged - {amount_str} Pods queued at {start_place_in_line_str} purchased @ {round_num(beans_paid/amount)} Beans/Pod (${round_num(bean_price * beans_paid)})'
+            # Pull the Bean Transfer log to find cost.
+            if event_log.event == 'PodListingFilled':
+                transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
+                    transaction_receipt, errors=eth_chain.DISCARD)
+                logging.info(f'Transfer log(s):\n{transfer_logs}')
+                # There should be exactly one transfer log of Beans.
+                bean_transfer_log = None
+                for log in transfer_logs:
+                    if log.address == BEAN_ADDR:
+                        bean_transfer_log = log
+                        break
+                if not bean_transfer_log:
+                    logging.error(
+                        f'Unexpected Transfer event configuration in market fill txn '
+                        f'({transaction_receipt.transactionHash}). Exiting...')
+                    raise ValueError('Unexpected txn logs')
+                beans_paid = eth_chain.bean_to_float(
+                    bean_transfer_log.args.get('value'))
+            elif event_log.event == 'PodOrderFilled':
+                # Get price from original order creation.
+                # NOTE(funderberker): This is a lot of duplicate logic from EthEventsClient.get_new_logs()
+                # that I simply do not have the bandwidth right now to refactor in a way that can be
+                # used in both places.
+                beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
+                event_filter = beanstalk_contract.events.PodOrderCreated.createFilter(
+                    fromBlock=14120000, # Feb 1, 2022.
+                    toBlock=int(transaction_receipt.blockNumber),
+                    argument_filters={'id': event_log.args.get('id')}
+                )
+                log_entries = event_filter.get_all_entries()
+                if len(log_entries) == 0:
+                    logging.error('No PodOrderCreated event found. Exiting...')
+                    raise ValueError('Failed to locate expected event.')
+                if len(log_entries) > 1:
+                    logging.error('Too many PodOrderCreated events found. Exiting...')
+                    raise ValueError('Unexpected events seen.')
+                log_entry = log_entries[0]
+                txn_hash = log_entry['transactionHash']
+                transaction_receipt = self._web3.eth.get_transaction_receipt(txn_hash)
+                decoded_log_entry = beanstalk_contract.events['PodOrderCreated']().processReceipt(
+                    transaction_receipt, errors=eth_chain.DISCARD)[0]
+                logging.info(decoded_log_entry)
+                price_per_pod = decoded_log_entry.args.pricePerPod
+                beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
+            event_str += f'💰 Pods Exchanged - {amount_str} Pods queued at ' \
+                         f'{start_place_in_line_str} purchased @ {round_num(beans_paid/amount)} ' \
+                         f'Beans/Pod (${round_num(bean_price * beans_paid)})'
             event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
