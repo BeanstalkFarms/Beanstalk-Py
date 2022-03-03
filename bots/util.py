@@ -22,6 +22,7 @@ LOGGING_FORMAT_STR_SUFFIX = '%(levelname)s : %(asctime)s : %(message)s'
 LOGGING_FORMATTER = logging.Formatter(LOGGING_FORMAT_STR_SUFFIX)
 
 TIMESTAMP_KEY = 'timestamp'
+ID_KEY = 'id'
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
 # For all check periods there is a built in assumption that we will update at least once per
@@ -169,8 +170,10 @@ class PegCrossMonitor(Monitor):
             self.last_known_cross = last_cross
             return [PegCrossType.NO_CROSS]
 
-        # If the cross is not newer than the last known cross, return.
-        if last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY]:
+        # If the cross is not newer than the last known cross or id is not greater, return.
+        # These checks are necessary due to unpredictable variations in the graph.
+        if (last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY] or
+            last_cross[ID_KEY] <= self.last_known_cross[TIMESTAMP_KEY]):
             return [PegCrossType.NO_CROSS]
 
         # If multiple crosses have occurred since last known cross.
