@@ -173,7 +173,7 @@ class PegCrossMonitor(Monitor):
         # If the cross is not newer than the last known cross or id is not greater, return.
         # These checks are necessary due to unpredictable variations in the graph.
         if (last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY] or
-            last_cross[ID_KEY] <= self.last_known_cross[TIMESTAMP_KEY]):
+            int(last_cross[ID_KEY]) <= int(self.last_known_cross[ID_KEY])):
             return [PegCrossType.NO_CROSS]
 
         # If multiple crosses have occurred since last known cross.
