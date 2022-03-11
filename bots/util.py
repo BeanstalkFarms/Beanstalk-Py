@@ -376,7 +376,7 @@ class SunriseMonitor(Monitor):
                 ret_string += f'\n👩‍🌾 {round_num(new_farmable_beans)} Beans are newly farmable'
                 ret_string += f'\n👨‍🌾 {round_num(new_harvestable_pods)} Pods are newly harvestable'
             else:
-                ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted between the silo and field'
+                ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted between the Silo and Field'
         else:
             ret_string += f'\n\n🌱 No new Beans were minted.'
         # if newSoil:
@@ -390,9 +390,9 @@ class SunriseMonitor(Monitor):
             ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
             ret_string += '\n_ _'  # empty line that does not get stripped
         else:
-            ret_string += f'\n\n📥 {round_num(float(last_season_stats["newDepositedBeans"]) + deposited_bean_lp * 2)} Beans worth of deposits'
-            ret_string += f'\n📤 {round_num(float(last_season_stats["newWithdrawnBeans"]) + withdrawn_bean_lp * 2)} Beans worth of withdraws'
-            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} pods'
+            ret_string += f'\n\n📥 {round_num(float(last_season_stats["newDepositedBeans"]) + deposited_bean_lp * 2)} Beans worth of Deposits'
+            ret_string += f'\n📤 {round_num(float(last_season_stats["newWithdrawnBeans"]) + withdrawn_bean_lp * 2)} Beans worth of Withdraws'
+            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} Pods'
 
         return ret_string
 
