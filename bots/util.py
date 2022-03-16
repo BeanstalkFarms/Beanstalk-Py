@@ -596,7 +596,8 @@ class CurvePoolMonitor(Monitor):
         bought_id = event_log.args.get('bought_id')
         tokens_bought = event_log.args.get('tokens_bought')
         token_amounts = event_log.args.get('token_amounts')
-        # Coin is the non-pool token non-crv token, Bean. Unclear why this is the naming Curve used.
+        # Coin is a single ERC20 token, token is the pool token. So Coin can be Bean or 3CRV.
+        # token_amount = event_log.args.get('token_amount')
         coin_amount = event_log.args.get('coin_amount')
 
         if token_amounts is not None:
@@ -605,7 +606,14 @@ class CurvePoolMonitor(Monitor):
             crv_lp_amount = eth_chain.crv_to_float(
                 token_amounts[eth_chain.FACTORY_INDEX_3CRV])
         if coin_amount is not None:
-            coin_lp_amount = eth_chain.bean_to_float(coin_amount)
+            # NOTE(funderberker): This is not a great way to do this check. Will be easier once
+            # LP $ value in the price oracle. Then can just do everything based on pool token value.
+            if len(coin_amount) > 17:
+                coin_lp_amount = eth_chain.crv_to_float(coin_amount)
+                coin_name = '3CRV'
+            else:
+                coin_lp_amount = eth_chain.bean_to_float(coin_amount)
+                coin_name = 'Bean'
 
         if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
             # Set the variables of quantity and direction of exchange.
@@ -653,7 +661,7 @@ class CurvePoolMonitor(Monitor):
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
             event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount, 4)} 3CRV'
         elif event_log.event == 'RemoveLiquidityOne':
-            event_str += f'📤 LP removed - {round_num(coin_lp_amount)} Beans'
+            event_str += f'📤 LP removed - {round_num(coin_lp_amount)} {coin_name}'
         else:
             logging.warning(
                 f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
