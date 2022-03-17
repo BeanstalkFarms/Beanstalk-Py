@@ -608,7 +608,7 @@ class CurvePoolMonitor(Monitor):
         if coin_amount is not None:
             # NOTE(funderberker): This is not a great way to do this check. Will be easier once
             # LP $ value in the price oracle. Then can just do everything based on pool token value.
-            if len(coin_amount) > 17:
+            if coin_amount > 100000000000000000:
                 coin_lp_amount = eth_chain.crv_to_float(coin_amount)
                 coin_name = '3CRV'
             else:
