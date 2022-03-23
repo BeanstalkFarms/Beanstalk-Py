@@ -480,7 +480,7 @@ class EthEventsClient():
                 f'{self._event_client_type.name} processing {txn_hash.hex()} logs.')
 
             # Retrieve the full txn and txn receipt.
-            receipt = self._web3.eth.get_transaction_receipt(txn_hash)
+            receipt = get_txn_receipt_or_wait(self._web3, txn_hash)
 
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
@@ -540,6 +540,23 @@ class EthEventsClient():
         logging.error('Failed to get new event entries. Passing.')
         return []
 
+def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
+    try_count = 0
+    while True:
+        try_count += 1
+        try:
+            return web3.eth.get_transaction_receipt(txn_hash)
+        # Occassionally web3 will fail to pull the txn with "not found" error. This is likely
+        # because the txn has not been confirmed at the time of call, even though the logs may
+        # have already been seen. In this case, wait and hope it will confirm soon.
+        except Exception as e:
+            if try_count <= max_retries:
+                # At least 1 ETH block time.
+                time.sleep(15)
+                continue
+            logging.error(f'Failed to get txn after {try_count} retries.')
+            raise(e)
+        
 
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""

@@ -936,7 +936,7 @@ class MarketMonitor(Monitor):
         Note that Event Log Object is not the same as Event object.
         """
         # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction_receipt = self._web3.eth.get_transaction_receipt(txn_hash)
+        transaction_receipt = eth_chain.get_txn_receipt_or_wait(self._web3, txn_hash)
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
@@ -1035,7 +1035,7 @@ class MarketMonitor(Monitor):
                     raise ValueError('Unexpected events seen.')
                 log_entry = log_entries[0]
                 txn_hash = log_entry['transactionHash']
-                transaction_receipt = self._web3.eth.get_transaction_receipt(txn_hash)
+                transaction_receipt = eth_chain.get_txn_receipt_or_wait(self._web3, txn_hash)
                 decoded_log_entry = beanstalk_contract.events['PodOrderCreated']().processReceipt(
                     transaction_receipt, errors=eth_chain.DISCARD)[0]
                 logging.info(decoded_log_entry)
