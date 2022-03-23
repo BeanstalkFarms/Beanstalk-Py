@@ -627,7 +627,7 @@ class CurvePoolMonitor(Monitor):
                 stable_out = tokens_bought
                 stable_id = bought_id
             else:
-                logging.error(
+                logging.warning(
                     'Exchange detected between two non-Bean tokens. Ignoring.')
                 return ''
 
