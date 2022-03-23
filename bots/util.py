@@ -1002,19 +1002,26 @@ class MarketMonitor(Monitor):
                 transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
                     transaction_receipt, errors=eth_chain.DISCARD)
                 logging.info(f'Transfer log(s):\n{transfer_logs}')
+                allocation_logs = self.beanstalk_contract.events['BeanAllocation']().processReceipt(
+                    transaction_receipt, errors=eth_chain.DISCARD)
+                logging.info(f'BeanAllocation log(s):\n{allocation_logs}')
                 # There should be exactly one transfer log of Beans.
-                bean_transfer_log = None
+                beans_paid = None
                 for log in transfer_logs:
                     if log.address == BEAN_ADDR:
-                        bean_transfer_log = log
+                        beans_paid = eth_chain.bean_to_float(
+                            log.args.get('value'))
                         break
-                if not bean_transfer_log:
-                    logging.error(
-                        f'Unexpected Transfer event configuration in market fill txn '
-                        f'({transaction_receipt.transactionHash.hex()}). Exiting...')
-                    raise ValueError('Unexpected txn logs')
-                beans_paid = eth_chain.bean_to_float(
-                    bean_transfer_log.args.get('value'))
+                for log in allocation_logs:
+                    # Assumes all beans Allocated are spent on the Fill.
+                    beans_paid = eth_chain.bean_to_float(
+                        log.args.get('beans'))
+                    break
+                if not beans_paid:
+                    err_str = f'Unable to determine Beans paid in market fill txn ' \
+                              f'({transaction_receipt.transactionHash.hex()}). Exiting...'
+                    logging.error(err_str)
+                    raise ValueError(err_str)
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
                 # NOTE(funderberker): This is a lot of duplicate logic from EthEventsClient.get_new_logs()
