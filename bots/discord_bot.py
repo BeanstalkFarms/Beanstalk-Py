@@ -82,7 +82,8 @@ class DiscordClient(discord.ext.commands.Bot):
         logging.getLogger().addHandler(discord_report_handler)
 
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
-        # the publicly visible BeanBot from having its name changed.
+        # the publicly visible BeanBot from having its name changed. Prod price_monitor lives in
+        # discord_price_bot.py. This price monitor is only for testing/staging.
         if not prod:
             self.price_monitor = util.PreviewMonitor(
                 self.set_nickname_price, self.set_status)
@@ -120,7 +121,8 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.upload_channel_to_wallets()
-        self.price_monitor.stop()
+        if not prod:
+            self.price_monitor.stop()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.uniswap_pool_monitor.stop()
