@@ -14,7 +14,10 @@ from web3.logs import DISCARD
 import constants.addresses as addresses
 
 # Alchemy node key.
-API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
+try:
+    API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
+except KeyError:
+    API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
 URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
