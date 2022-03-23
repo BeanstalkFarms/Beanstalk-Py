@@ -550,7 +550,7 @@ class UniswapPoolMonitor(Monitor):
                 bean_in, eth_out, eth_price)
             swap_value = swap_price * bean_in
         event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-        event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
+        event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
 
@@ -695,7 +695,7 @@ class CurvePoolMonitor(Monitor):
             swap_price = stable_out / bean_in
             swap_value = stable_out
         event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-        event_str += f'  -  Latest block price is ${round_num(bean_price, 4)}'
+        event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
 
@@ -1011,7 +1011,7 @@ class MarketMonitor(Monitor):
                 if not bean_transfer_log:
                     logging.error(
                         f'Unexpected Transfer event configuration in market fill txn '
-                        f'({transaction_receipt.transactionHash}). Exiting...')
+                        f'({transaction_receipt.transactionHash.hex()}). Exiting...')
                     raise ValueError('Unexpected txn logs')
                 beans_paid = eth_chain.bean_to_float(
                     bean_transfer_log.args.get('value'))
