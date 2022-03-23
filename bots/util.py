@@ -1022,18 +1022,18 @@ class MarketMonitor(Monitor):
                 # used in both places.
                 beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
                 event_filter = beanstalk_contract.events.PodOrderCreated.createFilter(
-                    fromBlock=14120000, # Feb 1, 2022.
+                    fromBlock=14120000, # Feb 1, 2022 (before marketplace implementation).
                     toBlock=int(transaction_receipt.blockNumber),
                     argument_filters={'id': event_log.args.get('id')}
                 )
                 log_entries = event_filter.get_all_entries()
                 if len(log_entries) == 0:
                     logging.error('No PodOrderCreated event found. Exiting...')
-                    raise ValueError('Failed to locate expected event.')
-                if len(log_entries) > 1:
-                    logging.error('Too many PodOrderCreated events found. Exiting...')
-                    raise ValueError('Unexpected events seen.')
-                log_entry = log_entries[0]
+                    raise ValueError(f'Failed to locate PodOrderCreated event with id={event_log.args.get("id").hex()}.')
+                # Typically there will only be a single PodOrderCreated per id, but if the order was
+                # re-ordered then we use the latest order for pricing. Contract behavior here may
+                # change in the future, but using the latest order with id will always be ok.
+                log_entry = log_entries[-1]
                 txn_hash = log_entry['transactionHash']
                 transaction_receipt = eth_chain.get_txn_receipt_or_wait(self._web3, txn_hash)
                 decoded_log_entry = beanstalk_contract.events['PodOrderCreated']().processReceipt(
