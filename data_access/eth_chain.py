@@ -145,21 +145,34 @@ add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint25
                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 # add_event_to_dict('PodOrderCancelled(address,bytes32)',
 #                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
+print(MARKET_EVENT_MAP)
+
+def generate_sig_hash_map(sig_str_list):
+    return {sig.split('(')[0]: Web3.keccak(
+        text=sig).hex() for sig in sig_str_list}
+
 
 # Method signatures. We handle some logs differently when derived from different methods.
 # Silo conversion signatures.
-silo_conversion_sigs = ['convertDepositedLP(uint256,uint256,uint32[],uint256[])',
-                        'convertDepositedBeans(uint256,uint256,uint32[],uint256[])']
-silo_conversion_sigs = {sig.split('(')[0]: Web3.keccak(
-    text=sig).hex() for sig in silo_conversion_sigs}
+silo_conversion_sig_strs = ['convertDepositedLP(uint256,uint256,uint32[],uint256[])',
+                            'convertDepositedBeans(uint256,uint256,uint32[],uint256[])']
+silo_conversion_sigs = generate_sig_hash_map(silo_conversion_sig_strs)
 # Signatures of methods with the explicit bean deposit (most txns include embedded deposit).
-bean_deposit_sigs = ['depositBeans(uint256)',
-                     'buyAndDepositBeans(uint256,uint256)',
-                     'claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))',
-                     'claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))']
-bean_deposit_sigs = {sig.split('(')[0]: Web3.keccak(
-    text=sig).hex() for sig in bean_deposit_sigs}
+bean_deposit_sig_strs = ['depositBeans(uint256)',
+                         'buyAndDepositBeans(uint256,uint256)',
+                         'claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))',
+                         'claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))']
+bean_deposit_sigs = generate_sig_hash_map(bean_deposit_sig_strs)
 
+# Claim type signatures.
+# claim_sigs = ['claim', 'claimAndUnwrapBeans', 'claimConvertAddAndDepositLP', 'claimAndSowBeans', 'claimBuyAndSowBeans', 'claimAndCreatePodOrder', 'claimAndFillPodListing', 'claimBuyBeansAndCreatePodOrder', 'claimBuyBeansAndFillPodListing', 'claimAddAndDepositLP', 'claimAndDepositBeans', 'claimAndDepositLP', 'claimAndWithdrawBeans', 'claimAndWithdrawLP', 'claimBuyAndDepositBeans']
+claim_deposit_beans_sig_strs = ['claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool))',
+                                'claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool)))']
+claim_deposit_beans_sigs = generate_sig_hash_map(claim_deposit_beans_sig_strs)
+
+# Signatures of methods of interest for testing.
+test_deposit_sig_strs = ['harvest(uint256[])', 'updateSilo(address)', 'BeanAllocation(address,uint256)']
+test_deposit_sigs = generate_sig_hash_map(test_deposit_sig_strs)
 
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/erc20_abi.json')) as erc20_abi_file:
@@ -629,6 +642,9 @@ def get_test_entries():
         # Harvest.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xee21f9e6c957024a66f53ab0ad84b966ab046f6a5c65e6ee81e6a5aa8493c2f8'), 'blockNumber': 14174589, 'data': '0x00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000df54c678000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000148015876622',
                       'logIndex': 219, 'removed': False, 'topics': [HexBytes('0x2250a3497055c8a54223a5ea64f100a209e9c1c4ab39d3cae64c64a493065fa1'), HexBytes('0x000000000000000000000000028afa72dadb6311107c382cf87504f37f11d482')], 'transactionHash': HexBytes('0x8298dd7fa773f58f04a708dca23bb2c43c96fd57400c2959e82b41a18f32eef4'), 'transactionIndex': 50}),
+        # Harvest + Deposit.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'topics': [HexBytes('0x2250a3497055c8a54223a5ea64f100a209e9c1c4ab39d3cae64c64a493065fa1'), HexBytes('0x00000000000000000000000010bf1dcb5ab7860bab1c3320163c6dddf8dcc0e4')], 'data': '0x0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000b0824e064c00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000150854058140', 'blockNumber': 14411693, 'transactionHash': HexBytes(
+                      '0x510bca99224ba448d8e90154c06880b819c357f9d7a91ed33a8e744d3c2bdb03'), 'transactionIndex': 61, 'blockHash': HexBytes('0xe241b43c0187ca80795d9a33705c25c9c26e2dc03485f69fb5089aa7d2e24bdb'), 'logIndex': 119, 'removed': False}),
         # ConvertDepositedBeans. Made manually, not accurate to chain.
         AttributeDict({'address': '0x87898263B6C5BABe34b4ec53F22d98430b91e371', 'blockHash': HexBytes('0xe7300ad8ff662b19cf4fa86362fbccfd241d4a7a78ec894a4878b69c4682648f'), 'blockNumber': 13805622, 'data': '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
                        'logIndex': 66, 'removed': False, 'topics': [HexBytes('0x916fd954accea6bad98fd6d8dda65058a5a16511534ebb14b2380f24aa61cc3a'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d'), HexBytes('0x0000000000000000000000007a250d5630b4cf539739df2c5dacb4c659f2488d')], 'transactionHash': HexBytes('0x05858da0ac3a85bd75bb389e02e5df35bcbb1ca1b16f0e068038734f21ec23a0'), 'transactionIndex': 57}),

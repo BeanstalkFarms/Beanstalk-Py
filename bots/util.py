@@ -759,9 +759,14 @@ class BeanstalkMonitor(Monitor):
             self.message_function(self.silo_conversion_str(
                 event_logs, self.beanstalk_graph_client))
             return
-        # If there is a direct bean deposit, do not ignore the last bean deposit event.
-        elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
-            logging.info(f'Bean deposit txn seen ({txn_hash.hex()}).')
+        # If this is a direct bean deposit, do not ignore the last bean deposit event.
+        # If if this a claim+deposit txn and there is a harvest event, do not ignore the last bean
+        # deposit, which represents the harvest redeposit. This ~assumes~ the harvest deposit is
+        # always the last one, which has been true so far but idk if that is a guarantee.
+        elif (sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()) or 
+             (any(event_log.event == 'Harvest' for event_log in event_logs) and 
+               sig_compare(txn_method_sig_prefix, eth_chain.claim_deposit_beans_sigs.values()))):
+            logging.info(f'Direct bean deposit or harvest+deposit txn seen ({txn_hash.hex()}).')
             # Include last bean deposit log for this type of txn.
             event_logs.append(last_bean_deposit)
 
