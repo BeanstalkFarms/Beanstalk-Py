@@ -1011,17 +1011,16 @@ class MarketMonitor(Monitor):
                     transaction_receipt, errors=eth_chain.DISCARD)
                 logging.info(f'BeanAllocation log(s):\n{allocation_logs}')
                 # There should be exactly one transfer log of Beans.
-                beans_paid = None
-                for log in transfer_logs:
-                    if log.address == BEAN_ADDR:
-                        beans_paid = eth_chain.bean_to_float(
-                            log.args.get('value'))
-                        break
+                beans_paid = 0
                 for log in allocation_logs:
                     # Assumes all beans Allocated are spent on the Fill.
-                    beans_paid = eth_chain.bean_to_float(
+                    beans_paid += eth_chain.bean_to_float(
                         log.args.get('beans'))
-                    break
+                for log in transfer_logs:
+                    if log.address == BEAN_ADDR:
+                        beans_paid += eth_chain.bean_to_float(
+                            log.args.get('value'))
+                        break
                 if not beans_paid:
                     err_str = f'Unable to determine Beans paid in market fill txn ' \
                               f'({transaction_receipt.transactionHash.hex()}). Exiting...'
