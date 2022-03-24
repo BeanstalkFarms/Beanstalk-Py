@@ -991,7 +991,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods relisted'
             else:
                 event_str += f'✏ Pods listed'
-            event_str += f' - {amount_str} Pods queued at {start_place_in_line_str} listed @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods queued at {start_place_in_line_str} listed @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod, 3)})'
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
             order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
@@ -1000,7 +1000,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods reordered'
             else:
                 event_str += f'🖌 Pods ordered'
-            event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod, 3)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             # Pull the Bean Transfer log to find cost.
             if event_log.event == 'PodListingFilled':
@@ -1054,7 +1054,7 @@ class MarketMonitor(Monitor):
                 beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
             event_str += f'💰 Pods Exchanged - {amount_str} Pods queued at ' \
                          f'{start_place_in_line_str} purchased @ {round_num(beans_paid/amount)} ' \
-                         f'Beans/Pod (${round_num(bean_price * beans_paid)})'
+                         f'Beans/Pod (${round_num(bean_price * beans_paid, 3)})'
             event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
