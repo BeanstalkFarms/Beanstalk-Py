@@ -38,7 +38,7 @@ POOL_CHECK_RATE = 12  # seconds
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = 12  # seconds
 # Bytes in 50 megabytes.
-FIVE_HUNDRED_MEGABYTES = 500**6
+ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
 RESET_MONITOR_DELAY_INIT = 5 # seconds
 

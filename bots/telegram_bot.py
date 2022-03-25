@@ -66,7 +66,7 @@ if __name__ == '__main__':
     logging.basicConfig(format=f'Telegram Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
-                                "telegram_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),
+                                "telegram_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 

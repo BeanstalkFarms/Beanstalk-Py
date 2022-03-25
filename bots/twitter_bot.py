@@ -63,7 +63,7 @@ if __name__ == '__main__':
     logging.basicConfig(format=f'Twitter Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
-                                "twitter_bot.log", maxBytes=util.FIVE_HUNDRED_MEGABYTES),
+                                "twitter_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
