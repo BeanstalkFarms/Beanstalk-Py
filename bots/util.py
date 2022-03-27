@@ -4,6 +4,7 @@ import logging
 import sys
 import threading
 import time
+import websockets
 
 from web3 import eth
 
@@ -106,6 +107,8 @@ class Monitor():
                 continue
             try:
                 self._monitor_method()
+            except websockets.exceptions.ConnectionClosedError as e:
+                logging.error(str(e) + ' - **restarting the monitor**')
             except Exception as e:
                 logging.exception(e)
                 logging.error(f'Unhandled exception in the {self.name} thread.'
