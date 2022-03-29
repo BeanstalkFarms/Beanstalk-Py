@@ -13,7 +13,7 @@ import discord
 from discord.ext import tasks, commands
 
 from bots import util
-from data_access.eth_chain import is_valid_wallet_address
+from data_access.eth_chain import EventClientType, is_valid_wallet_address
 
 
 DISCORD_CHANNEL_ID_PEG_CROSSES = 911338190198169710
@@ -100,8 +100,13 @@ class DiscordClient(discord.ext.commands.Bot):
         self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
         self.uniswap_pool_monitor.start()
 
-        self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg_pool, prod=prod)
-        self.curve_pool_monitor.start()
+        self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
+        self.curve_3crv_pool_monitor.start()
+
+        self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
+        self.curve_lusd_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
@@ -126,7 +131,8 @@ class DiscordClient(discord.ext.commands.Bot):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.uniswap_pool_monitor.stop()
-        self.curve_pool_monitor.stop()
+        self.curve_3crv_pool_monitor.stop()
+        self.curve_lusd_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
 

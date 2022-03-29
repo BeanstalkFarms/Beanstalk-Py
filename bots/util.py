@@ -561,11 +561,15 @@ class UniswapPoolMonitor(Monitor):
 class CurvePoolMonitor(Monitor):
     """Monitor the BEAN:3CRV Curve pool for events."""
 
-    def __init__(self, message_function, prod=False, dry_run=False):
+    def __init__(self, message_function, pool_type, prod=False, dry_run=False):
         super().__init__('Curve Pool', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self.pool_type = pool_type
+        if (self.pool_type not in [eth_chain.EventClientType.CURVE_3CRV_POOL, 
+                               eth_chain.EventClientType.CURVE_LUSD_POOL]):
+            raise ValueError('Curve pool must be set to a supported pool.')
         self._eth_event_client = eth_chain.EthEventsClient(
-            eth_chain.EventClientType.CURVE_POOL)
+            self.pool_type)
         self.bean_client = eth_chain.BeanClient()
 
     def _monitor_method(self):
@@ -585,13 +589,12 @@ class CurvePoolMonitor(Monitor):
         Note that Event Log Object is not the same as Event object.
         """
         for event_log in event_logs:
-            event_str = CurvePoolMonitor.any_event_str(
+            event_str = self.any_event_str(
                 event_log, self.bean_client.curve_bean_price())
             if event_str:
                 self.message_function(event_str)
 
-    @abstractmethod
-    def any_event_str(event_log, bean_price):
+    def any_event_str(self, event_log, bean_price):
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         sold_id = event_log.args.get('sold_id')
@@ -603,17 +606,28 @@ class CurvePoolMonitor(Monitor):
         # token_amount = event_log.args.get('token_amount')
         coin_amount = event_log.args.get('coin_amount')
 
+
         if token_amounts is not None:
             bean_lp_amount = eth_chain.bean_to_float(
-                token_amounts[eth_chain.FACTORY_INDEX_BEAN])
-            crv_lp_amount = eth_chain.crv_to_float(
-                token_amounts[eth_chain.FACTORY_INDEX_3CRV])
+                token_amounts[eth_chain.FACTORY_3CRV_INDEX_BEAN])
+            if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
+                token_lp_amount = eth_chain.crv_to_float(
+                    token_amounts[eth_chain.FACTORY_3CRV_INDEX_3CRV])
+                token_lp_name = '3CRV'
+            elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
+                token_lp_amount = eth_chain.crv_to_float(
+                    token_amounts[eth_chain.FACTORY_3CRV_INDEX_3CRV])
+                token_lp_name = 'LUSD'
         if coin_amount is not None:
             # NOTE(funderberker): This is not a great way to do this check. Will be easier once
             # LP $ value in the price oracle. Then can just do everything based on pool token value.
             if coin_amount > 100000000000000000:
-                coin_lp_amount = eth_chain.crv_to_float(coin_amount)
-                coin_name = '3CRV'
+                if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
+                    coin_lp_amount = eth_chain.crv_to_float(coin_amount)
+                    coin_name = '3CRV'
+                elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
+                    coin_lp_amount = eth_chain.lusd_to_float(coin_amount)
+                    coin_name = 'LUSD'
             else:
                 coin_lp_amount = eth_chain.bean_to_float(coin_amount)
                 coin_name = 'Bean'
@@ -621,11 +635,11 @@ class CurvePoolMonitor(Monitor):
         if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
             # Set the variables of quantity and direction of exchange.
             bean_out = stable_in = bean_in = stable_out = None
-            if bought_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
+            if bought_id in [eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_BEAN, eth_chain.FACTORY_LUSD_INDEX_BEAN]:
                 bean_out = eth_chain.bean_to_float(tokens_bought)
                 stable_in = tokens_sold
                 stable_id = sold_id
-            elif sold_id == eth_chain.FACTORY_UNDERLYING_INDEX_BEAN:
+            elif sold_id in [eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_BEAN, eth_chain.FACTORY_LUSD_INDEX_BEAN]:
                 bean_in = eth_chain.bean_to_float(tokens_sold)
                 stable_out = tokens_bought
                 stable_id = bought_id
@@ -636,18 +650,23 @@ class CurvePoolMonitor(Monitor):
 
             # Set the stable name string and convert value to float.
             if event_log.event == 'TokenExchange':
-                stable_name = '3CRV'
-                stable_in = eth_chain.crv_to_float(stable_in)
-                stable_out = eth_chain.crv_to_float(stable_out)
-            elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_DAI:
+                if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
+                    stable_name = '3CRV'
+                    stable_in = eth_chain.crv_to_float(stable_in)
+                    stable_out = eth_chain.crv_to_float(stable_out)
+                elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
+                    stable_name = 'LUSD'
+                    stable_in = eth_chain.lusd_to_float(stable_in)
+                    stable_out = eth_chain.lusd_to_float(stable_out)
+            elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_DAI:
                 stable_name = 'DAI'
                 stable_in = eth_chain.dai_to_float(stable_in)
                 stable_out = eth_chain.dai_to_float(stable_out)
-            elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDC:
+            elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_USDC:
                 stable_name = 'USDC'
                 stable_in = eth_chain.usdc_to_float(stable_in)
                 stable_out = eth_chain.usdc_to_float(stable_out)
-            elif stable_id == eth_chain.FACTORY_UNDERLYING_INDEX_USDT:
+            elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_USDT:
                 stable_name = 'USDT'
                 stable_in = eth_chain.usdt_to_float(stable_in)
                 stable_out = eth_chain.usdt_to_float(stable_out)
@@ -655,14 +674,15 @@ class CurvePoolMonitor(Monitor):
                 logging.error(
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
                 return ''
+                
 
             event_str += CurvePoolMonitor.exchange_event_str(event_log, bean_price, stable_name,
                                                              bean_out=bean_out, bean_in=bean_in,
                                                              stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
-            event_str += f'📥 LP added - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount)} 3CRV'
+            event_str += f'📥 LP added - {round_num(bean_lp_amount)} Beans and {round_num(token_lp_amount)} {token_lp_name}'
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
-            event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(crv_lp_amount, 4)} 3CRV'
+            event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(token_lp_amount, 4)} {token_lp_name}'
         elif event_log.event == 'RemoveLiquidityOne':
             event_str += f'📤 LP removed - {round_num(coin_lp_amount)} {coin_name}'
         else:

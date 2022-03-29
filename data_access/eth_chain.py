@@ -29,18 +29,21 @@ DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
 CRV_DECIMALS = 18
+LUSD_DECIMALS = 18
 
 UNI_V2_POOL_FEE = 0.003  # %
 
 # Indices of tokens in Curve factory pool [bean, 3crv].
-FACTORY_INDEX_BEAN = 0
-FACTORY_INDEX_3CRV = 1
-
+FACTORY_3CRV_INDEX_BEAN = 0
+FACTORY_3CRV_INDEX_3CRV = 1
 # Indices of underlying tokens in Curve factory pool [bean, dai, usdc, usdt].
-FACTORY_UNDERLYING_INDEX_BEAN = 0
-FACTORY_UNDERLYING_INDEX_DAI = 1
-FACTORY_UNDERLYING_INDEX_USDC = 2
-FACTORY_UNDERLYING_INDEX_USDT = 3
+FACTORY_3CRV_UNDERLYING_INDEX_BEAN = 0
+FACTORY_3CRV_UNDERLYING_INDEX_DAI = 1
+FACTORY_3CRV_UNDERLYING_INDEX_USDC = 2
+FACTORY_3CRV_UNDERLYING_INDEX_USDT = 3
+# Indices of tokens in Curve factory pool [bean, LUSD].
+FACTORY_LUSD_INDEX_BEAN = 0
+FACTORY_LUSD_INDEX_LUSD = 1
 
 
 # Newline character to get around limits of f-strings.
@@ -218,6 +221,10 @@ def get_bean_3crv_pool_contract(web3):
     return web3.eth.contract(
         address=addresses.CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
 
+def get_bean_lusd_pool_contract(web3):
+    """Get a web.eth.contract object for the curve BEAN:LUSD pool. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=addresses.CURVE_BEAN_LUSD_ADDR, abi=curve_pool_abi)
 
 def get_bean_contract(web3):
     """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
@@ -400,12 +407,18 @@ def crv_to_float(crv_long):
         return 0
     return int(crv_long) / (10 ** CRV_DECIMALS)
 
+def lusd_to_float(lusd_long):
+    if not lusd_long:
+        return 0
+    return int(lusd_long) / (10 ** LUSD_DECIMALS)
+
 
 class EventClientType(Enum):
     UNISWAP_POOL = 0
-    CURVE_POOL = 1
+    CURVE_3CRV_POOL = 1
     BEANSTALK = 2
     MARKET = 3
+    CURVE_LUSD_POOL = 4
 
 
 class EthEventsClient():
@@ -418,9 +431,15 @@ class EthEventsClient():
             self._events_dict = UNISWAP_POOL_EVENT_MAP
             self._signature_list = UNISWAP_POOL_SIGNATURES_LIST
             self._set_filter()
-        elif self._event_client_type == EventClientType.CURVE_POOL:
+        elif self._event_client_type == EventClientType.CURVE_3CRV_POOL:
             self._contract = get_bean_3crv_pool_contract(self._web3)
             self._contract_address = addresses.CURVE_BEAN_3CRV_ADDR
+            self._events_dict = CURVE_POOL_EVENT_MAP
+            self._signature_list = CURVE_POOL_SIGNATURES_LIST
+            self._set_filter()
+        elif self._event_client_type == EventClientType.CURVE_LUSD_POOL:
+            self._contract = get_bean_lusd_pool_contract(self._web3)
+            self._contract_address = addresses.CURVE_BEAN_LUSD_ADDR
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
             self._set_filter()
@@ -470,6 +489,9 @@ class EthEventsClient():
 
         # Track which unique logs have already been processed from this event batch.
         for entry in new_entries:
+            # This should only be triggered when pulling dry run test entries directly.
+            if entry.address != self._contract_address:
+                continue
             # The event topic associated with this entry.
             topic_hash = entry['topics'][0].hex()
 
@@ -515,8 +537,8 @@ class EthEventsClient():
                     if log.address != addresses.UNI_V2_BEAN_ETH_ADDR:
                         continue
                 elif log.event == 'TokenExchangeUnderlying' or log.event == 'TokenExchange':
-                    # Only process curve exchanges in the BEAN:3CRV pool.
-                    if log.address != addresses.CURVE_BEAN_3CRV_ADDR:
+                    # Only process curve exchanges in the BEAN pools.
+                    if log.address not in [addresses.CURVE_BEAN_3CRV_ADDR, addresses.CURVE_BEAN_LUSD_ADDR]:
                         continue
                 decoded_logs.append(log)
 
@@ -666,6 +688,12 @@ def get_test_entries():
         # Curve pool: Remove liquidity in Bean coin.
         AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x0000000000000000000000000000000000000000000000ee19ae3974b26427b30000000000000000000000000000000000000000000000000000000106f2ef690000000000000000000000000000000000000000000293b5a14349ddb9b923b5', 'blockNumber': 14322919, 'transactionHash': HexBytes(
                       '0x0683e44f53206ce2930a55e4fa0449d66feb109c2baa044b2430f8c08fdd8d85'), 'transactionIndex': 97, 'blockHash': HexBytes('0x863666ed9b57444b031265a8b5cb42c66d903a46e4e4b56d12855b820607af7f'), 'logIndex': 199, 'removed': False}),
+        # Curve pool: Remove liquidity in non-bean coin (transplanted to LUSD pool from 3CRV pool).
+        AttributeDict({'address': '0xD652c40fBb3f06d6B58Cb9aa9CFF063eE63d465D', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x000000000000000000000000000000000000000000003a2e714ea0844129111200000000000000000000000000000000000000000000393423c91b8458cb294000000000000000000000000000000000000000000004a0f04d93a402ea31d168', 'blockNumber': 14393420, 'transactionHash': HexBytes(
+                      '0xdf5c3e1d4ad834c868ee41073dbe356f56b2b95d356b6552bcf38ff70ec1ffa1'), 'transactionIndex': 111, 'blockHash': HexBytes('0xb590ea15f1e8066815fc39dbcae30d3baf55a4df3197e114c1be17cc36ef182e'), 'logIndex': 92, 'removed': False}),
+        # Curve pool: Remove liquidity in Bean coin (transplanted to LUSD pool from 3CRV pool).
+        AttributeDict({'address': '0xD652c40fBb3f06d6B58Cb9aa9CFF063eE63d465D', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x0000000000000000000000000000000000000000000000ee19ae3974b26427b30000000000000000000000000000000000000000000000000000000106f2ef690000000000000000000000000000000000000000000293b5a14349ddb9b923b5', 'blockNumber': 14322919, 'transactionHash': HexBytes(
+                      '0x0683e44f53206ce2930a55e4fa0449d66feb109c2baa044b2430f8c08fdd8d85'), 'transactionIndex': 97, 'blockHash': HexBytes('0x863666ed9b57444b031265a8b5cb42c66d903a46e4e4b56d12855b820607af7f'), 'logIndex': 199, 'removed': False}),
         # Farmer's market: Pods ordered.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xfaef7c069fe09ea1bd4f6cdfbd1550ebb7bd2986e2759c4e8d6a9db6a16e19e4'), 'blockNumber': 14163350, 'data': '0x0087d1b16afbd5fbcb2b99f57ad11fa160135b88e203781b2142cbc1823219810000000000000000000000000000000000000000000000000000000b2d05e000000000000000000000000000000000000000000000000000000000000003d09000000000000000000000000000000000000000000000000000000da475abf000',
                       'logIndex': 175, 'removed': False, 'topics': [HexBytes('0x9d0f352519bb87be0593a36adf8feb8ee677ef1b9932894db339a3537ca2df8b'), HexBytes('0x000000000000000000000000eafc0e4acf147e53398a4c9ae5f15950332cce06')], 'transactionHash': HexBytes('0x153a103e21cce2f7847325c2c3ca47dafb20a83ba8e18f1e549298edab7cf629'), 'transactionIndex': 81}),
@@ -706,7 +734,7 @@ def monitor_uni_v2_pair_events():
 
 
 def monitor_curve_pool_events():
-    client = EthEventsClient(EventClientType.CURVE_POOL)
+    client = EthEventsClient(EventClientType.CURVE_3CRV_POOL)
     while True:
         events = client.get_new_logs(dry_run=False)
         time.sleep(5)

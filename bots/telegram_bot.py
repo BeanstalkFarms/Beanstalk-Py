@@ -6,6 +6,7 @@ import signal
 import telebot
 
 from bots import util
+from data_access.eth_chain import EventClientType
 
 TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
 TELE_CHAT_ID_PRODUCTION = "-1001770089535"  # Beanstalk Tracker channel
@@ -33,8 +34,13 @@ class TelegramBot(object):
         self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
         self.uniswap_pool_monitor.start()
 
-        self.curve_pool_monitor = util.CurvePoolMonitor(self.send_msg, prod=prod)
-        self.curve_pool_monitor.start()
+        self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg, EventClientType.CURVE_3CRV_POOL, prod=prod)
+        self.curve_3crv_pool_monitor.start()
+
+        self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
+        self.curve_lusd_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
         self.beanstalk_monitor.start()
@@ -56,7 +62,8 @@ class TelegramBot(object):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.uniswap_pool_monitor.stop()
-        self.curve_pool_monitor.stop()
+        self.curve_3crv_pool_monitor.stop()
+        self.curve_lusd_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
 
