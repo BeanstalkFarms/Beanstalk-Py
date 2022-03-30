@@ -305,6 +305,13 @@ class BeanClient(ChainClient):
             price_dict['pool_infos'][pool_dict['pool']] = pool_dict
         return price_dict
 
+    def get_lp_token_value(self, token_address):
+        """Return the $/LP token value of an LP token at address."""
+        liquidity_usd = token_to_float(self.get_price_info()['pool_infos'][token_address]['liquidity'], 6)
+        token_supply = get_erc20_total_supply(token_address)
+        logging.info(f'liquidity: {liquidity_usd},  supply: {token_supply}, price: {liquidity_usd / token_supply}')
+        return liquidity_usd / token_supply
+
     def avg_bean_price(self):
         """Current float bean price average across LPs from the Bean price oracle contract."""
         return bean_to_float(self.get_price_info()['price'])
@@ -561,7 +568,14 @@ def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
                 continue
             logging.error(f'Failed to get txn after {try_count} retries.')
             raise(e)
-        
+
+def get_erc20_total_supply(addr, web3=None):
+    """Get the total supply of ERC-20 token in circulation as float."""
+    if not web3:
+        web3 = get_web3_instance()
+    partial_contract = web3.eth.contract(address=addr, abi=erc20_abi)
+    decimals = partial_contract.functions.decimals().call()
+    return token_to_float(partial_contract.functions.totalSupply().call(), decimals)
 
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""
@@ -675,6 +689,9 @@ def get_test_entries():
         # LPDeposit.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x004d87b485e96285aefc8ed7df69f18573d16705dac3e56de0d3e1af283c2c7d'), 'blockNumber': 14205139, 'data': '0x00000000000000000000000000000000000000000000000000000000000011ed000000000000000000000000000000000000000000000000000006d7cd1833bc00000000000000000000000000000000000000000000000000000000d2f8140c',
                       'logIndex': 281, 'removed': False, 'topics': [HexBytes('0x444cac6c85446e08741f799b6ed7d005bf53b5226b369e0bc0640bf3db9a1e5d'), HexBytes('0x00000000000000000000000035f105e802da60d3312e5a89f51453a0c46b9dad')], 'transactionHash': HexBytes('0x07c7a744f64640327e33116b9435fbded90545debd52f791cba57373f9adda4b'), 'transactionIndex': 171}),
+        # Silo Withdrawal, generalized.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'topics': [HexBytes('0xb865b046f9ffd235ecbca9f3a2d7651d2195fd1dad49b619b2f55db56763533c'), HexBytes('0x0000000000000000000000006c3e007377effd74afe237ce3b0aeef969b63c91'), HexBytes('0x0000000000000000000000003a70dfa7d2262988064a2d051dd47521e43c9bdd')],
+                      'data': '0x00000000000000000000000000000000000000000000000000000000000015f7000000000000000000000000000000000000000000002a5a058fc295ed000000', 'blockNumber': 14482448, 'transactionHash': HexBytes('0x78378de463adbe0350ff52be1729f581f3feacfa95bcd3a0427109f532953b53'), 'transactionIndex': 28, 'blockHash': HexBytes('0x0456819951f7c541a21b4f2f92715e7c3d278fb75e3546689378a5164761a761'), 'logIndex': 78, 'removed': False}),
         # Harvest.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xee21f9e6c957024a66f53ab0ad84b966ab046f6a5c65e6ee81e6a5aa8493c2f8'), 'blockNumber': 14174589, 'data': '0x00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000df54c678000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000148015876622',
                       'logIndex': 219, 'removed': False, 'topics': [HexBytes('0x2250a3497055c8a54223a5ea64f100a209e9c1c4ab39d3cae64c64a493065fa1'), HexBytes('0x000000000000000000000000028afa72dadb6311107c382cf87504f37f11d482')], 'transactionHash': HexBytes('0x8298dd7fa773f58f04a708dca23bb2c43c96fd57400c2959e82b41a18f32eef4'), 'transactionIndex': 50}),

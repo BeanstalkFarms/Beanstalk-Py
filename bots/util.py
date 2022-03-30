@@ -865,18 +865,19 @@ class BeanstalkMonitor(Monitor):
                 value = lp_value
             else:
                 amount = eth_chain.token_to_float(token_amount_long or sum(token_amounts_long), decimals)
-                value = bdv_value
+                if bdv_value:
+                    value = bdv_value
+                # Value is not known for generalized withdrawals, so it must be calculated here.
+                else:
+                    value = amount * self.bean_client.get_lp_token_value(token_address)
             
             if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
                 event_str += f'📥 Silo Deposit'
             elif event_log.event in ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
                 event_str += f'📭 Silo Withdrawal'
             event_str += f' - {round_num_auto(amount)} {token_symbol}'
-            # NOTE(funderberker): Value is not known for generalized withdrawals. This should be
-            # fixed when more infrastructure is in place.
-            if value:
-                event_str += f' (${round_num(value)})'
-                event_str += f'\n{value_to_emojis(value)}'
+            event_str += f' (${round_num(value)})'
+            event_str += f'\n{value_to_emojis(value)}'
         # Sow event.
         elif event_log.event == 'Sow':
             event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
