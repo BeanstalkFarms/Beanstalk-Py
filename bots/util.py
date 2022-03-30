@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import asyncio.exceptions
 from enum import Enum
 import logging
 import sys
@@ -107,13 +108,19 @@ class Monitor():
                 continue
             try:
                 self._monitor_method()
+            # Websocket disconnects are expected occasionally.
             except websockets.exceptions.ConnectionClosedError as e:
-                logging.error(str(e) + ' - **restarting the monitor**')
+                logging.error('Websocket connection closed error\n{e}\n**restarting the monitor**')
+                logging.warning(e, exc_info=True)
+            # Timeouts on data access are expected occasionally.
+            except asyncio.exceptions.TimeoutError as e:
+                logging.error(f'Asyncio timeout error:\n{e}\n**restarting the monitor**')
+                logging.warning(e, exc_info=True)
             except Exception as e:
                 logging.exception(e)
                 logging.error(f'Unhandled exception in the {self.name} thread.'
                               f'\nLogging and **restarting the monitor**.')
-            # Reset the reset delay after a stretch of successful running.
+            # Reset the restart delay after a stretch of successful running.
             if time.time() > retry_time + 3600:
                 self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
             else:
