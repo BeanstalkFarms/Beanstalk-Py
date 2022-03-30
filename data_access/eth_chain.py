@@ -296,11 +296,11 @@ class BeanClient(ChainClient):
         # Map address:pool_info for each supported pool.
         for pool_info in raw_price_info[3]:
             pool_dict = {}
-            pool_dict['pool'] = pool_info[0]
+            pool_dict['pool'] = pool_info[0] # address
             pool_dict['tokens'] = pool_info[1]
             pool_dict['balances'] = pool_info[2]
-            pool_dict['price'] = pool_info[3]
-            pool_dict['liquidity'] = pool_info[4]
+            pool_dict['price'] = pool_info[3] # Bean price of pool (6 decimals)
+            pool_dict['liquidity'] = pool_info[4] # USD value of the liquidity in the pool
             pool_dict['delta_b'] = pool_info[5]
             price_dict['pool_infos'][pool_dict['pool']] = pool_dict
         return price_dict
@@ -312,17 +312,23 @@ class BeanClient(ChainClient):
     def uniswap_v2_pool_info(self):
         return self.get_price_info()['pool_infos'][addresses.UNI_V2_BEAN_ETH_ADDR]
 
-    def curve_pool_info(self):
+    def curve_3crv_pool_info(self):
         return self.get_price_info()['pool_infos'][addresses.CURVE_BEAN_3CRV_ADDR]
+
+    def curve_lusd_pool_info(self):
+        return self.get_price_info()['pool_infos'][addresses.CURVE_BEAN_LUSD_ADDR]
 
     def uniswap_v2_bean_price(self):
         """Current float Bean price in the Uniswap V2 Bean:ETH pool."""
         return bean_to_float(self.uniswap_v2_pool_info()['price'])
 
-    def curve_bean_price(self):
+    def curve_3crv_bean_price(self):
         """Current float Bean price in the Curve Bean:3CRV pool."""
-        return bean_to_float(self.curve_pool_info()['price'])
+        return bean_to_float(self.curve_3crv_pool_info()['price'])
 
+    def curve_lusd_bean_price(self):
+        """Current float Bean price in the Curve Bean:LUSD pool."""
+        return bean_to_float(self.curve_lusd_pool_info()['price'])
 
 class UniswapClient(ChainClient):
     def __init__(self, web3=None):

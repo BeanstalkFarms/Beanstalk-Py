@@ -598,9 +598,13 @@ class CurvePoolMonitor(Monitor):
         Assumes that there are no non-Bean:3CRV TokenExchangeUnderlying events in logs.
         Note that Event Log Object is not the same as Event object.
         """
+        if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
+            bean_price = self.bean_client.curve_3crv_bean_price()
+        elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
+            bean_price = self.bean_client.curve_lusd_bean_price()
         for event_log in event_logs:
             event_str = self.any_event_str(
-                event_log, self.bean_client.curve_bean_price())
+                event_log, bean_price)
             if event_str:
                 self.message_function(event_str)
 
