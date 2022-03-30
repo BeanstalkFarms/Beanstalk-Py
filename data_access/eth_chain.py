@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import asyncio
+from collections import OrderedDict
 import datetime
 from enum import Enum, IntEnum
 import logging
@@ -46,6 +47,8 @@ FACTORY_3CRV_UNDERLYING_INDEX_USDT = 3
 FACTORY_LUSD_INDEX_BEAN = 0
 FACTORY_LUSD_INDEX_LUSD = 1
 
+# Number of txn hashes to keep in memory to prevent duplicate processing.
+TXN_MEMORY_SIZE_LIMIT = 100
 
 # Newline character to get around limits of f-strings.
 NEWLINE_CHAR = '\n'
@@ -397,6 +400,8 @@ class EventClientType(IntEnum):
 
 class EthEventsClient():
     def __init__(self, event_client_type):
+        # Track recently seen txns to avoid processing same txn multiple times.
+        self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.UNISWAP_POOL:
@@ -538,7 +543,25 @@ class EthEventsClient():
         while try_count < 5:
             try_count += 1
             try:
-                return filter.get_new_entries()
+                # We must verify new_entries because get_new_entries() will occasionally pull
+                # entries that are not actually new. May be a bug with web3 or may just be a relic
+                # of the way block confirmations work.
+                new_entries = filter.get_new_entries()
+                new_unique_entries = []
+                # Remove entries w txn hashes that already processed on past get_new_entries calls.
+                for i in range(len(new_entries)):
+                    entry = new_entries[i]
+                    # If we have not already processed this txn hash.
+                    if entry.address not in self._recent_processed_txns:
+                        new_unique_entries.append(entry)
+                # Add all txn hashes to recent processed set/dict.
+                for entry in new_unique_entries:
+                    # Arbitrary value. Using this as a set.
+                    self._recent_processed_txns[entry.address] = True
+                # Keep the recent txn queue size within limit.
+                for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
+                    self._recent_processed_txns.popitem(last=False)
+                return new_unique_entries
                 # return filter.get_all_entries() # Use this to search for old events.
             except (ValueError, asyncio.TimeoutError, Exception) as e:
                 logging.warning(e, exc_info=True)
@@ -562,11 +585,11 @@ def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
         # because the txn has not been confirmed at the time of call, even though the logs may
         # have already been seen. In this case, wait and hope it will confirm soon.
         except Exception as e:
-            if try_count <= max_retries:
+            if try_count < max_retries:
                 # At least 1 ETH block time.
                 time.sleep(15)
                 continue
-            logging.error(f'Failed to get txn after {try_count} retries.')
+            logging.error(f'Failed to get txn after {try_count} retries. Was the block orphaned?')
             raise(e)
 
 def get_erc20_total_supply(addr, web3=None):
