@@ -1,7 +1,7 @@
 from abc import abstractmethod
 import asyncio
 import datetime
-from enum import Enum
+from enum import Enum, IntEnum
 import logging
 import json
 import os
@@ -25,6 +25,7 @@ ETH_DECIMALS = 18
 LP_DECIMALS = 18
 BEAN_DECIMALS = 6
 POD_DECIMALS = 6
+SOIL_DECIMALS = 6
 DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
@@ -48,6 +49,9 @@ FACTORY_LUSD_INDEX_LUSD = 1
 
 # Newline character to get around limits of f-strings.
 NEWLINE_CHAR = '\n'
+
+# Index of values in tuples returned from web3 contract calls.
+STARTSOIL_INDEX = 0
 
 # NOTE(funderberker): Pretty lame that we cannot automatically parse these from the ABI files.
 #   Technically it seems very straight forward, but it is not implemented in the web3 lib and
@@ -251,6 +255,21 @@ class ChainClient():
         self._web3 = web3 or get_web3_instance()
 
 
+class BeanstalkClient(ChainClient):
+    """Common functionality related to the Beanstalk contract."""
+
+    def __init__(self, web3=None):
+        super().__init__(web3)
+        self.contract = get_beanstalk_contract(self._web3)
+
+    def get_weather(self):
+        """Get current weather object."""
+        return call_contract_function_with_retry(self.contract.functions.weather())
+
+    def get_season_start_soil(self):
+        """Amount of soil added/removed this season."""
+        return soil_to_float(self.get_weather()[STARTSOIL_INDEX])
+
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""
 
@@ -354,66 +373,8 @@ def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
     return eth_price * (eth_out / bean_in)
 
 
-def token_to_float(token_long, decimals):
-    if not token_long:
-        return 0
-    return int(token_long) / (10 ** decimals)
 
-
-def eth_to_float(gwei):
-    if not gwei:
-        return 0
-    return int(gwei) / (10 ** ETH_DECIMALS)
-
-
-def lp_to_float(lp_long):
-    if not lp_long:
-        return 0
-    return int(lp_long) / (10 ** LP_DECIMALS)
-
-
-def bean_to_float(bean_long):
-    if not bean_long:
-        return 0
-    return int(bean_long) / (10 ** BEAN_DECIMALS)
-
-
-def pods_to_float(pod_long):
-    if not pod_long:
-        return 0
-    return int(pod_long) / (10 ** POD_DECIMALS)
-
-
-def dai_to_float(dai_long):
-    if not dai_long:
-        return 0
-    return int(dai_long) / (10 ** DAI_DECIMALS)
-
-
-def usdc_to_float(usdc_long):
-    if not usdc_long:
-        return 0
-    return int(usdc_long) / (10 ** USDC_DECIMALS)
-
-
-def usdt_to_float(usdt_long):
-    if not usdt_long:
-        return 0
-    return int(usdt_long) / (10 ** USDT_DECIMALS)
-
-
-def crv_to_float(crv_long):
-    if not crv_long:
-        return 0
-    return int(crv_long) / (10 ** CRV_DECIMALS)
-
-def lusd_to_float(lusd_long):
-    if not lusd_long:
-        return 0
-    return int(lusd_long) / (10 ** LUSD_DECIMALS)
-
-
-class EventClientType(Enum):
+class EventClientType(IntEnum):
     UNISWAP_POOL = 0
     CURVE_3CRV_POOL = 1
     BEANSTALK = 2
@@ -633,6 +594,53 @@ def call_contract_function_with_retry(function, max_tries=10):
                 logging.error(
                     f'Failed to access "{function.fn_name}" function at contract address "{function.address}" after {max_tries} attempts. Raising exception...')
                 raise(e)
+
+
+
+def token_to_float(token_long, decimals):
+    if not token_long:
+        return 0
+    return int(token_long) / (10 ** decimals)
+
+
+def eth_to_float(gwei):
+    return token_to_float(gwei, ETH_DECIMALS)
+
+
+def lp_to_float(lp_long):
+    return token_to_float(lp_long, LP_DECIMALS)
+
+
+def bean_to_float(bean_long):
+    return token_to_float(bean_long, BEAN_DECIMALS)
+
+
+def soil_to_float(soil_long):
+    return token_to_float(soil_long, SOIL_DECIMALS)
+
+
+def pods_to_float(pod_long):
+    return token_to_float(pod_long, POD_DECIMALS)
+
+
+def dai_to_float(dai_long):
+    return token_to_float(dai_long, DAI_DECIMALS)
+
+
+def usdc_to_float(usdc_long):
+    return token_to_float(usdc_long, USDC_DECIMALS)
+
+
+def usdt_to_float(usdt_long):
+    return token_to_float(usdt_long, USDT_DECIMALS)
+
+
+def crv_to_float(crv_long):
+    return token_to_float(crv_long, CRV_DECIMALS)
+
+
+def lusd_to_float(lusd_long):
+    return token_to_float(lusd_long, LUSD_DECIMALS)
 
 
 def get_test_entries():

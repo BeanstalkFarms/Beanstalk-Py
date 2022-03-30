@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import asyncio.exceptions
-from enum import Enum
+from enum import Enum, IntEnum
 import logging
 import sys
 import threading
@@ -110,7 +110,7 @@ class Monitor():
                 self._monitor_method()
             # Websocket disconnects are expected occasionally.
             except websockets.exceptions.ConnectionClosedError as e:
-                logging.error('Websocket connection closed error\n{e}\n**restarting the monitor**')
+                logging.error(f'Websocket connection closed error\n{e}\n**restarting the monitor**')
                 logging.warning(e, exc_info=True)
             # Timeouts on data access are expected occasionally.
             except asyncio.exceptions.TimeoutError as e:
@@ -358,6 +358,7 @@ class SunriseMonitor(Monitor):
             current_season_stats['newHarvestablePods'])
         newMintedBeans = new_farmable_beans + new_harvestable_pods
         # newSoil = float(current_season_stats['newSoil'])
+        newSoil = float(self.beanstalk_client.get_season_start_soil())
         new_deposited_lp = float(last_season_stats["newDepositedLP"])
         new_withdrawn_lp = float(last_season_stats["newWithdrawnLP"])
         pooled_eth = float(current_season_stats['pooledEth'])
@@ -389,15 +390,14 @@ class SunriseMonitor(Monitor):
                 ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted between the Silo and Field'
         else:
             ret_string += f'\n\n🌱 No new Beans were minted.'
-        # if newSoil:
-        #     ret_string += f'\n\n{round_num(newSoil)} soil was added'
         if not short_str:
             ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
             ret_string += f'\n📥 {round_num(deposited_bean_lp)} Beans and {round_num(deposited_eth_lp)} ETH of LP deposited'
             ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
             ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
-            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
+            ret_string += f'\n\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
             ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
+            ret_string += f'\n{round_num(newSoil)} soil now available' if newSoil else f'\nNo new soil available'
             ret_string += '\n_ _'  # empty line that does not get stripped
         else:
             ret_string += f'\n\n📥 {round_num(float(last_season_stats["newDepositedBeans"]) + deposited_bean_lp * 2)} Beans worth of Deposits'
@@ -569,12 +569,15 @@ class CurvePoolMonitor(Monitor):
     """Monitor the BEAN:3CRV Curve pool for events."""
 
     def __init__(self, message_function, pool_type, prod=False, dry_run=False):
-        super().__init__('Curve Pool', message_function,
+        if pool_type is eth_chain.EventClientType.CURVE_3CRV_POOL:
+            name = '3CRV Curve Pool'
+        elif pool_type is eth_chain.EventClientType.CURVE_LUSD_POOL:
+            name = 'LUSD Curve Pool'
+        else:
+            raise ValueError('Curve pool must be set to a supported pool.')
+        super().__init__(name, message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = pool_type
-        if (self.pool_type not in [eth_chain.EventClientType.CURVE_3CRV_POOL, 
-                               eth_chain.EventClientType.CURVE_LUSD_POOL]):
-            raise ValueError('Curve pool must be set to a supported pool.')
         self._eth_event_client = eth_chain.EthEventsClient(
             self.pool_type)
         self.bean_client = eth_chain.BeanClient()
