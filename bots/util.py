@@ -359,6 +359,8 @@ class SunriseMonitor(Monitor):
             current_season_stats['newHarvestablePods'])
         newMintedBeans = new_farmable_beans + new_harvestable_pods
         pod_rate = float(current_season_stats['pods']) / float(current_season_stats['beans']) * 100
+        # NOTE(funderberker): Does this single dependency on chain access significantly increase
+        # odds of failing to get out a season message? Reliability is important here.
         # newSoil = float(current_season_stats['newSoil'])
         newSoil = float(self.beanstalk_client.get_season_start_soil())
         new_deposited_lp = float(last_season_stats["newDepositedLP"])
