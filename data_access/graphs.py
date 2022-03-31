@@ -14,9 +14,9 @@ requests_logger.setLevel(logging.WARNING)
 FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans', 'newHarvestablePods',
                          'newDepositedBeans', 'newWithdrawnBeans', 'newDepositedLP',
-                         'newWithdrawnLP', 'newPods', 'pooledBeans', 'pooledEth', 'lp'
-                         # , 'soil', 'newSoil'
-                         ]
+                         'newWithdrawnLP', 'newPods', 'pooledBeans', 'pooledEth', 'lp',
+                         'pods', 'beans'
+                        ]
 
 # Names of common graph fields.
 PRICE_FIELD = 'price'

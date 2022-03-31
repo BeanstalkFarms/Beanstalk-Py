@@ -358,6 +358,7 @@ class SunriseMonitor(Monitor):
         new_harvestable_pods = float(
             current_season_stats['newHarvestablePods'])
         newMintedBeans = new_farmable_beans + new_harvestable_pods
+        pod_rate = float(current_season_stats['pods']) / float(current_season_stats['beans']) * 100
         # newSoil = float(current_season_stats['newSoil'])
         newSoil = float(self.beanstalk_client.get_season_start_soil())
         new_deposited_lp = float(last_season_stats["newDepositedLP"])
@@ -398,7 +399,8 @@ class SunriseMonitor(Monitor):
             ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
             ret_string += f'\n\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
             ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
-            ret_string += f'\n🏞 {round_num(newSoil)} Soil now available' if newSoil else f'\nNo new soil available'
+            ret_string += f'\n🧮 {round_num(pod_rate)}% Pod Rate'
+            ret_string += f'\n🏞 {round_num(newSoil)} Soil in the Field' if newSoil else f'\nNo soil in the Field'
             ret_string += '\n_ _'  # empty line that does not get stripped
         else:
             ret_string += f'\n\n📥 {round_num(float(last_season_stats["newDepositedBeans"]) + deposited_bean_lp * 2)} Beans worth of Deposits'
