@@ -296,6 +296,7 @@ class SunriseMonitor(Monitor):
         self.channel_to_wallets = channel_to_wallets
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = eth_chain.BeanClient()
+        self.beanstalk_client = eth_chain.BeanstalkClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
