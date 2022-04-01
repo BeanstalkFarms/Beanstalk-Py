@@ -381,61 +381,9 @@ class SunriseMonitor(Monitor):
             current_season_stats['newHarvestablePods'])
         newMintedBeans = new_farmable_beans + new_harvestable_pods
         pod_rate = float(current_season_stats['pods']) / float(current_season_stats['beans']) * 100
-        # NOTE(funderberker): Does this single dependency on chain access significantly increase
-        # odds of failing to get out a season message? Reliability is important here.
-        # newSoil = float(current_season_stats['newSoil'])
+        twap = float(current_season_stats["price"])
         newSoil = float(self.beanstalk_client.get_season_start_soil())
 
-        twap = float(current_season_stats["price"])
-        pooled_eth = float(current_season_stats['pooledEth'])
-        pooled_beans = float(current_season_stats['pooledBeans'])
-        total_lp = float(current_season_stats['lp'])
-
-        # Bean totals.
-        deposited_beans_last = float(last_season_stats["depositedBeans"])
-        # withdrawn_beans_last = float(last_season_stats["withdrawnBeans"])
-        deposited_beans_current = float(current_season_stats["depositedBeans"])
-        # withdrawn_beans_current = float(current_season_stats["withdrawnBeans"])
-        delta_beans_deposits = deposited_beans_current - deposited_beans_last
-        delta_beans_deposits_value = delta_beans_deposits * twap
-        # delta_beans_withdrawn = withdrawn_beans_current - withdrawn_beans_last
-
-        # Uni V2 ETH:BEAN LP totals.
-        deposited_lp_last = float(last_season_stats["depositedLP"])
-        deposited_eth_lp_last, deposited_bean_lp_last = lp_eq_values(
-            deposited_lp_last, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
-        # withdrawn_lp_last = float(last_season_stats["withdrawnLP"])
-        # withdrawn_eth_lp_last, withdrawn_bean_lp_last = lp_eq_values(
-        #     withdrawn_lp_last, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
-        deposited_lp_current = float(current_season_stats["depositedLP"])
-        deposited_eth_lp_current, deposited_bean_lp_current = lp_eq_values(
-            deposited_lp_current, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
-        # withdrawn_lp_current = float(current_season_stats["withdrawnLP"])
-        # withdrawn_eth_lp_current, withdrawn_bean_lp_current = lp_eq_values(
-        #     withdrawn_lp_current, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
-        delta_lp_deposits = deposited_lp_current - deposited_lp_last
-        delta_eth_lp_deposits = deposited_eth_lp_current - deposited_eth_lp_last
-        delta_bean_lp_deposits = deposited_bean_lp_current - deposited_bean_lp_last
-        delta_lp_deposits_value = delta_bean_lp_deposits * 2 * twap
-
-        # LP totals.
-        # for pool_info in self.token_infos.values():
-        #     pool_info['deposited_delta'] = self.beanstalk_client.get_total_deposited(pool_info['pool'], pool_info['decimals']) - pool_info['deposited_amount_last']
-        #     pool_info['deposited_delta_value'] = pool_info['deposited_delta'] * self.bean_client.get_lp_token_value(pool_info['pool'], pool_info['decimals'])
-        #     logging.info(f"name: {pool_info['name']} - last deposits: {pool_info['deposited_amount_last']} - current_deposits: {self.beanstalk_client.get_total_deposited(pool_info['pool'], pool_info['decimals'])} - delta deposits: {pool_info['deposited_delta']}")
-        # deposited_bean_3crv_current = self.beanstalk_client.get_total_deposited(CURVE_BEAN_3CRV_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
-        # delta_bean_3crv_deposits = deposited_bean_3crv_current - self.deposited_bean_3crv_last
-        # delta_bean_3crv_deposits_value = delta_bean_3crv_deposits * self.bean_client.get_lp_token_value(CURVE_BEAN_3CRV_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
-        # deposited_bean_lusd_current = self.beanstalk_client.get_total_deposited(CURVE_BEAN_LUSD_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
-        # delta_bean_lusd_deposits = deposited_bean_lusd_current - self.deposited_bean_lusd_last
-        # delta_bean_lusd_deposits_value = delta_bean_lusd_deposits * self.bean_client.get_lp_token_value(CURVE_BEAN_LUSD_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
-
-        # bean_pool_ratio = pooled_beans / total_lp
-        # eth_pool_ratio = pooled_eth / total_lp
-        # deposited_bean_lp = round_num(new_deposited_lp * bean_pool_ratio)
-        # deposited_eth_lp = round_num(new_deposited_lp * eth_pool_ratio)
-        # withdrawn_bean_lp = round_num(new_withdrawn_lp * bean_pool_ratio)
-        # withdrawn_eth_lp = round_num(new_withdrawn_lp * eth_pool_ratio)
         last_weather = float(last_season_stats['weather'])
         newPods = float(last_season_stats['newPods'])
 
