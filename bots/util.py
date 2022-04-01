@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import asyncio.exceptions
+from collections import OrderedDict
 from enum import Enum, IntEnum
 import logging
 import sys
@@ -300,23 +301,44 @@ class SunriseMonitor(Monitor):
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
+        # Init LP values that are not supported by the subgraph.
+        # Dict of LP tokens and relevant info.
+        self.token_infos = OrderedDict(self.bean_client.get_price_info()['pool_infos'])
+        self.token_infos[BEAN_ADDR] = {'pool':BEAN_ADDR}
+        self.token_infos = OrderedDict(reversed(list(self.token_infos.items())))
+        for pool_info in self.token_infos.values():
+            name, symbol, decimals = eth_chain.get_erc20_info(pool_info['pool'])
+            # Use human-defined clean name if set, otherwise fallback to contract defined name.
+            pool_info['name'] = eth_chain.HARDCODE_ADDRESS_TO_NAME.get(pool_info['pool'], name)
+            pool_info['symbol'] = symbol
+            pool_info['decimals'] = decimals
+        self.set_silo_deltas()
+
     def _monitor_method(self):
         while self._thread_active:
             # Wait until the eligible for a sunrise.
             self._wait_until_expected_sunrise()
             # Once the sunrise is complete, get the season stats.
             current_season_stats, last_season_stats = self._block_and_get_seasons_stats()
-            # Report season summary to users.
+            # A new season has begun.
             if current_season_stats:
+                # Update silo totals once at the beginning of a new season.
+                self.set_silo_deltas()
+                # Report season summary to users.
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats, short_str=self.short_msgs))
+                # Update LP values that are not supported by the subgraph.
+                for pool_info in self.token_infos:
+                    pool_info['deposited_amount_last'] = self.beanstalk_client.get_total_deposited(pool_info['pool'])
+
             if self.channel_to_wallets:
                 self.update_all_wallet_watchers()
 
             # # For testing.
+            # # Note that this will not handle deltas correctly.
             # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # self.message_function(self.season_summary_string(last_season_stats, current_season_stats, short_str=self.short_msgs))
-            # time.sleep(5)
+            # time.sleep(10)
 
     def _wait_until_expected_sunrise(self):
         """Wait until beanstalk is eligible for a sunrise call.
@@ -363,28 +385,65 @@ class SunriseMonitor(Monitor):
         # odds of failing to get out a season message? Reliability is important here.
         # newSoil = float(current_season_stats['newSoil'])
         newSoil = float(self.beanstalk_client.get_season_start_soil())
-        new_deposited_lp = float(last_season_stats["newDepositedLP"])
-        new_withdrawn_lp = float(last_season_stats["newWithdrawnLP"])
+
+        twap = float(current_season_stats["price"])
         pooled_eth = float(current_season_stats['pooledEth'])
         pooled_beans = float(current_season_stats['pooledBeans'])
         total_lp = float(current_season_stats['lp'])
+
+        # Bean totals.
+        deposited_beans_last = float(last_season_stats["depositedBeans"])
+        # withdrawn_beans_last = float(last_season_stats["withdrawnBeans"])
+        deposited_beans_current = float(current_season_stats["depositedBeans"])
+        # withdrawn_beans_current = float(current_season_stats["withdrawnBeans"])
+        delta_beans_deposits = deposited_beans_current - deposited_beans_last
+        delta_beans_deposits_value = delta_beans_deposits * twap
+        # delta_beans_withdrawn = withdrawn_beans_current - withdrawn_beans_last
+
+        # Uni V2 ETH:BEAN LP totals.
+        deposited_lp_last = float(last_season_stats["depositedLP"])
+        deposited_eth_lp_last, deposited_bean_lp_last = lp_eq_values(
+            deposited_lp_last, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
+        # withdrawn_lp_last = float(last_season_stats["withdrawnLP"])
+        # withdrawn_eth_lp_last, withdrawn_bean_lp_last = lp_eq_values(
+        #     withdrawn_lp_last, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
+        deposited_lp_current = float(current_season_stats["depositedLP"])
+        deposited_eth_lp_current, deposited_bean_lp_current = lp_eq_values(
+            deposited_lp_current, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
+        # withdrawn_lp_current = float(current_season_stats["withdrawnLP"])
+        # withdrawn_eth_lp_current, withdrawn_bean_lp_current = lp_eq_values(
+        #     withdrawn_lp_current, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
+        delta_lp_deposits = deposited_lp_current - deposited_lp_last
+        delta_eth_lp_deposits = deposited_eth_lp_current - deposited_eth_lp_last
+        delta_bean_lp_deposits = deposited_bean_lp_current - deposited_bean_lp_last
+        delta_lp_deposits_value = delta_bean_lp_deposits * 2 * twap
+
+        # LP totals.
+        # for pool_info in self.token_infos.values():
+        #     pool_info['deposited_delta'] = self.beanstalk_client.get_total_deposited(pool_info['pool'], pool_info['decimals']) - pool_info['deposited_amount_last']
+        #     pool_info['deposited_delta_value'] = pool_info['deposited_delta'] * self.bean_client.get_lp_token_value(pool_info['pool'], pool_info['decimals'])
+        #     logging.info(f"name: {pool_info['name']} - last deposits: {pool_info['deposited_amount_last']} - current_deposits: {self.beanstalk_client.get_total_deposited(pool_info['pool'], pool_info['decimals'])} - delta deposits: {pool_info['deposited_delta']}")
+        # deposited_bean_3crv_current = self.beanstalk_client.get_total_deposited(CURVE_BEAN_3CRV_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
+        # delta_bean_3crv_deposits = deposited_bean_3crv_current - self.deposited_bean_3crv_last
+        # delta_bean_3crv_deposits_value = delta_bean_3crv_deposits * self.bean_client.get_lp_token_value(CURVE_BEAN_3CRV_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
+        # deposited_bean_lusd_current = self.beanstalk_client.get_total_deposited(CURVE_BEAN_LUSD_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
+        # delta_bean_lusd_deposits = deposited_bean_lusd_current - self.deposited_bean_lusd_last
+        # delta_bean_lusd_deposits_value = delta_bean_lusd_deposits * self.bean_client.get_lp_token_value(CURVE_BEAN_LUSD_ADDR, eth_chain.CURVE_POOL_TOKENS_DECIMALS)
+
         # bean_pool_ratio = pooled_beans / total_lp
         # eth_pool_ratio = pooled_eth / total_lp
         # deposited_bean_lp = round_num(new_deposited_lp * bean_pool_ratio)
         # deposited_eth_lp = round_num(new_deposited_lp * eth_pool_ratio)
-        deposited_eth_lp, deposited_bean_lp = lp_eq_values(
-            new_deposited_lp, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
         # withdrawn_bean_lp = round_num(new_withdrawn_lp * bean_pool_ratio)
         # withdrawn_eth_lp = round_num(new_withdrawn_lp * eth_pool_ratio)
-        withdrawn_eth_lp, withdrawn_bean_lp = lp_eq_values(
-            new_withdrawn_lp, total_lp=total_lp, pooled_eth=pooled_eth, pooled_beans=pooled_beans)
         last_weather = float(last_season_stats['weather'])
         newPods = float(last_season_stats['newPods'])
 
+        # Current state.
         ret_string = f'⏱ Season {last_season_stats["id"]} is complete!'
-        ret_string += f'\n💵 The TWAP last season was ${round_num(current_season_stats["price"], 3)}'
+        ret_string += f'\n💵 The TWAP last season was ${round_num(twap, 3)}'
         ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
-        # ret_string += f'\nThere is {current_season_stats["soil"]} soil available' # Coming in graph version 1.1.10
+        # Mints.
         if newMintedBeans:
             if not short_str:
                 ret_string += f'\n\n🌱 {round_num(newMintedBeans)} Beans were minted'
@@ -395,21 +454,85 @@ class SunriseMonitor(Monitor):
         else:
             ret_string += f'\n\n🌱 No new Beans were minted.'
         if not short_str:
-            ret_string += f'\n\n📥 {round_num(last_season_stats["newDepositedBeans"])} Beans deposited'
-            ret_string += f'\n📥 {round_num(deposited_bean_lp)} Beans and {round_num(deposited_eth_lp)} ETH of LP deposited'
-            ret_string += f'\n📤 {round_num(last_season_stats["newWithdrawnBeans"])} Beans withdrawn'
-            ret_string += f'\n📤 {round_num(withdrawn_bean_lp)} Beans and {round_num(withdrawn_eth_lp)} ETH of LP withdrawn'
+            ret_string += f'\n'
+            # Silo balance changes. Create string for all silo assets.
+            for pool_info in self.token_infos.values():
+                # Different wording for Beans.
+                if pool_info['pool'] == BEAN_ADDR:
+                    ret_string += SunriseMonitor.silo_balance_change_str(pool_info['name'], delta_deposits=pool_info['deposited_delta_value'])
+                else:
+                    ret_string += SunriseMonitor.silo_balance_change_str(pool_info['name'], delta_value=pool_info['deposited_delta_value'])
+            # Field.
             ret_string += f'\n\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
             ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
             ret_string += f'\n🧮 {round_num(pod_rate)}% Pod Rate'
             ret_string += f'\n🏞 {round_num(newSoil)} Soil in the Field' if newSoil else f'\nNo soil in the Field'
             ret_string += '\n_ _'  # empty line that does not get stripped
         else:
-            ret_string += f'\n\n📥 {round_num(float(last_season_stats["newDepositedBeans"]) + deposited_bean_lp * 2)} Beans worth of Deposits'
-            ret_string += f'\n📤 {round_num(float(last_season_stats["newWithdrawnBeans"]) + withdrawn_bean_lp * 2)} Beans worth of Withdraws'
+            ret_string += f'\n'
+            # delta_silo_value = delta_beans_deposits_value + delta_lp_deposits_value + delta_bean_3crv_deposits_value # + delta_bean_lusd_deposits_value
+            delta_silo_value = sum([pool_info['deposited_delta_value'] for pool_info in self.token_infos.values()])
+            if delta_silo_value == 0:
+                ret_string += f'🗃 No change in Silo asset balances'
+            else:
+                ret_string += f'📤' if delta_silo_value < 0 else f'📥'
+                ret_string += f' ${round_num(delta_silo_value)}'
+                ret_string += f' decrease' if delta_silo_value < 0 else f' increase'
+                ret_string += f' in Silo balance from supported tokens'
             ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} Pods'
 
         return ret_string
+
+    @abstractmethod
+    def silo_balance_change_str(name, delta_deposits=None, delta_value=None):
+        """Return string representing the change in total deposited amount of a token."""
+        if delta_deposits is not None:
+            delta = delta_deposits
+        elif delta_value is not None:
+            delta = delta_value
+        else:
+            raise ValueError('Must specify either delta_deposits or delta_value')
+        ret_string = f'\n'
+        if delta == 0:
+            ret_string += f'🗃 No change in Silo balance of {name}'
+        else:
+            ret_string += f'📤' if delta < 0 else f'📥'
+            # Use with the token directly or its USD value equivalent.
+            if delta_deposits:
+                ret_string += f' {round_num(abs(delta))} {name}'
+                ret_string += f' decrease' if delta < 0 else f' increase'
+                ret_string += f' in Silo balance'
+                # ex: 200 Bean increase in Silo balance
+            else:
+                ret_string += f' ${round_num(abs(delta))}'
+                ret_string += f' decrease' if delta < 0 else f' increase'
+                ret_string += f' in Silo balance value from {name}'
+                # ex: $5000 increase in Silo balance value from UNI-V2
+        return ret_string
+
+    def set_silo_deltas(self):
+        """Set the silo asset deposit amount changes, relative to previous call of this method."""
+        # Generalized pools.
+        for pool_info in self.token_infos.values():
+            # Bean.
+            if pool_info['pool'] == BEAN_ADDR:
+                current_deposit_amount = self.beanstalk_client.get_total_deposited_beans()
+                token_value = self.bean_client.avg_bean_price()
+            # Uni V2 BEAN:ETH.
+            elif pool_info['pool'] == UNI_V2_BEAN_ETH_ADDR:
+                current_deposit_amount = self.beanstalk_client.get_total_deposited_uni_v2_bean_eth_lp()
+                token_value = self.bean_client.get_lp_token_value(pool_info['pool'], pool_info['decimals'])
+            # Generalized assets.
+            else:
+                current_deposit_amount = self.beanstalk_client.get_total_deposited(pool_info['pool'], pool_info['decimals'])
+                token_value = self.bean_client.get_lp_token_value(pool_info['pool'], pool_info['decimals'])
+            # If this is the first, init last deposit amount == current deposit amount.
+            pool_info['deposited_amount_last'] = pool_info.get('deposited_amount_last', current_deposit_amount)
+            # Calculate and set deltas.
+            pool_info['deposited_delta'] = current_deposit_amount - pool_info['deposited_amount_last']
+            pool_info['deposited_delta_value'] = pool_info['deposited_delta'] * token_value
+            logging.info(f"name: {pool_info['name']} - last deposits: {pool_info['deposited_amount_last']} - current_deposits: {current_deposit_amount} - delta deposits: {pool_info['deposited_delta']}")
+            pool_info['deposited_amount_last'] = current_deposit_amount
 
     def update_all_wallet_watchers(self):
         current_season_stats = self.beanstalk_graph_client.current_season_stats()
@@ -874,7 +997,7 @@ class BeanstalkMonitor(Monitor):
                     value = bdv_value
                 # Value is not known for generalized withdrawals, so it must be calculated here.
                 else:
-                    value = amount * self.bean_client.get_lp_token_value(token_address)
+                    value = amount * self.bean_client.get_lp_token_value(token_address, decimals)
             
             if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
                 event_str += f'📥 Silo Deposit'
