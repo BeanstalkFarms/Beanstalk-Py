@@ -327,9 +327,6 @@ class SunriseMonitor(Monitor):
                 # Report season summary to users.
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats, short_str=self.short_msgs))
-                # Update LP values that are not supported by the subgraph.
-                for pool_info in self.token_infos.values():
-                    pool_info['deposited_amount_last'] = self.beanstalk_client.get_total_deposited(pool_info['pool'])
 
             if self.channel_to_wallets:
                 self.update_all_wallet_watchers()
