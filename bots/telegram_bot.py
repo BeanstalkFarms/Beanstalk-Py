@@ -39,7 +39,7 @@ class TelegramBot(object):
         self.curve_3crv_pool_monitor.start()
 
         self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
+            self.send_msg, EventClientType.CURVE_LUSD_POOL, prod=prod)
         self.curve_lusd_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
