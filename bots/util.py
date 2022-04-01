@@ -418,9 +418,9 @@ class SunriseMonitor(Monitor):
             # delta_silo_value = delta_beans_deposits_value + delta_lp_deposits_value + delta_bean_3crv_deposits_value # + delta_bean_lusd_deposits_value
             delta_silo_value = sum([pool_info['deposited_delta_value'] for pool_info in self.token_infos.values()])
             if delta_silo_value == 0:
-                ret_string += f'🗃 No change in Silo asset balances'
+                ret_string += f'🗒 No change in Silo asset balances'
             else:
-                ret_string += f'📤' if delta_silo_value < 0 else f'📥'
+                ret_string += f'📉' if delta_silo_value < 0 else f'📈'
                 ret_string += f' ${round_num(delta_silo_value)}'
                 ret_string += f' decrease' if delta_silo_value < 0 else f' increase'
                 ret_string += f' in Silo balance from supported tokens'
@@ -439,9 +439,9 @@ class SunriseMonitor(Monitor):
             raise ValueError('Must specify either delta_deposits or delta_value')
         ret_string = f'\n'
         if delta == 0:
-            ret_string += f'🗃 No change in Silo balance of {name}'
+            ret_string += f'🗒 No change in Silo balance of {name}'
         else:
-            ret_string += f'📤' if delta < 0 else f'📥'
+            ret_string += f'📉' if delta < 0 else f'📈'
             # Use with the token directly or its USD value equivalent.
             if delta_deposits:
                 ret_string += f' {round_num(abs(delta))} {name}'
