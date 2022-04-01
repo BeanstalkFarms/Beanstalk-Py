@@ -409,7 +409,7 @@ class SunriseMonitor(Monitor):
                     ret_string += SunriseMonitor.silo_balance_change_str(pool_info['name'], delta_value=pool_info['deposited_delta_value'])
                 # There is not a guarantee that is has been a full season since last. If
                 # significantly less than a season indicate so.
-                seconds_since_last = time.now() - pool_info['last_timestamp']
+                seconds_since_last = time.time() - pool_info['last_timestamp']
                 if seconds_since_last < 0.95 * SEASON_DURATION:
                     ret_string += f' (incomplete season data: previous {int(seconds_since_last/60)} minutes only)'
             
@@ -465,7 +465,7 @@ class SunriseMonitor(Monitor):
         """Set the silo asset deposit amount changes, relative to previous call of this method."""
         # Generalized pools.
         for pool_info in self.token_infos.values():
-            pool_info['last_timestamp'] = time.now()
+            pool_info['last_timestamp'] = time.time()
             # Bean.
             if pool_info['pool'] == BEAN_ADDR:
                 current_deposit_amount = self.beanstalk_client.get_total_deposited_beans()
