@@ -547,8 +547,6 @@ class EthEventsClient():
                 # entries that are not actually new. May be a bug with web3 or may just be a relic
                 # of the way block confirmations work.
                 new_entries = filter.get_new_entries()
-                # Entries are returned newest->oldest, but we want oldest->newest.
-                new_entries.reverse()
                 new_unique_entries = []
                 # Remove entries w txn hashes that already processed on past get_new_entries calls.
                 for i in range(len(new_entries)):
