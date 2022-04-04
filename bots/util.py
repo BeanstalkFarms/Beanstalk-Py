@@ -681,7 +681,9 @@ class CurvePoolMonitor(Monitor):
         if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
             bean_price = self.bean_client.curve_3crv_bean_price()
         elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
-            bean_price = self.bean_client.curve_lusd_bean_price()
+            # TODO(funderberker): Use price oracle once this is implemented on chain.
+            # bean_price = self.bean_client.curve_lusd_bean_price()
+            bean_price = self.bean_client.avg_bean_price()
         for event_log in event_logs:
             event_str = self.any_event_str(
                 event_log, bean_price)
