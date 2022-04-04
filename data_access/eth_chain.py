@@ -331,11 +331,12 @@ class BeanClient(ChainClient):
             price_dict['pool_infos'][pool_dict['pool']] = pool_dict
         return price_dict
 
-    def get_lp_token_value(self, token_address, decimals):
+    def get_lp_token_value(self, token_address, decimals, liquidity_long=None):
         """Return the $/LP token value of an LP token at address."""
-        liquidity_usd = token_to_float(self.get_price_info()['pool_infos'][token_address]['liquidity'], 6)
+        if liquidity_long is None:
+            liquidity_long = self.get_price_info()['pool_infos'][token_address]['liquidity']
+        liquidity_usd = token_to_float(liquidity_long, 6)
         token_supply = get_erc20_total_supply(token_address, decimals)
-        logging.info(f'liquidity: {liquidity_usd},  supply: {token_supply}, price: {liquidity_usd / token_supply}')
         return liquidity_usd / token_supply
 
     def avg_bean_price(self):
