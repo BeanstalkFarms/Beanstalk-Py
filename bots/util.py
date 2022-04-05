@@ -473,7 +473,7 @@ class SunriseMonitor(Monitor):
         else:
             raise ValueError('Must specify either delta_deposits or bdv (Bean denominated value)')
         ret_string = f'\n'
-        if delta == 0:
+        if abs(delta) < 1.0:
             ret_string += f'🗒 No change in {name}'
         else:
             ret_string += f'📉' if delta < 0 else f'📈'
@@ -506,7 +506,7 @@ class SunriseMonitor(Monitor):
             else:
                 current_token_info = price_info['pool_infos'][address]
                 token_value = self.bean_client.get_lp_token_value(address, pool_info['decimals'], liquidity_long=current_token_info['liquidity'])
-                token_bdv = token_value / current_token_info['price'] # Bean / LP
+                token_bdv = token_value / eth_chain.token_to_float(current_token_info['price'], 6) # Bean / LP
                 # Uni V2 BEAN:ETH.
                 if address == UNI_V2_BEAN_ETH_ADDR:
                     current_deposit_amount = self.beanstalk_client.get_total_deposited_uni_v2_bean_eth_lp()

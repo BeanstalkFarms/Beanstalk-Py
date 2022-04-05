@@ -332,7 +332,7 @@ class BeanClient(ChainClient):
         return price_dict
 
     def get_lp_token_value(self, token_address, decimals, liquidity_long=None):
-        """Return the $/LP token value of an LP token at address."""
+        """Return the $/LP token value of an LP token at address as a float."""
         if liquidity_long is None:
             liquidity_long = self.get_price_info()['pool_infos'][token_address]['liquidity']
         liquidity_usd = token_to_float(liquidity_long, 6)
