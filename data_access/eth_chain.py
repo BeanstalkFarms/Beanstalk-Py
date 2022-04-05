@@ -12,7 +12,7 @@ from discord.ext.commands.errors import ArgumentParsingError
 from web3 import Web3, WebsocketProvider
 from web3.logs import DISCARD
 
-import constants.addresses as addresses
+from constants.addresses import *
 
 # Alchemy node key.
 try:
@@ -32,6 +32,17 @@ USDC_DECIMALS = 6
 USDT_DECIMALS = 6
 CRV_DECIMALS = 18
 LUSD_DECIMALS = 18
+CURVE_POOL_TOKENS_DECIMALS = 18
+
+# Hardcoded human-readable names for tokens.
+HARDCODE_ADDRESS_TO_NAME = {
+    BEAN_ADDR:'Bean',
+    UNI_V2_BEAN_ETH_ADDR:'Uniswap V2 BEAN:ETH LP',
+    UNI_V2_ETH_USDC_ADDR:'Uniswap V2 ETH:USDC LP',
+    CURVE_BEAN_3CRV_ADDR:'Curve BEAN:3CRV LP',
+    CURVE_BEAN_LUSD_ADDR:'Curve BEAN:LUSD LP',
+}
+
 
 UNI_V2_POOL_FEE = 0.003  # %
 
@@ -214,41 +225,41 @@ def get_web3_instance():
 def get_eth_bean_pool_contract(web3):
     """Get a web.eth.contract object for the ETH:BEAN pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.UNI_V2_BEAN_ETH_ADDR, abi=uniswap_pool_abi)
+        address=UNI_V2_BEAN_ETH_ADDR, abi=uniswap_pool_abi)
 
 
 def get_eth_usdc_pool_contract(web3):
     """Get a web.eth.contract object for the ETH:USDC pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.UNI_V2_ETH_USDC_ADDR, abi=uniswap_pool_abi)
+        address=UNI_V2_ETH_USDC_ADDR, abi=uniswap_pool_abi)
 
 
 def get_bean_3crv_pool_contract(web3):
     """Get a web.eth.contract object for the curve BEAN:3CRV pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
+        address=CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
 
 def get_bean_lusd_pool_contract(web3):
     """Get a web.eth.contract object for the curve BEAN:LUSD pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.CURVE_BEAN_LUSD_ADDR, abi=curve_pool_abi)
+        address=CURVE_BEAN_LUSD_ADDR, abi=curve_pool_abi)
 
 def get_bean_contract(web3):
     """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.BEAN_ADDR, abi=bean_abi)
+        address=BEAN_ADDR, abi=bean_abi)
 
 
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.BEANSTALK_ADDR, abi=beanstalk_abi)
+        address=BEANSTALK_ADDR, abi=beanstalk_abi)
 
 
 def get_bean_price_contract(web3):
     """Get a web.eth.contract object for the Bean price oracle contract. Contract is not thread safe."""
     return web3.eth.contract(
-        address=addresses.BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
+        address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
 
 
 class ChainClient():
@@ -272,6 +283,18 @@ class BeanstalkClient(ChainClient):
     def get_season_start_soil(self):
         """Amount of soil added/removed this season."""
         return soil_to_float(self.get_weather()[STARTSOIL_INDEX])
+    
+    def get_total_deposited_beans(self):
+        """Get current total deposited Beans in the Silo."""
+        return bean_to_float(call_contract_function_with_retry(self.contract.functions.totalDepositedBeans()))
+
+    def get_total_deposited_uni_v2_bean_eth_lp(self):
+        """Get current total deposited Uniswap V2 BEAN:ETH LP in the Silo."""
+        return lp_to_float(call_contract_function_with_retry(self.contract.functions.totalDepositedLP()))
+
+    def get_total_deposited(self, address, decimals):
+        """Return the total deposited of the token at address as a float."""
+        return token_to_float(call_contract_function_with_retry(self.contract.functions.getTotalDeposited(address)), decimals)
 
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""
@@ -308,11 +331,12 @@ class BeanClient(ChainClient):
             price_dict['pool_infos'][pool_dict['pool']] = pool_dict
         return price_dict
 
-    def get_lp_token_value(self, token_address):
-        """Return the $/LP token value of an LP token at address."""
-        liquidity_usd = token_to_float(self.get_price_info()['pool_infos'][token_address]['liquidity'], 6)
-        token_supply = get_erc20_total_supply(token_address)
-        logging.info(f'liquidity: {liquidity_usd},  supply: {token_supply}, price: {liquidity_usd / token_supply}')
+    def get_lp_token_value(self, token_address, decimals, liquidity_long=None):
+        """Return the $/LP token value of an LP token at address as a float."""
+        if liquidity_long is None:
+            liquidity_long = self.get_price_info()['pool_infos'][token_address]['liquidity']
+        liquidity_usd = token_to_float(liquidity_long, 6)
+        token_supply = get_erc20_total_supply(token_address, decimals)
         return liquidity_usd / token_supply
 
     def avg_bean_price(self):
@@ -320,13 +344,13 @@ class BeanClient(ChainClient):
         return bean_to_float(self.get_price_info()['price'])
 
     def uniswap_v2_pool_info(self):
-        return self.get_price_info()['pool_infos'][addresses.UNI_V2_BEAN_ETH_ADDR]
+        return self.get_price_info()['pool_infos'][UNI_V2_BEAN_ETH_ADDR]
 
     def curve_3crv_pool_info(self):
-        return self.get_price_info()['pool_infos'][addresses.CURVE_BEAN_3CRV_ADDR]
+        return self.get_price_info()['pool_infos'][CURVE_BEAN_3CRV_ADDR]
 
     def curve_lusd_pool_info(self):
-        return self.get_price_info()['pool_infos'][addresses.CURVE_BEAN_LUSD_ADDR]
+        return self.get_price_info()['pool_infos'][CURVE_BEAN_LUSD_ADDR]
 
     def uniswap_v2_bean_price(self):
         """Current float Bean price in the Uniswap V2 Bean:ETH pool."""
@@ -406,31 +430,31 @@ class EthEventsClient():
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.UNISWAP_POOL:
             self._contract = get_eth_bean_pool_contract(self._web3)
-            self._contract_address = addresses.UNI_V2_BEAN_ETH_ADDR
+            self._contract_address = UNI_V2_BEAN_ETH_ADDR
             self._events_dict = UNISWAP_POOL_EVENT_MAP
             self._signature_list = UNISWAP_POOL_SIGNATURES_LIST
             self._set_filter()
         elif self._event_client_type == EventClientType.CURVE_3CRV_POOL:
             self._contract = get_bean_3crv_pool_contract(self._web3)
-            self._contract_address = addresses.CURVE_BEAN_3CRV_ADDR
+            self._contract_address = CURVE_BEAN_3CRV_ADDR
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
             self._set_filter()
         elif self._event_client_type == EventClientType.CURVE_LUSD_POOL:
             self._contract = get_bean_lusd_pool_contract(self._web3)
-            self._contract_address = addresses.CURVE_BEAN_LUSD_ADDR
+            self._contract_address = CURVE_BEAN_LUSD_ADDR
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
             self._set_filter()
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contract = get_beanstalk_contract(self._web3)
-            self._contract_address = addresses.BEANSTALK_ADDR
+            self._contract_address = BEANSTALK_ADDR
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
             self._set_filter()
         elif self._event_client_type == EventClientType.MARKET:
             self._contract = get_beanstalk_contract(self._web3)
-            self._contract_address = addresses.BEANSTALK_ADDR
+            self._contract_address = BEANSTALK_ADDR
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
             self._set_filter()
@@ -513,11 +537,11 @@ class EthEventsClient():
             for log in decoded_logs_copy:
                 if log.event == 'Swap':
                     # Only process uniswap swaps with the ETH:BEAN pool.
-                    if log.address != addresses.UNI_V2_BEAN_ETH_ADDR:
+                    if log.address != UNI_V2_BEAN_ETH_ADDR:
                         continue
                 elif log.event == 'TokenExchangeUnderlying' or log.event == 'TokenExchange':
                     # Only process curve exchanges in the BEAN pools.
-                    if log.address not in [addresses.CURVE_BEAN_3CRV_ADDR, addresses.CURVE_BEAN_LUSD_ADDR]:
+                    if log.address not in [CURVE_BEAN_3CRV_ADDR, CURVE_BEAN_LUSD_ADDR]:
                         continue
                 decoded_logs.append(log)
 
@@ -592,22 +616,21 @@ def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
             logging.error(f'Failed to get txn after {try_count} retries. Was the block orphaned?')
             raise(e)
 
-def get_erc20_total_supply(addr, web3=None):
+def get_erc20_total_supply(addr, decimals, web3=None):
     """Get the total supply of ERC-20 token in circulation as float."""
     if not web3:
         web3 = get_web3_instance()
     partial_contract = web3.eth.contract(address=addr, abi=erc20_abi)
-    decimals = partial_contract.functions.decimals().call()
     return token_to_float(partial_contract.functions.totalSupply().call(), decimals)
 
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""
     if not web3:
         web3 = get_web3_instance()
-    partial_contract = web3.eth.contract(address=addr, abi=erc20_abi)
-    name = partial_contract.functions.name().call()
-    symbol = partial_contract.functions.symbol().call()
-    decimals = partial_contract.functions.decimals().call()
+    contract = web3.eth.contract(address=addr, abi=erc20_abi)
+    name = contract.functions.name().call()
+    symbol = contract.functions.symbol().call()
+    decimals = contract.functions.decimals().call()
     return name, symbol, decimals
 
 
