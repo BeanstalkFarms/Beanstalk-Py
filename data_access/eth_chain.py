@@ -576,12 +576,14 @@ class EthEventsClient():
                 for i in range(len(new_entries)):
                     entry = new_entries[i]
                     # If we have not already processed this txn hash.
-                    if entry.address not in self._recent_processed_txns:
+                    if entry.transactionHash not in self._recent_processed_txns:
                         new_unique_entries.append(entry)
-                # Add all txn hashes to recent processed set/dict.
+                    else:
+                        logging.warning(f'Ignoring txn that has already been processed ({entry.transactionHash})')
+                # Add all new txn hashes to recent processed set/dict.
                 for entry in new_unique_entries:
                     # Arbitrary value. Using this as a set.
-                    self._recent_processed_txns[entry.address] = True
+                    self._recent_processed_txns[entry.transactionHash] = True
                 # Keep the recent txn queue size within limit.
                 for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
                     self._recent_processed_txns.popitem(last=False)
