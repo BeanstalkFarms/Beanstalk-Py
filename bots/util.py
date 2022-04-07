@@ -427,7 +427,6 @@ class SunriseMonitor(Monitor):
                 if delta_silo_bdv == 0:
                     ret_string += f'🗒 No change in Silo BDV'
                 else:
-                    ret_string += f'📉' if delta_silo_bdv < 0 else f'📈'
                     ret_string += f'\n{SunriseMonitor.silo_balance_change_str("Silo assets", delta_bdv=delta_silo_bdv)}'
             ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} Pods'
         return ret_string
