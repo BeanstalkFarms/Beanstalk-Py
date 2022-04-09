@@ -401,7 +401,7 @@ class SunriseMonitor(Monitor):
             ret_string += f'\n\n**Silo**'
             for pool_info in self.token_infos.values():
                 # Different wording for Beans.
-                if pool_info['pool'] == BEAN_ADDR:
+                if pool_info['pool'] == BEAN_ADDR or pool_info['deposited_delta_bdv'] == 0:
                     ret_string += SunriseMonitor.silo_balance_change_str(pool_info['name'], delta_deposits=pool_info['deposited_delta'])
                 else:
                     ret_string += SunriseMonitor.silo_balance_change_str(pool_info['name'], delta_bdv=pool_info['deposited_delta_bdv'])
@@ -497,10 +497,14 @@ class SunriseMonitor(Monitor):
             now = time.time()
             pool_info['delta_seconds'] = now - pool_info.get('last_timestamp', now)
             pool_info['last_timestamp'] = now
-            # Bean.
-            if address == BEAN_ADDR:
-                current_deposit_amount = self.beanstalk_client.get_total_deposited_beans()
-                token_bdv = 1.0 # 1 Bean == 1 Bean
+            # Bean and LP not in the price oracle.
+            if address not in price_info['pool_infos']:
+                if address == BEAN_ADDR:
+                    current_deposit_amount = self.beanstalk_client.get_total_deposited_beans()
+                    token_bdv = 1.0 # 1 Bean == 1 Bean
+                else:
+                    current_deposit_amount = self.beanstalk_client.get_total_deposited(address, pool_info['decimals'])
+                    token_bdv = 0.0 # Unknown value
             # LP.
             else:
                 current_token_info = price_info['pool_infos'][address]
