@@ -305,6 +305,10 @@ class SunriseMonitor(Monitor):
         # Init LP values that are not supported by the subgraph.
         # NOTE(funderberker): Will need to reboot bot on new generalized token to get it to appear.
         self.token_infos = OrderedDict(self.bean_client.get_price_info()['pool_infos'])
+        # NOTE(funderberker): Manual injection of LUSD pool can be removed when it is added 
+        # to price bot.
+        self.token_infos[CURVE_BEAN_LUSD_ADDR] = {'pool':CURVE_BEAN_LUSD_ADDR}
+        self.token_infos.move_to_end(CURVE_BEAN_LUSD_ADDR, last=False)
         self.token_infos[BEAN_ADDR] = {'pool':BEAN_ADDR}
         self.token_infos = OrderedDict(reversed(list(self.token_infos.items())))
         for pool_info in self.token_infos.values():
