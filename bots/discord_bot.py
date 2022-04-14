@@ -8,6 +8,7 @@ import logging.handlers
 import os
 import signal
 import subprocess
+import time
 
 import discord
 from discord.ext import tasks, commands
@@ -24,8 +25,8 @@ DISCORD_CHANNEL_ID_MARKET = 940729085095723069
 DISCORD_CHANNEL_ID_REPORT = 943711736391933972
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 BUCKET_NAME = 'bots_data_8723748'
-PROD_BLOB_NAME = 'prod_channel_to_wallets'
-STAGE_BLOB_NAME = 'stage_channel_to_wallets'
+PROD_BLOB_NAME = 'prod_wallet_watch_dict'
+STAGE_BLOB_NAME = 'stage_wallet_watch_dict'
 WALLET_WATCH_LIMIT = 10
 
 class Channel(Enum):
@@ -66,10 +67,11 @@ class DiscordClient(discord.ext.commands.Bot):
             logging.info('Configured as a staging instance.')
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
-        # Sets self.channel_to_wallets.
-        if not self.download_channel_to_wallets():
+        # Sets self.wallet_watch_dict.
+        if not self.download_wallet_watch_dict():
             logging.critical('Failed to download wallet data. Exiting...')
             exit(1)
+        # Dict of channel id string to Discord channel object.
         self.channel_id_to_channel = {}
 
         self.msg_queue = []
@@ -180,7 +182,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self._channel_market = self.get_channel(self._chat_id_market)
 
         # Init DM channels.
-        for channel_id in self.channel_to_wallets.keys():
+        for channel_id in self.wallet_watch_dict.keys():
             self.channel_id_to_channel[channel_id] = await self.fetch_channel(channel_id)
         
         logging.info(
@@ -199,6 +201,8 @@ class DiscordClient(discord.ext.commands.Bot):
             # channel = self.get_channel(int(channel_id))
             channel = self.channel_id_to_channel[channel_id]
             await channel.send(text)
+            # Do not upset Discord with too many msgs/sec.
+            time.sleep(0.01)
         except AttributeError as e:
             logging.error('Failed to send DM')
             logging.exception(e)
@@ -292,54 +296,54 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def add_to_watched_addresses(self, address, channel_id):
         try:
-            wallets = self.channel_to_wallets[channel_id]
+            wallet_watch = self.wallet_watch_dict[channel_id]
         except KeyError:
             # If nothing is being watched for this channel_id, initialize list.
-            wallets = []
-            self.channel_to_wallets[channel_id] = wallets
+            wallet_watch = util.CreateWalletWatch()
+            self.wallet_watch_dict[channel_id] = wallet_watch
         
         # If this address is already being watched in this channel, do nothing.
-        if address in wallets:
+        if address in wallet_watch['addresses']:
             return
         
         # Append the address to the existing watch list.
-        wallets.append(address)
+        wallet_watch['addresses'].append(address)
         logging.info(f'Discord channel {channel_id} is now watching {address}')
 
         # Update cloud source of truth with new data.
-        self.upload_channel_to_wallets()
+        self.upload_wallet_watch_dict()
 
     def remove_from_watched_addresses(self, address, channel_id):
         try:
-            wallets = self.channel_to_wallets[channel_id]
+            wallet_watch = self.wallet_watch_dict[channel_id]
         except KeyError:
             # If nothing is being watched for this channel_id, then nothing to remove.
             return
         
         # If this address not already being watched in this channel, do nothing.
-        if address not in wallets:
+        if address not in wallet_watch['addresses']:
             return
         
         # Remove the address from the existing watch list.
-        wallets.remove(address)
+        wallet_watch['addresses'].remove(address)
         logging.info(f'Discord channel {channel_id} is no longer watching {address}')
 
         # Update cloud source of truth with new data.
-        self.upload_channel_to_wallets()
+        self.upload_wallet_watch_dict()
 
-    def download_channel_to_wallets(self):
-        """Pull down data from cloud source of truth. Returns True/False based on success."""
+    def download_wallet_watch_dict(self):
+        """Pull down data from cloud source of truth. Returns True/False indicating success."""
         try:
             map_str = self.wallets_blob.download_as_string(timeout=120).decode('utf8')
             logging.info(f'Channel to wallets map string pulled from cloud source:\n{map_str}')
-            self.channel_to_wallets = json.loads(map_str)
+            self.wallet_watch_dict = json.loads(map_str)
         except google_api_exceptions.NotFound as e:
             # Data blob not found. Confirm it does not exist, then init to empty file.
             if not self.wallets_blob.exists():
                 logging.critical(f'Blob file {self.wallets_blob.name} does not exist. May be a '
                                  'data loss event. Creating empty blob file.')
-                self.channel_to_wallets = {}
-                self.upload_channel_to_wallets()
+                self.wallet_watch_dict = {}
+                self.upload_wallet_watch_dict()
             else:
                 logging.exception(e)
                 return False
@@ -347,20 +351,20 @@ class DiscordClient(discord.ext.commands.Bot):
             logging.error('Failed to download wallet watching list.')
             logging.exception(e)
             return False
-        logging.info('Successfully downloaded channel_to_wallets map.')
+        logging.info('Successfully downloaded wallet_watch_dict map.')
         return True
 
 
-    def upload_channel_to_wallets(self):
+    def upload_wallet_watch_dict(self):
         """Update cloud source of truth with new data. Returns True/False based on success."""
         try:
-            self.wallets_blob.upload_from_string(json.dumps(self.channel_to_wallets), num_retries=3, timeout=20)
+            self.wallets_blob.upload_from_string(json.dumps(self.wallet_watch_dict), num_retries=3, timeout=20)
         except Exception as e:
             logging.error('Failed to upload wallet watching changes to cloud. Will attempt again ' \
                           'on next change.')
             logging.exception(e)
             return False
-        logging.info('Successfully uploaded channel_to_wallets map.')
+        logging.info('Successfully uploaded wallet_watch_dict map.')
         return True
 
     @abc.abstractmethod
@@ -389,28 +393,28 @@ class WalletMonitoring(commands.Cog):
     async def list(self, ctx):
         """List all addresses you are currently watching."""
         logging.warning(f'list request from channel id == {channel_id(ctx)}')
-        watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
-        addr_list_str = ', '.join([f'`{addr}`' for addr in watched_addrs])
-        if addr_list_str:
-            await ctx.send(f'Wallets you are watching:\n{addr_list_str}')
-        else:
+        watched_addrs = self.bot.wallet_watch_dict.get(channel_id(ctx), {}).get('addresses', [])
+        if not watched_addrs:
             await ctx.send(f'You are not currently watching any wallets.')
+            return
+        addr_list_str = ', '.join([f'`{addr}`' for addr in watched_addrs])
+        await ctx.send(f'Wallets you are watching:\n{addr_list_str}')
 
 
-    # This is challenging because the synchronous subgraph access cannot be called by the
-    # discord coroutines. Would we even want to allow random users to use our subgraph key to
-    # make requests on demand?
+    # # This is challenging because the synchronous subgraph access cannot be called by the
+    # # discord coroutines. Would we even want to allow random users to use our subgraph key to
+    # # make requests on demand?
     # @commands.command(pass_context=True)
     # @commands.dm_only()
     # async def status(self, ctx):
     #     """Get Beanstalk status of watched addresses."""      
     #     # Check if no addresses are being watched.
     #     dm_id = channel_id(ctx)
-    #     watched_addrs = self.bot.channel_to_wallets.get(dm_id)
+    #     watched_addrs = self.bot.wallet_watch_dict.get(dm_id)
     #     if not watched_addrs:
     #         await ctx.send(f'You are not currently watching any addresses.')
     #         return
-    #     await ctx.send(self.bot.sunrise_monitor.wallets_str(self.bot.channel_to_wallets[dm_id]))
+    #     await ctx.send(self.bot.sunrise_monitor.wallets_str(self.bot.wallet_watch_dict[dm_id]))
 
 
     @commands.command(pass_context=True)
@@ -427,7 +431,7 @@ class WalletMonitoring(commands.Cog):
             return
 
         # Limit user to 5 watched wallets. This prevents abuse/spam.
-        watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
+        watched_addrs = self.bot.wallet_watch_dict.get(channel_id(ctx), {}).get('addresses', [])
         if len(watched_addrs) >= WALLET_WATCH_LIMIT:
             await ctx.send(f'Each user may only monitor up to {WALLET_WATCH_LIMIT} wallets. '
                            'No change to watch list.')
@@ -462,7 +466,7 @@ class WalletMonitoring(commands.Cog):
             return
         
         # Check if address is already being watched.
-        watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
+        watched_addrs = self.bot.wallet_watch_dict.get(channel_id(ctx), {}).get('addresses', [])
         if address not in watched_addrs:
             await ctx.send(f'You are not already watching `{address}`. No change to watch list.')
             return

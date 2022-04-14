@@ -27,6 +27,7 @@ LP_DECIMALS = 18
 BEAN_DECIMALS = 6
 POD_DECIMALS = 6
 SOIL_DECIMALS = 6
+STALK_DECIMALS = 10
 DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
@@ -295,6 +296,18 @@ class BeanstalkClient(ChainClient):
     def get_total_deposited(self, address, decimals):
         """Return the total deposited of the token at address as a float."""
         return token_to_float(call_contract_function_with_retry(self.contract.functions.getTotalDeposited(address)), decimals)
+
+    def get_balance_farmable_beans(self, address):
+        """Current farmable beans balance."""
+        return bean_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfFarmableBeans(address)))
+
+    def get_balance_stalk(self, address):
+        """Get the stalk balance, including farmables stalk, of an address."""
+        # NOTE(funderberker): Would be more efficient with a multicall? There is some overhead, I
+        # am not sure for only 2 calls.
+        farmed_stalk = stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfStalk(address)))
+        grown_stalk = stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfGrownStalk(address)))
+        return farmed_stalk + grown_stalk
 
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""
@@ -685,6 +698,10 @@ def bean_to_float(bean_long):
 
 def soil_to_float(soil_long):
     return token_to_float(soil_long, SOIL_DECIMALS)
+
+
+def stalk_to_float(stalk_long):
+    return token_to_float(stalk_long, STALK_DECIMALS)
 
 
 def pods_to_float(pod_long):

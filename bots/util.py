@@ -44,7 +44,8 @@ BEANSTALK_CHECK_RATE = 12  # seconds
 ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
 RESET_MONITOR_DELAY_INIT = 5 # seconds
-
+# Number of seasons in between updates to individual users monitoring wallets.
+WATCH_UPDATE_PERIOD = 1 # Hours
 
 class PegCrossType(Enum):
     NO_CROSS = 0
@@ -288,13 +289,13 @@ class PreviewMonitor(Monitor):
 
 
 class SunriseMonitor(Monitor):
-    def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False):
+    def __init__(self, message_function, short_msgs=False, wallet_watch_dict=None, prod=False):
         super().__init__('Sunrise', message_function,
                          SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
         # Toggle shorter messages (must fit into <280 character safely).
         self.short_msgs = short_msgs
-        # Read-only access to self.channel_to_wallets, which may be modified by other threads.
-        self.channel_to_wallets = channel_to_wallets
+        # Read-only access to self.wallet_watch_dict, which may be modified by other threads.
+        self.wallet_watch_dict = wallet_watch_dict
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = eth_chain.BeanClient()
         self.beanstalk_client = eth_chain.BeanstalkClient()
@@ -332,14 +333,16 @@ class SunriseMonitor(Monitor):
                 # Report season summary to users.
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats, short_str=self.short_msgs))
+                # Send updates to Discord users watching wallets.
+                if self.wallet_watch_dict:
+                    self.update_all_wallet_watchers(current_season_stats)
 
-            if self.channel_to_wallets:
-                self.update_all_wallet_watchers()
-
-            # # For testing.
-            # # Note that this will not handle deltas correctly.
+            # # # For testing.
+            # # # Note that this will not handle deltas correctly.
             # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # self.message_function(self.season_summary_string(last_season_stats, current_season_stats, short_str=self.short_msgs))
+            # if self.wallet_watch_dict:
+            #     self.update_all_wallet_watchers(current_season_stats)
             # time.sleep(10)
 
     def _wait_until_expected_sunrise(self):
@@ -529,46 +532,65 @@ class SunriseMonitor(Monitor):
             logging.info(f"name: {pool_info['name']} - last deposits: {pool_info['deposited_amount_last']} - current_deposits: {current_deposit_amount} - delta deposits: {pool_info['deposited_delta']}")
             pool_info['deposited_amount_last'] = current_deposit_amount
 
-    def update_all_wallet_watchers(self):
-        current_season_stats = self.beanstalk_graph_client.current_season_stats()
+    def update_all_wallet_watchers(self, current_season_stats):
+        logging.info(f'Attempting to update_all_wallet_watchers')
+        # Season stats to derive deltas from. Currently non-configurable.
+        base_season_stats = self.beanstalk_graph_client.seasons_stats(season_ages=[24])[0]
         bean_price = self.bean_client.avg_bean_price()
-        for channel_id, wallets in self.channel_to_wallets.items():
+        for channel_id, wallet_watch in self.wallet_watch_dict.items():
             # Ignore users with empty watch lists.
-            if not wallets:
+            if not wallet_watch['addresses']:
                 continue
+            # Only update wallets at intervals of update period relative to when watch began.
+            if (time.time() - wallet_watch['last_time'])/60 < wallet_watch['update_period']:
+                logging.info(f'Skipping wallet update until period finishes.')
+                return
+            # Update last timestamp.
+            wallet_watch['last_time'] = time.time()
             self.message_function(self.wallets_str(
-                wallets, current_season_stats, bean_price), channel_id)
+                wallet_watch['addresses'], current_season_stats, base_season_stats, bean_price), channel_id)
 
-    def wallets_str(self, wallets, current_season_stats, bean_price):
+    def wallets_str(self, wallets, current_season_stats, base_season_stats, bean_price):
         ret_str = ''
         account_id_to_addr = {str.lower(addr): addr for addr in wallets}
+        logging.info(f'account_id_to_addr = {account_id_to_addr}')
         accounts_status = self.beanstalk_graph_client.wallets_stats(
-            list(account_id_to_addr.keys()))
+            account_id_to_addr.keys())
+        logging.info(f'accounts_status = {accounts_status}')
         for account_status in accounts_status:
+            logging.info(f'account_status = {account_status}')
             ret_str += self.wallet_str(
-                account_id_to_addr[account_status['id']], account_status, current_season_stats, bean_price)
+                account_id_to_addr[account_status['id']], account_status, current_season_stats, base_season_stats, bean_price)
             ret_str += '\n'
-        return ret_str
+        return ret_str or 'No Beanstalk data for the watched addresses.'
 
-    def wallet_str(self, address, account_status, current_season_stats, bean_price):
+    def wallet_str(self, address, account_status, current_season_stats, base_season_stats, bean_price):
         """Create a standard string representing a wallet status.
 
         address is a string of the wallet address (with standard capitalization).
         account_stats is a map of data about an account from the subgraph.
         """
-        deposited_beans = float(account_status["depositedBeans"])
-        lp_eth, lp_beans = lp_eq_values(
-            float(account_status["depositedLP"]),
-            total_lp=float(current_season_stats['lp']),
-            pooled_eth=float(current_season_stats['pooledEth']),
-            pooled_beans=float(current_season_stats['pooledBeans']),
-        )
+        deposited_beans = float(account_status['depositedBeans'])
+        farmable_beans_balance = self.beanstalk_client.get_balance_farmable_beans(address)
+        # delta_deposited_beans = deposited_beans - float()
+        stalk_balance = self.beanstalk_client.get_balance_stalk(address)
+        delta_pod_index =  float(current_season_stats['podIndex']) - float(base_season_stats['podIndex'])
+        # lp_eth, lp_beans = lp_eq_values(
+        #     float(account_status["depositedLP"]),
+        #     total_lp=float(current_season_stats['lp']),
+        #     pooled_eth=float(current_season_stats['pooledEth']),
+        #     pooled_beans=float(current_season_stats['pooledBeans']),
+        # )
 
-        ret_string = f'📜 `{address}`\n'
+        ret_string = f'\n📜 `{address}`'
         # wallet_str += f'Circulating Beans: {account_stats[""]}'
-        ret_string += f'🌱 Deposited Beans: {round_num(deposited_beans)}  (${round_num(deposited_beans*bean_price)})\n'
-        ret_string += f'🌿 Deposited LP: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
-        ret_string += f'🌾 Pods: {round_num(account_status["pods"])}\n'
+        ret_string += f'\n\t\t🌱 {round_num(deposited_beans + farmable_beans_balance)} Beans' # (Δ {round_num(delta_deposited_beans)})\n'
+        ret_string += f'\n\t\t🎋 {round_num(stalk_balance)} Stalk' # (Δ {round_num()})\n'
+        # NOTE(funderberker): This is not trivial since LP are not all represented in the subgraph
+        # and cannot be retrieved direct from a contract call.
+        # ret_string += f'🌿 LP BDV: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
+        ret_string += f'\n\t\t🌾 {round_num(delta_pod_index)} Pods harvested in past 24hr'
+        
         return ret_string
 
 
@@ -1253,6 +1275,13 @@ class MsgHandler(logging.Handler):
         return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
 
 
+"""Dict that represents a Discord User's set of watched wallets."""
+def CreateWalletWatch():
+    return {
+        'addresses': [],
+        'last_time': time.time(),
+        'update_period': WATCH_UPDATE_PERIOD
+    }
 
 def sig_compare(signature, signatures):
     """Compare a signature to one or many signatures and return if there are any matches. 
