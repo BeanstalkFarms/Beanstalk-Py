@@ -9,6 +9,7 @@ import os
 import signal
 import subprocess
 import time
+from web3 import Web3
 
 import discord
 from discord.ext import tasks, commands
@@ -430,6 +431,9 @@ class WalletMonitoring(commands.Cog):
             await ctx.send(f'Invalid address provided (`{address}`). No change to watch list.')
             return
 
+        # Address must be checksummed to appease web3 lib.
+        address = Web3.toChecksumAddress(address)
+
         # Limit user to 5 watched wallets. This prevents abuse/spam.
         watched_addrs = self.bot.wallet_watch_dict.get(channel_id(ctx), {}).get('addresses', [])
         if len(watched_addrs) >= WALLET_WATCH_LIMIT:
@@ -464,6 +468,9 @@ class WalletMonitoring(commands.Cog):
         if not is_valid_wallet_address(address):
             await ctx.send(f'Invalid address provided (`{address}`). No change to watch list.')
             return
+        
+        # Address must be checksummed to appease web3 lib.
+        address = Web3.toChecksumAddress(address)
         
         # Check if address is already being watched.
         watched_addrs = self.bot.wallet_watch_dict.get(channel_id(ctx), {}).get('addresses', [])
