@@ -96,7 +96,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.peg_cross_monitor.start()
 
         self.sunrise_monitor = util.SunriseMonitor(
-            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+            self.send_msg_seasons, wallet_watch_dict=self.wallet_watch_dict, prod=prod)
         self.sunrise_monitor.start()
 
         self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
@@ -127,7 +127,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.set_presence.start()
 
     def stop(self):
-        self.upload_channel_to_wallets()
+        self.upload_wallet_watch_dict()
         if not prod:
             self.price_monitor.stop()
         self.peg_cross_monitor.stop()
