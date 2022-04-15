@@ -438,37 +438,6 @@ class SunriseMonitor(Monitor):
             ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} Pods'
         return ret_string
 
-
-# ⏱ Season 5739 is complete!
-# 💵 TWAP last  Season $1.009
-
-# Supply
-# 🌱 39,352.08 Beans minted
-# 🚜 215.62 Beans sown
-# 🌾 14,166.56 Pods minted
-
-# Silo
-# 📈 18,957 increase in Bean
-# 📈 879 BDV increase in Uniswap V2 BEAN:ETH LP
-# 📈 2,608 BDV increase in Curve BEAN:3CRV LP
-
-# Field
-# 🧮 1,409.53% Pod Rate
-# 🏞 299.62 Soil in the Field
-# 🌤️ 6467% Weather
-
-
-# ⏱ Season 5749 is complete!
-# 💵 The TWAP last season was $1.004
-# 🌤️ The weather is 6448%
-
-# 🌱 18,032.05 Beans minted
-# 📈 72,394 BDV increase in Silo
-# 🚜 136.72 Beans sown for 8,956.45 Pods
-
-
-
-
     @abstractmethod
     def silo_balance_change_str(name, delta_deposits=None, delta_bdv=None):
         """Return string representing the change in total deposited amount of a token."""
@@ -572,24 +541,19 @@ class SunriseMonitor(Monitor):
         """
         deposited_beans = float(account_status['depositedBeans'])
         farmable_beans_balance = self.beanstalk_client.get_balance_farmable_beans(address)
-        # delta_deposited_beans = deposited_beans - float()
         stalk_balance = self.beanstalk_client.get_balance_stalk(address)
+        farmable_stalk_balance = self.beanstalk_client.get_balance_farmable_stalk(address)
+        grown_stalk_balance = self.beanstalk_client.get_balance_grown_stalk(address)
         delta_pod_index =  float(current_season_stats['podIndex']) - float(base_season_stats['podIndex'])
-        # lp_eth, lp_beans = lp_eq_values(
-        #     float(account_status["depositedLP"]),
-        #     total_lp=float(current_season_stats['lp']),
-        #     pooled_eth=float(current_season_stats['pooledEth']),
-        #     pooled_beans=float(current_season_stats['pooledBeans']),
-        # )
 
         ret_string = f'\n📜 `{address}`'
         # wallet_str += f'Circulating Beans: {account_stats[""]}'
         ret_string += f'\n\t\t🌱 {round_num(deposited_beans + farmable_beans_balance)} Beans' # (Δ {round_num(delta_deposited_beans)})\n'
-        ret_string += f'\n\t\t🎋 {round_num(stalk_balance)} Stalk' # (Δ {round_num()})\n'
+        ret_string += f'\n\t\t🪴 {round_num(stalk_balance + farmable_stalk_balance, 0)} Stalk and {round_num(grown_stalk_balance, 0)} Grown Stalk' # (Δ {round_num()})\n'
         # NOTE(funderberker): This is not trivial since LP are not all represented in the subgraph
         # and cannot be retrieved direct from a contract call.
         # ret_string += f'🌿 LP BDV: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
-        ret_string += f'\n\t\t🌾 {round_num(delta_pod_index)} Pods harvested in past 24hr'
+        ret_string += f'\n\t\t🌾 {round_num(delta_pod_index, 0)} Pod line progression'
         
         return ret_string
 

@@ -383,12 +383,16 @@ def configure_bot_commands(bot):
     async def botstatus(ctx):
         """Check if bot is currently running."""
         await ctx.send('I am alive and running!')
-
+        
 class WalletMonitoring(commands.Cog):
     """Wallet watching commands."""
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        await ctx.send('Unknown command. Use `!help` for guidance.')
+    
     @commands.command(pass_context=True)
     @commands.dm_only()
     async def list(self, ctx):

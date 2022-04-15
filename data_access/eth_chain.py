@@ -302,12 +302,17 @@ class BeanstalkClient(ChainClient):
         return bean_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfFarmableBeans(address)))
 
     def get_balance_stalk(self, address):
-        """Get the stalk balance, including farmables stalk, of an address."""
-        # NOTE(funderberker): Would be more efficient with a multicall? There is some overhead, I
-        # am not sure for only 2 calls.
-        farmed_stalk = stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfStalk(address)))
-        grown_stalk = stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfGrownStalk(address)))
-        return farmed_stalk + grown_stalk
+        """Get the stalk balance, not including farmable stalk, of an address."""
+        return stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfStalk(address)))
+
+    def get_balance_farmable_stalk(self, address):
+        """Get the balance of farmable stalk for an address."""
+        return stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfFarmableStalk(address)))
+
+    def get_balance_grown_stalk(self, address):
+        """Get the balance of grown (inactive) stalk for an address."""
+        return stalk_to_float(call_contract_function_with_retry(self.contract.functions.balanceOfGrownStalk(address)))
+
 
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""
