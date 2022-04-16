@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html
 from subgrounds.dash_wrappers import Graph
 from subgrounds.plotly_wrappers import Figure, Scatter
-from bean_subgrounds_experimental import sg, bean_100daysD, bean_30daysH, pricesETH_100daysD, prices3CRV_100daysD, pricesLUSD_100daysD, pricesETH_30daysH, prices3CRV_30daysH, pricesLUSD_30daysH
+from bean_subgrounds import sg, bean_100daysD, bean_30daysH, pricesETH_100daysD, prices3CRV_100daysD, pricesLUSD_100daysD, pricesETH_30daysH, prices3CRV_30daysH, pricesLUSD_30daysH
 
 # This is a simple demonstration on how to build a dashboard powered by Subgrounds and Dash
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SLATE])
