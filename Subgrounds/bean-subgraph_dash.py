@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html
 from subgrounds.dash_wrappers import Graph
 from subgrounds.plotly_wrappers import Figure, Scatter
-from bean_subgrounds import sg, prices_100daysD, prices_30daysH
+from bean_subgrounds_experimental import sg, bean_100daysD, bean_30daysH, pricesETH_100daysD, prices3CRV_100daysD, pricesLUSD_100daysD, pricesETH_30daysH, prices3CRV_30daysH, pricesLUSD_30daysH
 
 # This is a simple demonstration on how to build a dashboard powered by Subgrounds and Dash
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SLATE])
@@ -15,7 +15,7 @@ app.layout = dbc.Container([
     # First row for some simple dashboard label
     dbc.Row([
         dbc.Col([
-            dbc.Label('BEAN Subgraph Prices',
+            dbc.Label('BEAN Subgraph Metrics',
                       style={'font-style': 'normal',
                              'font-weight': '600',
                              'font-size': '64px',
@@ -37,32 +37,25 @@ app.layout = dbc.Container([
                                     # BEAN pool prices for the last 100 days
                                     Scatter(
                                         name='BEAN/ETH Uniswap',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.price,
+                                        x=pricesETH_100daysD.dayDatetime,
+                                        y=pricesETH_100daysD.price,
                                         mode='lines',
                                         line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='BEAN/3CRV pool',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveSwapPrice3CRV,
+                                        x=prices3CRV_100daysD.dayDatetime,
+                                        y=prices3CRV_100daysD.price,
                                         mode='lines',
                                         line={'width': 2, 'color': 'green'},
                                     ),
                                     Scatter(
                                         name='BEAN/LUSD pool',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveSwapPriceLUSD,
+                                        x=pricesLUSD_100daysD.dayDatetime,
+                                        y=pricesLUSD_100daysD.price,
                                         mode='lines',
                                         line={'width': 2, 'color': 'red'},
-                                    ),
-                                    Scatter(
-                                        name='PEG Line',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveVirtualPrice3CRV,
-                                        mode='lines',
-                                        line={'width': 0.5, 'color': 'white'},
-                                    ),                                     
+                                    ),                                                           
                                 ],
                                 layout={
                                     'showlegend': True,
@@ -89,32 +82,25 @@ app.layout = dbc.Container([
                                     # BEAN pool prices for the last 30 days hourly
                                     Scatter(
                                         name='BEAN/ETH Uniswap',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.price,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'blue'},
-                                    ),
-                                    Scatter(
-                                        name='BEAN/3CRV pool',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveSwapPrice3CRV,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'green'},
-                                    ),
-                                    Scatter(
-                                        name='BEAN/LUSD pool',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveSwapPriceLUSD,
+                                        x=pricesETH_30daysH.hourDatetime,
+                                        y=pricesETH_30daysH.price,
                                         mode='lines',
                                         line={'width': 2, 'color': 'red'},
                                     ),
                                     Scatter(
-                                        name='PEG Line',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveVirtualPrice3CRV,
+                                        name='BEAN/3CRV pool',
+                                        x=prices3CRV_30daysH.hourDatetime,
+                                        y=prices3CRV_30daysH.price,
                                         mode='lines',
-                                        line={'width': 0.5, 'color': 'white'},
-                                    ),                                     
+                                        line={'width': 2, 'color': 'yellow'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/LUSD pool',
+                                        x=pricesLUSD_30daysH.hourDatetime,
+                                        y=pricesLUSD_30daysH.price,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'orange'},
+                                    ),         
                                 ],
                                 layout={
                                     'showlegend': True,
@@ -132,140 +118,9 @@ app.layout = dbc.Container([
                         ]),
                     ], className="analytics_card_metric", style={'text-align': 'center'}),
                 ]),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            Graph(Figure(
-                                subgrounds=sg,
-                                traces=[
-                                    # DAI/USDC/USDT curve Pool price last 5 days
-                                   Scatter(
-                                        name='LUSD / DAI-USDC-USDT Curve Pool',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveLUSDPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'red'},
-                                    ),
-                                   Scatter(
-                                        name='DAI / USDC-USDT Curve Pool',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveDAIPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'blue'},
-                                    ),
-                                    Scatter(
-                                        name='USDC / DAI-USDT Curve Pool',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveUSDCPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'yellow'},
-                                    ),
-                                    Scatter(
-                                        name='USDT / DAI-USDC Curve Pool',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveUSDTPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'pink'},
-                                    ),
-                                    Scatter(
-                                        name='PEG Line',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveVirtualPrice3CRV,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'white'},
-                                    ),
-                                ],
-                                layout={
-                                    'showlegend': True,
-                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
-                                              'showgrid': False},
-                                    'yaxis': {'type': 'linear', 'linewidth': 0.01, 'linecolor': '#31333F',
-                                              'color': 'white',
-                                              'title': '100 days - Daily LUSD / DAI / USDC / USDT Curve Pool Prices',
-                                              'showgrid': False},
-                                    'legend.font.color': 'white',
-                                    'paper_bgcolor': '#000000',
-                                    'plot_bgcolor': 'rgba(0,0,0,0)',
-                                }
-                            ))
-                        ]),
-                    ], className="analytics_card_metric", style={'text-align': 'center'}),
-                ]),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            Graph(Figure(
-                                subgrounds=sg,
-                                traces=[
-                                    # DAI/USDC/USDT curve Pool price last 5 days
-                                   Scatter(
-                                        name='LUSD / DAI-USDC-USDT Curve Pool',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveLUSDPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'red'},
-                                    ),
-                                   Scatter(
-                                        name='DAI / USDC-USDT Curve Pool',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveDAIPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'blue'},
-                                    ),
-                                    Scatter(
-                                        name='USDC / DAI-USDT Curve Pool',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveUSDCPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'yellow'},
-                                    ),
-                                    Scatter(
-                                        name='USDT / DAI-USDC Curve Pool',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveUSDTPrice,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'pink'},
-                                    ),
-                                    Scatter(
-                                        name='PEG Line',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveVirtualPrice3CRV,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'white'},
-                                    ),
-                                ],
-                                layout={
-                                    'showlegend': True,
-                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
-                                              'showgrid': False},
-                                    'yaxis': {'type': 'linear', 'linewidth': 0.01, 'linecolor': '#31333F',
-                                              'color': 'white',
-                                              'title': '30 days - hourly LUSD / DAI / USDC / USDT Curve Pool Prices',
-                                              'showgrid': False},
-                                    'legend.font.color': 'white',
-                                    'paper_bgcolor': '#000000',
-                                    'plot_bgcolor': 'rgba(0,0,0,0)',
-                                }
-                            ))
-                        ]),
-                    ], className="analytics_card_metric", style={'text-align': 'center'}),
-                ]),
-            ]),
-        ])
-    ]),
-     # Rows and Columns help with building a grid layout system
-    # First row for some simple dashboard label
-    dbc.Row([
-        dbc.Col([
-            dbc.Label('Curve Subgraph metrics',
-                      style={'font-style': 'normal',
-                             'font-weight': '600',
-                             'font-size': '64px',
-                             'line-height': '96px',
-                             'color': '#FFFFFF'
-                             }, xs=12, sm=12, md=12, lg=6, xl=6)
         ]),
     ]),
+]),
 # Second row for to contain the Volume/liquidity charts cards
     dbc.Row([
         dbc.Col([
@@ -279,29 +134,29 @@ app.layout = dbc.Container([
                                     # Uniswap and Curve USD Liquidity for the last 100 days
                                     Scatter(
                                         name='BEAN/ETH Uniswap',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.uniswapLPUSD,
+                                        x=pricesETH_100daysD.dayDatetime,
+                                        y=pricesETH_100daysD.liquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='BEAN/3CRV Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curve3CRVLPUSD,
+                                        x=prices3CRV_100daysD.dayDatetime,
+                                        y=prices3CRV_100daysD.liquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'green'},
                                     ),
                                     Scatter(
                                         name='BEAN/LUSD Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveLUSDLPUSD,
+                                        x=pricesLUSD_100daysD.dayDatetime,
+                                        y=pricesLUSD_100daysD.liquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'red'},
                                     ),
                                     Scatter(
-                                        name='Total liquidity Curve Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveTotalLPUSD,
+                                        name='Bean Total liquidity',
+                                        x=bean_100daysD.dayDatetime,
+                                        y=bean_100daysD.totalLiquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'yellow'},
                                     ),
@@ -331,29 +186,29 @@ app.layout = dbc.Container([
                                     # Uniswap and Curve USD Liquidity for the last 30 days hourly
                                     Scatter(
                                         name='BEAN/ETH Uniswap',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.uniswapLPUSD,
+                                        x=pricesETH_30daysH.hourDatetime,
+                                        y=pricesETH_30daysH.liquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='BEAN/3CRV Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curve3CRVLPUSD,
+                                        x=prices3CRV_30daysH.hourDatetime,
+                                        y=prices3CRV_30daysH.liquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'green'},
                                     ),
                                     Scatter(
                                         name='BEAN/LUSD Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveLUSDLPUSD,
+                                        x=pricesLUSD_30daysH.hourDatetime,
+                                        y=pricesLUSD_30daysH.liquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'red'},
                                     ),
                                     Scatter(
-                                        name='Total liquidity Curve Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveTotalLPUSD,
+                                        name='Bean Total liquidity',
+                                        x=bean_30daysH.hourDatetime,
+                                        y=bean_30daysH.totalLiquidityUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'yellow'},
                                     ),
@@ -364,7 +219,7 @@ app.layout = dbc.Container([
                                               'showgrid': False},
                                     'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
                                               'color': 'white',
-                                              'title': '30 days - Hourly BEAN Liquidity',
+                                              'title': '30 days - Hourly BEAN Total Liquidity',
                                               'showgrid': False},
                                     'legend.font.color': 'white',
                                     'paper_bgcolor': '#000000',
@@ -380,20 +235,13 @@ app.layout = dbc.Container([
                             Graph(Figure(
                                 subgrounds=sg,
                                 traces=[
-                                    # Curve % Liquidity Usage for the last 100 days
+                                    # Bean Average DEX price for the last 100 days
                                     Scatter(
-                                        name='BEAN/3CRV Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curve3CRVLpUsage,
+                                        name='BEAN average Price',
+                                        x=bean_100daysD.dayDatetime,
+                                        y=bean_100daysD.averagePrice,
                                         mode='lines',
                                         line={'width': 2, 'color': 'green'},
-                                    ),
-                                    Scatter(
-                                        name='BEAN/LUSD Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveLUSDLpUsage,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'red'},
                                     ),
                                 ],
                                 layout={
@@ -402,7 +250,7 @@ app.layout = dbc.Container([
                                               'showgrid': False},
                                     'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
                                               'color': 'white',
-                                              'title': '100 days - Daily Curve % Liquidity',
+                                              'title': '100 days - Daily Bean Average DEX Price',
                                               'showgrid': False},
                                     'legend.font.color': 'white',
                                     'paper_bgcolor': '#000000',
@@ -418,18 +266,11 @@ app.layout = dbc.Container([
                             Graph(Figure(
                                 subgrounds=sg,
                                 traces=[
-                                    # Curve % Liquidity Usage for the last 30 days hourly
+                                    # Bean Average DEX price for the last 30 days hourly
                                     Scatter(
-                                        name='BEAN/3CRV Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curve3CRVLpUsage,
-                                        mode='lines',
-                                        line={'width': 2, 'color': 'green'},
-                                    ),
-                                    Scatter(
-                                        name='BEAN/LUSD Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveLUSDLpUsage,
+                                        name='BEAN average Price',
+                                        x=bean_30daysH.hourDatetime,
+                                        y=bean_30daysH.averagePrice,
                                         mode='lines',
                                         line={'width': 2, 'color': 'red'},
                                     ),
@@ -440,7 +281,7 @@ app.layout = dbc.Container([
                                               'showgrid': False},
                                     'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
                                               'color': 'white',
-                                              'title': '30 days - Hourly Curve % Liquidity',
+                                              'title': '30 days - Daily Bean Average DEX Price',
                                               'showgrid': False},
                                     'legend.font.color': 'white',
                                     'paper_bgcolor': '#000000',
@@ -456,20 +297,27 @@ app.layout = dbc.Container([
                             Graph(Figure(
                                 subgrounds=sg,
                                 traces=[
-                                    # Curve USD Volume for the last 100 days
+                                    # Pool Delta for the last 100 days
                                     Scatter(
-                                        name='BEAN/3CRV Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curve3CRVVolumeUSD,
+                                        name='ETH Pool Delta',
+                                        x=pricesETH_100daysD.dayDatetime,
+                                        y=pricesETH_100daysD.delta,
                                         mode='lines',
                                         line={'width': 2, 'color': 'green'},
                                     ),
                                     Scatter(
-                                        name='BEAN/LUSD Factory',
-                                        x=prices_100daysD.dayDatetime,
-                                        y=prices_100daysD.curveLUSDVolumeUSD,
+                                        name='3CRV Pool Delta',
+                                        x=prices3CRV_100daysD.dayDatetime,
+                                        y=prices3CRV_100daysD.delta,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'red'},
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='LUSD Pool Delta',
+                                        x=pricesLUSD_100daysD.dayDatetime,
+                                        y=pricesLUSD_100daysD.delta,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
                                     ),
                                 ],
                                 layout={
@@ -478,7 +326,7 @@ app.layout = dbc.Container([
                                               'showgrid': False},
                                     'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
                                               'color': 'white',
-                                              'title': '100 days - Daily Curve Volume',
+                                              'title': '100 days - Daily Pool Delta',
                                               'showgrid': False},
                                     'legend.font.color': 'white',
                                     'paper_bgcolor': '#000000',
@@ -494,20 +342,27 @@ app.layout = dbc.Container([
                             Graph(Figure(
                                 subgrounds=sg,
                                 traces=[
-                                    # Curve USD Volume for the last 30 days hourly
+                                    # Pool Volume for the last 100 days
                                     Scatter(
-                                        name='BEAN/3CRV Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curve3CRVVolumeUSD,
+                                        name='ETH Pool Delta',
+                                        x=pricesETH_100daysD.dayDatetime,
+                                        y=pricesETH_100daysD.volumeUSD,
                                         mode='lines',
                                         line={'width': 2, 'color': 'green'},
                                     ),
                                     Scatter(
-                                        name='BEAN/LUSD Factory',
-                                        x=prices_30daysH.hourDatetime,
-                                        y=prices_30daysH.curveLUSDVolumeUSD,
+                                        name='3CRV Pool Delta',
+                                        x=prices3CRV_100daysD.dayDatetime,
+                                        y=prices3CRV_100daysD.volumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'red'},
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='LUSD Pool Delta',
+                                        x=pricesLUSD_100daysD.dayDatetime,
+                                        y=pricesLUSD_100daysD.volumeUSD,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
                                     ),
                                 ],
                                 layout={
@@ -516,7 +371,114 @@ app.layout = dbc.Container([
                                               'showgrid': False},
                                     'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
                                               'color': 'white',
-                                              'title': '30 days - Hourly Curve Volume',
+                                              'title': '100 days - Daily Pools Volume',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # Pool Volume for the last 30 days hourly
+                                    Scatter(
+                                        name='ETH Pool Delta',
+                                        x=pricesETH_30daysH.hourDatetime,
+                                        y=pricesETH_30daysH.volumeUSD,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='3CRV Pool Delta',
+                                        x=prices3CRV_30daysH.hourDatetime,
+                                        y=prices3CRV_30daysH.volumeUSD,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='LUSD Pool Delta',
+                                        x=pricesLUSD_30daysH.hourDatetime,
+                                        y=pricesLUSD_30daysH.volumeUSD,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - Daily Pools Volume',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # Bean total USD Volume for the last 100 days
+                                    Scatter(
+                                        name='BEAN USD Volume',
+                                        x=bean_100daysD.dayDatetime,
+                                        y=bean_100daysD.totalVolumeUSD,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '100 days - Daily Bean Total Volume',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # Bean total USD Volume for the last 30 days hourly
+                                    Scatter(
+                                        name='BEAN USD Volume',
+                                        x=bean_30daysH.hourDatetime,
+                                        y=bean_30daysH.totalVolumeUSD,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - Daily Bean Total Volume',
                                               'showgrid': False},
                                     'legend.font.color': 'white',
                                     'paper_bgcolor': '#000000',
