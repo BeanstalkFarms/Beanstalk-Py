@@ -5,9 +5,9 @@ from subgrounds.subgrounds import Subgrounds
 sg = Subgrounds()
 #bean = sg.load_subgraph('https://gateway.thegraph.com/api/e34fb57b214a5d092654d30c465b7e51/subgraphs/id/CsmWTbztr1EQcRYmgqUYpSaVc8exTnVmhUxsaswvkbjG')
 
-#bean = sg.load_subgraph('https://api.studio.thegraph.com/query/23084/beandev/0.0.4')
+bean = sg.load_subgraph('https://api.studio.thegraph.com/query/25536/bean/1.1.12')
 
-bean = sg.load_subgraph('http://3.17.129.41:8000/subgraphs/name/bean-dev')
+#bean = sg.load_subgraph('http://3.17.129.41:8000/subgraphs/name/bean-dev')
 
 
 # Let's convert the timestamp to humanreadable date tie format
