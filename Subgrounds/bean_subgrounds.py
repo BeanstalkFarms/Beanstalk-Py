@@ -29,7 +29,9 @@ pricesETH_100daysD = bean.Query.poolDayDatas(
       orderBy=bean.PoolDayData.dayTimestamp,
       orderDirection='desc',
   		subgraphError='deny',
-      pool='0x87898263b6c5babe34b4ec53f22d98430b91e371',
+      where={
+     'pool': '0x87898263b6c5babe34b4ec53f22d98430b91e371'
+      }
 )
 
 sg.query_df([
@@ -39,6 +41,8 @@ sg.query_df([
   pricesETH_100daysD.liquidityUSD,
   pricesETH_100daysD.volumeUSD,
   pricesETH_100daysD.delta,
+  pricesETH_100daysD.newCrosses,
+  pricesETH_100daysD.totalCrosses,
 ])
 
 prices3CRV_100daysD = bean.Query.poolDayDatas(
@@ -46,7 +50,9 @@ prices3CRV_100daysD = bean.Query.poolDayDatas(
       orderBy=bean.PoolDayData.dayTimestamp,
       orderDirection='desc',
   		subgraphError='deny',
-      pool='0x3a70dfa7d2262988064a2d051dd47521e43c9bdd',
+      where={
+     'pool': '0x3a70dfa7d2262988064a2d051dd47521e43c9bdd'
+      }
 )
 
 sg.query_df([
@@ -56,6 +62,8 @@ sg.query_df([
   prices3CRV_100daysD.liquidityUSD,
   prices3CRV_100daysD.volumeUSD,
   prices3CRV_100daysD.delta,
+  prices3CRV_100daysD.newCrosses,
+  prices3CRV_100daysD.totalCrosses,
 ])
 
 pricesLUSD_100daysD = bean.Query.poolDayDatas(
@@ -63,7 +71,9 @@ pricesLUSD_100daysD = bean.Query.poolDayDatas(
       orderBy=bean.PoolDayData.dayTimestamp,
       orderDirection='desc',
   		subgraphError='deny',
-      pool='0xd652c40fbb3f06d6b58cb9aa9cff063ee63d465d',
+      where={
+     'pool': '0xd652c40fbb3f06d6b58cb9aa9cff063ee63d465d'
+      }
 )
 
 sg.query_df([
@@ -73,6 +83,8 @@ sg.query_df([
   pricesLUSD_100daysD.liquidityUSD,
   pricesLUSD_100daysD.volumeUSD,
   pricesLUSD_100daysD.delta,
+  pricesLUSD_100daysD.newCrosses,
+  pricesLUSD_100daysD.totalCrosses,
 ])
 
 # Let's pull the last 30 days by hour price data from the Price/liquidity fields
@@ -81,7 +93,9 @@ pricesETH_30daysH = bean.Query.poolHourDatas(
       orderBy=bean.PoolHourData.hourTimestamp,
       orderDirection='desc',
   		subgraphError='deny',
-      pool='0x87898263b6c5babe34b4ec53f22d98430b91e371',
+      where={
+     'pool': '0x87898263b6c5babe34b4ec53f22d98430b91e371'
+      }
 )
 
 sg.query_df([
@@ -91,6 +105,8 @@ sg.query_df([
   pricesETH_30daysH.liquidityUSD,
   pricesETH_30daysH.volumeUSD,
   pricesETH_30daysH.delta,
+  pricesETH_30daysH.newCrosses,
+  pricesETH_30daysH.totalCrosses,
 ])
 
 prices3CRV_30daysH = bean.Query.poolHourDatas(
@@ -98,7 +114,9 @@ prices3CRV_30daysH = bean.Query.poolHourDatas(
       orderBy=bean.PoolHourData.hourTimestamp,
       orderDirection='desc',
   		subgraphError='deny',
-      pool='0x3a70dfa7d2262988064a2d051dd47521e43c9bdd',
+      where={
+     'pool': '0x3a70dfa7d2262988064a2d051dd47521e43c9bdd'
+      }
 )
 
 sg.query_df([
@@ -108,6 +126,8 @@ sg.query_df([
   prices3CRV_30daysH.liquidityUSD,
   prices3CRV_30daysH.volumeUSD,
   prices3CRV_30daysH.delta,
+  prices3CRV_30daysH.newCrosses,
+  prices3CRV_30daysH.totalCrosses,
 ])
 
 pricesLUSD_30daysH = bean.Query.poolHourDatas(
@@ -115,7 +135,9 @@ pricesLUSD_30daysH = bean.Query.poolHourDatas(
       orderBy=bean.PoolHourData.hourTimestamp,
       orderDirection='desc',
   		subgraphError='deny',
-      pool='0xd652c40fbb3f06d6b58cb9aa9cff063ee63d465d',
+      where={
+     'pool': '0xd652c40fbb3f06d6b58cb9aa9cff063ee63d465d'
+      }
 )
 
 sg.query_df([
@@ -125,6 +147,8 @@ sg.query_df([
   pricesLUSD_30daysH.liquidityUSD,
   pricesLUSD_30daysH.volumeUSD,
   pricesLUSD_30daysH.delta,
+  pricesLUSD_30daysH.newCrosses,
+  pricesLUSD_30daysH.totalCrosses,
 ])
 
 # Let's convert the timestamp to humanreadable date tie format

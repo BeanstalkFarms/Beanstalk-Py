@@ -85,21 +85,21 @@ app.layout = dbc.Container([
                                         x=pricesETH_30daysH.hourDatetime,
                                         y=pricesETH_30daysH.price,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'red'},
+                                        line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='BEAN/3CRV pool',
                                         x=prices3CRV_30daysH.hourDatetime,
                                         y=prices3CRV_30daysH.price,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'yellow'},
+                                        line={'width': 2, 'color': 'green'},
                                     ),
                                     Scatter(
                                         name='BEAN/LUSD pool',
                                         x=pricesLUSD_30daysH.hourDatetime,
                                         y=pricesLUSD_30daysH.price,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'orange'},
+                                        line={'width': 2, 'color': 'red'},
                                     ),         
                                 ],
                                 layout={
@@ -109,6 +109,186 @@ app.layout = dbc.Container([
                                     'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
                                               'color': 'white',
                                               'title': '30 days - hourly BEAN Prices',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # BEAN pool delta newCrosses for the last 100 days
+                                    Scatter(
+                                        name='BEAN/ETH Uniswap',
+                                        x=pricesETH_100daysD.dayDatetime,
+                                        y=pricesETH_100daysD.newCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'blue'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/3CRV pool',
+                                        x=prices3CRV_100daysD.dayDatetime,
+                                        y=prices3CRV_100daysD.newCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/LUSD pool',
+                                        x=pricesLUSD_100daysD.dayDatetime,
+                                        y=pricesLUSD_100daysD.newCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'red'},
+                                    ),         
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - hourly BEAN Delta newCrosses',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # BEAN pool delta newCrosses for the last 30 days hourly
+                                    Scatter(
+                                        name='BEAN/ETH Uniswap',
+                                        x=pricesETH_30daysH.hourDatetime,
+                                        y=pricesETH_30daysH.newCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'blue'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/3CRV pool',
+                                        x=prices3CRV_30daysH.hourDatetime,
+                                        y=prices3CRV_30daysH.newCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/LUSD pool',
+                                        x=pricesLUSD_30daysH.hourDatetime,
+                                        y=pricesLUSD_30daysH.newCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'red'},
+                                    ),         
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - hourly BEAN delta newCrosses',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # BEAN pool delta totalCrosses for the last 100 days
+                                    Scatter(
+                                        name='BEAN/ETH Uniswap',
+                                        x=pricesETH_100daysD.dayDatetime,
+                                        y=pricesETH_100daysD.totalCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'blue'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/3CRV pool',
+                                        x=prices3CRV_100daysD.dayDatetime,
+                                        y=prices3CRV_100daysD.totalCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/LUSD pool',
+                                        x=pricesLUSD_100daysD.dayDatetime,
+                                        y=pricesLUSD_100daysD.totalCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'red'},
+                                    ),         
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - hourly BEAN Delta totalCrosses',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
+                                    # BEAN pool delta crototalCrossessses for the last 30 days hourly
+                                    Scatter(
+                                        name='BEAN/ETH Uniswap',
+                                        x=pricesETH_30daysH.hourDatetime,
+                                        y=pricesETH_30daysH.totalCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'blue'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/3CRV pool',
+                                        x=prices3CRV_30daysH.hourDatetime,
+                                        y=prices3CRV_30daysH.totalCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='BEAN/LUSD pool',
+                                        x=pricesLUSD_30daysH.hourDatetime,
+                                        y=pricesLUSD_30daysH.totalCrosses,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'red'},
+                                    ),         
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - hourly BEAN delta totalCrosses',
                                               'showgrid': False},
                                     'legend.font.color': 'white',
                                     'paper_bgcolor': '#000000',
@@ -241,7 +421,7 @@ app.layout = dbc.Container([
                                         x=bean_100daysD.dayDatetime,
                                         y=bean_100daysD.averagePrice,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'yellow'},
                                     ),
                                 ],
                                 layout={
@@ -272,7 +452,7 @@ app.layout = dbc.Container([
                                         x=bean_30daysH.hourDatetime,
                                         y=bean_30daysH.averagePrice,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'red'},
+                                        line={'width': 2, 'color': 'yellow'},
                                     ),
                                 ],
                                 layout={
@@ -303,7 +483,7 @@ app.layout = dbc.Container([
                                         x=pricesETH_100daysD.dayDatetime,
                                         y=pricesETH_100daysD.delta,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='3CRV Pool Delta',
@@ -317,7 +497,7 @@ app.layout = dbc.Container([
                                         x=pricesLUSD_100daysD.dayDatetime,
                                         y=pricesLUSD_100daysD.delta,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'red'},
                                     ),
                                 ],
                                 layout={
@@ -342,13 +522,58 @@ app.layout = dbc.Container([
                             Graph(Figure(
                                 subgrounds=sg,
                                 traces=[
+                                    # Pool Delta for the last 30 days by hour
+                                    Scatter(
+                                        name='ETH Pool Delta',
+                                        x=pricesETH_30daysH.hourDatetime,
+                                        y=pricesETH_30daysH.delta,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'blue'},
+                                    ),
+                                    Scatter(
+                                        name='3CRV Pool Delta',
+                                        x=prices3CRV_30daysH.hourDatetime,
+                                        y=prices3CRV_30daysH.delta,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'green'},
+                                    ),
+                                    Scatter(
+                                        name='LUSD Pool Delta',
+                                        x=pricesLUSD_30daysH.hourDatetime,
+                                        y=pricesLUSD_30daysH.delta,
+                                        mode='lines',
+                                        line={'width': 2, 'color': 'red'},
+                                    ),
+                                ],
+                                layout={
+                                    'showlegend': True,
+                                    'xaxis': {'linewidth': 0.1, 'linecolor': '#31333F', 'color': 'white',
+                                              'showgrid': False},
+                                    'yaxis': {'type': 'linear', 'linewidth': 0.1, 'linecolor': '#31333F',
+                                              'color': 'white',
+                                              'title': '30 days - Hourly Pool Delta',
+                                              'showgrid': False},
+                                    'legend.font.color': 'white',
+                                    'paper_bgcolor': '#000000',
+                                    'plot_bgcolor': 'rgba(0,0,0,0)',
+                                }
+                            ))
+                        ]),
+                    ], className="analytics_card_metric", style={'text-align': 'center'}),
+                ]),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            Graph(Figure(
+                                subgrounds=sg,
+                                traces=[
                                     # Pool Volume for the last 100 days
                                     Scatter(
                                         name='ETH Pool Delta',
                                         x=pricesETH_100daysD.dayDatetime,
                                         y=pricesETH_100daysD.volumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='3CRV Pool Delta',
@@ -362,7 +587,7 @@ app.layout = dbc.Container([
                                         x=pricesLUSD_100daysD.dayDatetime,
                                         y=pricesLUSD_100daysD.volumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'red'},
                                     ),
                                 ],
                                 layout={
@@ -393,7 +618,7 @@ app.layout = dbc.Container([
                                         x=pricesETH_30daysH.hourDatetime,
                                         y=pricesETH_30daysH.volumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'blue'},
                                     ),
                                     Scatter(
                                         name='3CRV Pool Delta',
@@ -407,7 +632,7 @@ app.layout = dbc.Container([
                                         x=pricesLUSD_30daysH.hourDatetime,
                                         y=pricesLUSD_30daysH.volumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'red'},
                                     ),
                                 ],
                                 layout={
@@ -438,7 +663,7 @@ app.layout = dbc.Container([
                                         x=bean_100daysD.dayDatetime,
                                         y=bean_100daysD.totalVolumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'yellow'},
                                     ),
                                 ],
                                 layout={
@@ -469,7 +694,7 @@ app.layout = dbc.Container([
                                         x=bean_30daysH.hourDatetime,
                                         y=bean_30daysH.totalVolumeUSD,
                                         mode='lines',
-                                        line={'width': 2, 'color': 'green'},
+                                        line={'width': 2, 'color': 'yellow'},
                                     ),
                                 ],
                                 layout={
