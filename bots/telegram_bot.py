@@ -25,28 +25,35 @@ class TelegramBot(object):
 
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
 
-        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
-        self.peg_cross_monitor.start()
+        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
 
-        self.sunrise_monitor = util.SunriseMonitor(self.send_msg, prod=prod)
-        self.sunrise_monitor.start()
+        # self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
+        # self.peg_cross_monitor.start()
 
-        self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
-        self.uniswap_pool_monitor.start()
+        # self.sunrise_monitor = util.SunriseMonitor(self.send_msg, prod=prod)
+        # self.sunrise_monitor.start()
 
-        self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg, EventClientType.CURVE_3CRV_POOL, prod=prod)
-        self.curve_3crv_pool_monitor.start()
+        # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
+        # self.uniswap_pool_monitor.start()
 
-        self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg, EventClientType.CURVE_LUSD_POOL, prod=prod)
-        self.curve_lusd_pool_monitor.start()
+        # self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg, EventClientType.CURVE_3CRV_POOL, prod=prod)
+        # self.curve_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
-        self.beanstalk_monitor.start()
+        # self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg, EventClientType.CURVE_LUSD_POOL, prod=prod)
+        # self.curve_lusd_pool_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod)
-        self.market_monitor.start()
+        # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
+        # self.beanstalk_monitor.start()
+
+        # self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod)
+        # self.market_monitor.start()
+
+        ############################################################################################
+
+        self.barn_raise_monitor = util.BarnRaiseMonitor(self.send_msg, prod=prod)
+        self.barn_raise_monitor.start()
 
     def send_msg(self, msg):
         # Ignore empty messages.
@@ -59,13 +66,16 @@ class TelegramBot(object):
         logging.info(f'Message sent:\n{msg}\n')
 
     def stop(self):
-        self.peg_cross_monitor.stop()
-        self.sunrise_monitor.stop()
-        self.uniswap_pool_monitor.stop()
-        self.curve_3crv_pool_monitor.stop()
-        self.curve_lusd_pool_monitor.stop()
-        self.beanstalk_monitor.stop()
-        self.market_monitor.stop()
+        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+        # self.peg_cross_monitor.stop()
+        # self.sunrise_monitor.stop()
+        # self.uniswap_pool_monitor.stop()
+        # self.curve_3crv_pool_monitor.stop()
+        # self.curve_lusd_pool_monitor.stop()
+        # self.beanstalk_monitor.stop()
+        # self.market_monitor.stop()
+        ############################################################################################
+        self.barn_raise_monitor.stop()
 
 
 if __name__ == '__main__':

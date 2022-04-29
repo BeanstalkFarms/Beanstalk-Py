@@ -16,6 +16,7 @@ DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBean
                          'newHarvestablePods', 'newPods', 'pooledBeans', 'pooledEth', 'lp', 'pods',
                          'beans'
                         ]
+DEFAULT_BID_FIELDS = ['idx', 'amount', 'weather', 'bonusWeather', 'totalPods']
 
 # Names of common graph fields.
 PRICE_FIELD = 'price'
@@ -66,15 +67,8 @@ class BeanSqlClient(object):
                 { """ + FIELDS_PLACEHOLDER + """ }
             }
         """
-
-        # Index where desired fields should be injected.
-        fields_index_start = query_str.find(FIELDS_PLACEHOLDER)
-        fields_index_end = query_str.find(
-            FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
-
-        # Stringify array and inject it into query string.
-        query_str = query_str[:fields_index_start] + \
-            ' '.join(fields) + query_str[fields_index_end:]
+        # Stringify array and inject fields into query string.
+        query_str = string_inject_fields(query_str, fields)
 
         # Create gql query and execute.
         # Note that there is always only 1 bean item returned.
@@ -148,14 +142,8 @@ class BeanstalkSqlClient(object):
             }
         """
 
-        # Index where desired fields should be injected.
-        fields_index_start = query_str.find(FIELDS_PLACEHOLDER)
-        fields_index_end = query_str.find(
-            FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
-
-        # Stringify array and inject it into query string.
-        query_str = query_str[:fields_index_start] + \
-            ' '.join(fields) + query_str[fields_index_end:]
+        # Stringify array and inject fields into query string.
+        query_str = string_inject_fields(query_str, fields)
 
         # Create gql query and execute.
         try:
@@ -194,8 +182,48 @@ class BeanstalkSqlClient(object):
             os._exit(os.EX_UNAVAILABLE)
 
 
+class BarnRaiseSqlClient(object):
+
+    def __init__(self):
+        transport = AIOHTTPTransport(url=BEANSTALK_GRAPH_ENDPOINT)
+        self._client = Client(
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
+
+    def get_bids_with_weather(self, weather, fields=DEFAULT_BID_FIELDS):
+        """Retreive all bids with a given weather. Ordered by idx (timestamp with safeties)."""
+        # General query string with bean sub fields placeholder.
+        query_str = """
+            query get_bids_with_weather {
+                bids(orderBy: idx, orderDirection: asc, where: {weather: """ + str(weather) + """})
+                { """ + FIELDS_PLACEHOLDER + """ }
+            }
+        """
+
+        # Stringify array and inject fields into query string.
+        query_str = string_inject_fields(query_str, fields)
+
+        # Create gql query and execute.
+        try:
+            return execute(self._client, query_str)['bids']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Barn Raise subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
+
 class GraphAccessException(Exception):
     """Failed to access the graph."""
+
+def string_inject_fields(string, fields):
+    """Modify string by replacing fields placeholder with stringified array of fields."""
+    # Index where desired fields should be injected.
+    fields_index_start = string.find(FIELDS_PLACEHOLDER)
+    fields_index_end = string.find(
+        FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
+
+    # Stringify array and inject it into query string.
+    return string[:fields_index_start] + \
+        ' '.join(fields) + string[fields_index_end:]
 
 
 def execute(client, query_str, max_tries=0):

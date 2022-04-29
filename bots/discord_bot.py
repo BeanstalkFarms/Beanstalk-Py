@@ -22,6 +22,7 @@ DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
 DISCORD_CHANNEL_ID_MARKET = 940729085095723069
 DISCORD_CHANNEL_ID_REPORT = 943711736391933972
+DISCORD_CHANNEL_ID_BARN_RAISE = 000000000000000
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 BUCKET_NAME = 'bots_data_8723748'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
@@ -35,6 +36,7 @@ class Channel(Enum):
     BEANSTALK = 3
     MARKET = 4
     REPORT = 5
+    BARN_RAISE = 6
 
 class DiscordClient(discord.ext.commands.Bot):
 
@@ -54,6 +56,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
             self._chat_id_market = DISCORD_CHANNEL_ID_MARKET
+            self._chat_id_barn_raise = DISCORD_CHANNEL_ID_BARN_RAISE
             logging.info('Configured as a production instance.')
         else:
             self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
@@ -63,6 +66,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_market = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_barn_raise = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
@@ -81,38 +85,45 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
+        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
         # the publicly visible BeanBot from having its name changed. Prod price_monitor lives in
         # discord_price_bot.py. This price monitor is only for testing/staging.
-        if not prod:
-            self.price_monitor = util.PreviewMonitor(
-                self.set_nickname_price, self.set_status)
-            self.price_monitor.start()
+        # if not prod:
+        #     self.price_monitor = util.PreviewMonitor(
+        #         self.set_nickname_price, self.set_status)
+        #     self.price_monitor.start()
 
-        self.peg_cross_monitor = util.PegCrossMonitor(
-            self.send_msg_peg, prod=prod)
-        self.peg_cross_monitor.start()
+        # self.peg_cross_monitor = util.PegCrossMonitor(
+        #     self.send_msg_peg, prod=prod)
+        # self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(
-            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        self.sunrise_monitor.start()
+        # self.sunrise_monitor = util.SunriseMonitor(
+        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+        # self.sunrise_monitor.start()
 
-        self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
-        self.uniswap_pool_monitor.start()
+        # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
+        # self.uniswap_pool_monitor.start()
 
-        self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
-        self.curve_3crv_pool_monitor.start()
+        # self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
+        # self.curve_3crv_pool_monitor.start()
 
-        self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
-        self.curve_lusd_pool_monitor.start()
+        # self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
+        # self.curve_lusd_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
-        self.beanstalk_monitor.start()
+        # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
+        # self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
-        self.market_monitor.start()
+        # self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
+        # self.market_monitor.start()
+
+        ############################################################################################
+
+        self.barn_raise_monitor = util.BarnRaiseMonitor(self.send_msg_barn_raise, prod=prod)
+        self.barn_raise_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
@@ -126,15 +137,18 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.upload_channel_to_wallets()
-        if not prod:
-            self.price_monitor.stop()
-        self.peg_cross_monitor.stop()
-        self.sunrise_monitor.stop()
-        self.uniswap_pool_monitor.stop()
-        self.curve_3crv_pool_monitor.stop()
-        self.curve_lusd_pool_monitor.stop()
-        self.beanstalk_monitor.stop()
-        self.market_monitor.stop()
+        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+        # if not prod:
+        #     self.price_monitor.stop()
+        # self.peg_cross_monitor.stop()
+        # self.sunrise_monitor.stop()
+        # self.uniswap_pool_monitor.stop()
+        # self.curve_3crv_pool_monitor.stop()
+        # self.curve_lusd_pool_monitor.stop()
+        # self.beanstalk_monitor.stop()
+        # self.market_monitor.stop()
+        ############################################################################################
+        self.barn_raise_monitor.stop()
 
     # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
     # silently do nothing.
@@ -170,6 +184,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the market channel."""
         self.msg_queue.append((Channel.MARKET, text))
 
+    def send_msg_barn_raise(self, text):
+        """Send a message through the Discord bot in the Barn Raise channel."""
+        self.msg_queue.append((Channel.BARN_RAISE, text))
+
     async def on_ready(self):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_peg = self.get_channel(self._chat_id_peg)
@@ -178,6 +196,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self._channel_pool = self.get_channel(self._chat_id_pool)
         self._channel_beanstalk = self.get_channel(self._chat_id_beanstalk)
         self._channel_market = self.get_channel(self._chat_id_market)
+        self._channel_barn_raise = self.get_channel(self._chat_id_barn_raise)
 
         # Init DM channels.
         for channel_id in self.channel_to_wallets.keys():
@@ -185,7 +204,7 @@ class DiscordClient(discord.ext.commands.Bot):
         
         logging.info(
             f'Discord channels are {self._channel_report}, {self._channel_peg}, {self._channel_seasons}, '
-            f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}')
+            f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}, {self._channel_barn_raise}')
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
@@ -250,6 +269,8 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_beanstalk.send(msg)
                 elif channel is Channel.MARKET:
                     await self._channel_market.send(msg)
+                elif channel is Channel.BARN_RAISE:
+                    await self._channel_barn_raise.send(msg)
                 # If channel is a channel_id string.
                 elif type(channel) == str:
                     await self.send_dm(channel, msg)

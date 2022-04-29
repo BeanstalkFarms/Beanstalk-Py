@@ -19,7 +19,9 @@ try:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
 except KeyError:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
-URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+# URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+# Rinkeby testing.
+URL = 'wss://eth-rinkeby.alchemyapi.io/v2/***REMOVED***'
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -166,7 +168,19 @@ add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint25
                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 # add_event_to_dict('PodOrderCancelled(address,bytes32)',
 #                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
-print(MARKET_EVENT_MAP)
+
+
+# Barn Raise events.
+BARN_RAISE_EVENT_MAP = {}
+BARN_RAISE_SIGNATURES_LIST = []
+add_event_to_dict('Sow(address,uint256,uint256)',
+                  BARN_RAISE_EVENT_MAP, BARN_RAISE_SIGNATURES_LIST)
+add_event_to_dict('CreateBid(address,uint256,uint256,uint256,uint256)',
+                  BARN_RAISE_EVENT_MAP, BARN_RAISE_SIGNATURES_LIST)
+add_event_to_dict('UpdateBid(address,uint256,uint256,uint256,uint256,uint256,uint256,uint256)',
+                  BARN_RAISE_EVENT_MAP, BARN_RAISE_SIGNATURES_LIST)
+print(BARN_RAISE_EVENT_MAP)
+
 
 def generate_sig_hash_map(sig_str_list):
     return {sig.split('(')[0]: Web3.keccak(
@@ -213,6 +227,9 @@ with open(os.path.join(os.path.dirname(__file__),
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/bean_price_oracle_abi.json')) as bean_price_oracle_abi_file:
     bean_price_abi = json.load(bean_price_oracle_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/barn_raise_abi.json')) as barn_raise_abi_file:
+    barn_raise_abi = json.load(barn_raise_abi_file)
 
 
 def get_web3_instance():
@@ -260,6 +277,11 @@ def get_bean_price_contract(web3):
     """Get a web.eth.contract object for the Bean price oracle contract. Contract is not thread safe."""
     return web3.eth.contract(
         address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
+
+def get_barn_raise_contract(web3):
+    """Get a web.eth.contract object for the Barn Raise contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=BARN_RAISE_ADDR, abi=barn_raise_abi)
 
 
 class ChainClient():
@@ -399,6 +421,54 @@ class CurveClient(ChainClient):
         self.bean_3crv_contract = get_bean_3crv_pool_contract(self._web3)
 
 
+
+class BarnRaiseClient(ChainClient):
+    """Common functionality related to the Barn Raise contract."""
+
+    def __init__(self, web3=None):
+        super().__init__(web3)
+        self.contract = get_barn_raise_contract(self._web3)
+        # Set immutable contract variables.
+        # contract_variables = call_contract_function_with_retry(self.contract.call())
+        self.bid_start = call_contract_function_with_retry(self.contract.functions.bidStart()) # seconds epoch
+        self.bonus_per_day = call_contract_function_with_retry(self.contract.functions.bonusPerDay()) # %
+        self.bid_days = call_contract_function_with_retry(self.contract.functions.bidDays())
+        self.seconds_per_day = call_contract_function_with_retry(self.contract.functions.secondsPerDay()) # %
+        self.sowing_start = call_contract_function_with_retry(self.contract.functions.start()) # seconds epoch
+        self.sowing_length = call_contract_function_with_retry(self.contract.functions.length()) # seconds
+        self.base_weather = call_contract_function_with_retry(self.contract.functions.baseWeather()) # %
+        self.step = call_contract_function_with_retry(self.contract.functions.step()) # seconds
+        self.target = 77_000_000 * 1e18 # call_contract_function_with_retry(self.contract.functions.target()) # USD pegged token
+        self.max_weather = call_contract_function_with_retry(self.contract.functions.maxWeather()) # %
+
+    def steps_complete(self):
+        """Return the total number of steps that have fully completed."""
+        # If sowing period has not yet started, return 0.
+        if time.time() < self.sowing_start:
+            return 0
+        return (time.time() - self.sowing_start) // self.step
+
+    def weather(self):
+        """Calculate and return current weather."""
+        # If sowing period has not yet started, return 0.
+        if time.time() < self.sowing_start:
+            return 0
+        # Weather starts at the base and increases 1% every step.
+        return self.steps_complete() + self.base_weather
+
+    def weather_at_step(self, step_number):
+        """Return the weather at a given step."""
+        return step_number+ self.base_weather
+
+    def seconds_until_step_end(self):
+        """Calculate and return the seconds until the current weather step ends."""
+        sowing_time = time.time() - self.sowing_start
+        # If sowing period has not yet started, return time to start of sowing period.
+        if sowing_time < 0:
+            return abs(sowing_time)
+        return self.step * (sowing_time % self.step)
+
+
 def avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price):
     """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
     # Approximate fee by reducing input amount by pool fee %.
@@ -420,6 +490,7 @@ class EventClientType(IntEnum):
     BEANSTALK = 2
     MARKET = 3
     CURVE_LUSD_POOL = 4
+    BARN_RAISE = 5
 
 
 class EthEventsClient():
@@ -458,6 +529,12 @@ class EthEventsClient():
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
             self._set_filter()
+        elif self._event_client_type == EventClientType.BARN_RAISE:
+            self._contract = get_barn_raise_contract(self._web3)
+            self._contract_address = BARN_RAISE_ADDR
+            self._events_dict = BARN_RAISE_EVENT_MAP
+            self._signature_list = BARN_RAISE_SIGNATURES_LIST
+            self._set_filter()
         else:
             raise ValueError("Illegal event client type.")
 
@@ -466,6 +543,8 @@ class EthEventsClient():
         self._event_filter = self._web3.eth.filter({
             "address": self._contract_address,
             "topics": [self._signature_list],
+            # COMMENT BACK OUT 
+            "fromBlock": 10581687, # Use this to search for old events. # Rinkeby
             # "fromBlock": 14205000, # Use this to search for old events.
             "toBlock": 'latest'
         })
@@ -570,25 +649,25 @@ class EthEventsClient():
                 # We must verify new_entries because get_new_entries() will occasionally pull
                 # entries that are not actually new. May be a bug with web3 or may just be a relic
                 # of the way block confirmations work.
-                new_entries = filter.get_new_entries()
-                new_unique_entries = []
-                # Remove entries w txn hashes that already processed on past get_new_entries calls.
-                for i in range(len(new_entries)):
-                    entry = new_entries[i]
-                    # If we have not already processed this txn hash.
-                    if entry.transactionHash not in self._recent_processed_txns:
-                        new_unique_entries.append(entry)
-                    else:
-                        logging.warning(f'Ignoring txn that has already been processed ({entry.transactionHash})')
-                # Add all new txn hashes to recent processed set/dict.
-                for entry in new_unique_entries:
-                    # Arbitrary value. Using this as a set.
-                    self._recent_processed_txns[entry.transactionHash] = True
-                # Keep the recent txn queue size within limit.
-                for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
-                    self._recent_processed_txns.popitem(last=False)
-                return new_unique_entries
-                # return filter.get_all_entries() # Use this to search for old events.
+                # new_entries = filter.get_new_entries()
+                # new_unique_entries = []
+                # # Remove entries w txn hashes that already processed on past get_new_entries calls.
+                # for i in range(len(new_entries)):
+                #     entry = new_entries[i]
+                #     # If we have not already processed this txn hash.
+                #     if entry.transactionHash not in self._recent_processed_txns:
+                #         new_unique_entries.append(entry)
+                #     else:
+                #         logging.warning(f'Ignoring txn that has already been processed ({entry.transactionHash})')
+                # # Add all new txn hashes to recent processed set/dict.
+                # for entry in new_unique_entries:
+                #     # Arbitrary value. Using this as a set.
+                #     self._recent_processed_txns[entry.transactionHash] = True
+                # # Keep the recent txn queue size within limit.
+                # for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
+                #     self._recent_processed_txns.popitem(last=False)
+                # return new_unique_entries
+                return filter.get_all_entries() # Use this to search for old events.
             except (ValueError, asyncio.TimeoutError, Exception) as e:
                 logging.warning(e, exc_info=True)
                 logging.warning(

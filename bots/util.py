@@ -12,7 +12,7 @@ from web3 import eth
 
 from constants.addresses import *
 from data_access.graphs import (
-    BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
+    BarnRaiseSqlClient, BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
 # Strongly encourage Python 3.8+.
@@ -40,10 +40,12 @@ SUNRISE_CHECK_PERIOD = 12  # seconds
 POOL_CHECK_RATE = 12  # seconds
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = 12  # seconds
+# How long to wait between checks for new bids and sows.
+BARN_RAISE_CHECK_PERIOD = 12  # seconds
 # Bytes in 50 megabytes.
 ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
-RESET_MONITOR_DELAY_INIT = 5 # seconds
+RESET_MONITOR_DELAY_INIT = 5  # seconds
 
 
 class PegCrossType(Enum):
@@ -111,11 +113,13 @@ class Monitor():
                 self._monitor_method()
             # Websocket disconnects are expected occasionally.
             except websockets.exceptions.ConnectionClosedError as e:
-                logging.error(f'Websocket connection closed error\n{e}\n**restarting the monitor**')
+                logging.error(
+                    f'Websocket connection closed error\n{e}\n**restarting the monitor**')
                 logging.warning(e, exc_info=True)
             # Timeouts on data access are expected occasionally.
             except asyncio.exceptions.TimeoutError as e:
-                logging.error(f'Asyncio timeout error:\n{e}\n**restarting the monitor**')
+                logging.error(
+                    f'Asyncio timeout error:\n{e}\n**restarting the monitor**')
                 logging.warning(e, exc_info=True)
             except Exception as e:
                 logging.exception(e)
@@ -184,7 +188,7 @@ class PegCrossMonitor(Monitor):
         # If the cross is not newer than the last known cross or id is not greater, return.
         # These checks are necessary due to unpredictable variations in the graph.
         if (last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY] or
-            int(last_cross[ID_KEY]) <= int(self.last_known_cross[ID_KEY])):
+                int(last_cross[ID_KEY]) <= int(self.last_known_cross[ID_KEY])):
             return [PegCrossType.NO_CROSS]
 
         # If multiple crosses have occurred since last known cross.
@@ -1227,8 +1231,95 @@ class MarketMonitor(Monitor):
         return event_str
 
 
+class BarnRaiseMonitor(Monitor):
+    def __init__(self, message_function, prod=False):
+        super().__init__('BarnRaise', message_function,
+                         BARN_RAISE_CHECK_PERIOD, prod=prod, dry_run=False)
+        self.barn_raise_graph_client = BarnRaiseSqlClient()
+        self.barn_raise_client = eth_chain.BarnRaiseClient()
+        self._eth_event_client = eth_chain.EthEventsClient(
+            eth_chain.EventClientType.BARN_RAISE)
+        self.steps_complete = self.barn_raise_client.steps_complete()
+
+    def _monitor_method(self):
+        last_check_time = 0
+        while self._thread_active:
+            # Wait until check rate time has passed.
+            if time.time() < last_check_time + POOL_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            # If a new step has begun, process bids in the new step.
+            if self.barn_raise_client.steps_complete() > self.steps_complete:
+                self.steps_complete = self.barn_raise_client.steps_complete()
+                self.process_current_step_bid_fills()
+            # Check for new Bids, Bid updates, and Sows.
+            all_events = []
+            for event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).values():
+                all_events.extend(event_logs)
+            for event_log in all_events:
+                self._handle_event_log(event_log)
+
+    def _handle_event_log(self, event_log):
+        """Process a single event log for the Barn Raise."""
+        if event_log.event == 'Sow':
+            amount = eth_chain.usdc_to_float(event_log.args.amount)
+            weather = float(event_log.args.weather)
+            pods = amount + weather / 100 * amount
+            self.message_function(self.sow_string(amount, weather, pods))
+        elif event_log.event == 'CreateBid':
+            amount = eth_chain.usdc_to_float(event_log.args.amount)
+            weather = float(event_log.args.weather)
+            bonus = float(event_log.args.bonus)
+            pods = amount + (weather + bonus) / 100 * amount
+            self.message_function(self.create_bid_string(
+                amount, weather, bonus, pods))
+        elif event_log.event == 'UpdateBid':
+            altered_amount = eth_chain.usdc_to_float(
+                event_log.args.alteredAmount)
+            additional_amount = eth_chain.usdc_to_float(
+                event_log.args.addedAmount)
+            amount = altered_amount + additional_amount
+            old_weather = float(event_log.args.prevWeather)
+            new_weather = float(event_log.args.newWeather)
+            new_bonus = float(event_log.args.newBonus)
+            new_pods = amount + (new_weather + new_bonus) / 100 * amount
+            self.message_function(self.update_bid_string(
+                amount, old_weather, new_weather, new_bonus, new_pods))
+
+    def process_current_step_bid_fills(self):
+        step_weather = self.barn_raise_client.weather_at_step(
+            self.steps_complete + 1)
+        step_bids = self.barn_raise_graph_client.get_bids_with_weather(
+            step_weather)
+        for bid in step_bids:
+            self.message_function(self.bid_filled_string(
+                bid['amount'], bid['totalPods'], bid['weather'], bid['bonusWeather']))
+
+    def sow_string(self, amount, weather, pods):
+        event_str = f'🚜 {round_num(amount, 0)} TOKEN sown at {round_num(weather, 0)}% Weather ({round_num(pods, 0)} Pods)'
+        event_str += f'\n{value_to_emojis(amount)}'
+        return event_str
+
+    def create_bid_string(self, amount, weather, bonus, pods):
+        event_str = f'🔒 {round_num(amount, 0)} TOKEN bid for {round_num(weather, 0)}% Weather with {round_num(bonus, 0)}% bonus ({round_num(pods, 0)} Pods)'
+        event_str += f'\n{value_to_emojis(amount)}'
+        return event_str
+
+    def update_bid_string(self, amount, old_weather, new_weather, new_bonus, new_pods):
+        event_str = f'🔏 {round_num(amount, 0)} TOKEN bid update for {round_num(new_weather, 0)}% Weather with {round_num(new_bonus, 0)}% bonus, previous bid was {round_num(old_weather, 0)}% Weather ({round_num(new_pods, 0)} Pods)'
+        event_str += f'\n{value_to_emojis(amount)}'
+        return event_str
+
+    def bid_filled_string(self, amount, pods, weather, bonus):
+        event_str = f'🚛 {round_num(amount, 0)} TOKEN Bid fulfilled with {round_num(weather, 0)}% Weather and {round_num(bonus, 0)}% bonus ({round_num(pods, 0)} Pods)'
+        event_str += f'\n{value_to_emojis(amount)}'
+        return event_str
+
+
 class MsgHandler(logging.Handler):
     """A handler class which sends a message on a text channel."""
+
     def __init__(self, message_function):
         """
         Initialize the handler.
@@ -1251,7 +1342,6 @@ class MsgHandler(logging.Handler):
     def __repr__(self):
         level = getLevelName(self.level)
         return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
-
 
 
 def sig_compare(signature, signatures):
@@ -1305,15 +1395,17 @@ def round_num(number, precision=2):
     """Round a string or float to requested precision and return as a string."""
     return f'{float(number):,.{precision}f}'
 
+
 def round_num_auto(number, sig_fig_min=3, min_precision=2):
     """Round a string or float and return as a string.
-    
+
     Caller specifies the minimum significant figures and precision that that very large and very
     small numbers can both be handled.
     """
     if number > 1:
         return round_num(number, min_precision)
     return '%s' % float(f'%.{sig_fig_min}g' % float(number))
+
 
 def value_to_emojis(value):
     """Convert a rounded dollar value to a string of emojis."""
