@@ -543,9 +543,8 @@ class EthEventsClient():
         self._event_filter = self._web3.eth.filter({
             "address": self._contract_address,
             "topics": [self._signature_list],
-            # COMMENT BACK OUT 
-            "fromBlock": 10581687, # Use this to search for old events. # Rinkeby
-            # "fromBlock": 14205000, # Use this to search for old events.
+            # "fromBlock": 10581687, # Use this to search for old events. # Rinkeby
+            # "fromBlock": 14205000, # Use this to search for old events. # Mainnet
             "toBlock": 'latest'
         })
 
@@ -649,25 +648,25 @@ class EthEventsClient():
                 # We must verify new_entries because get_new_entries() will occasionally pull
                 # entries that are not actually new. May be a bug with web3 or may just be a relic
                 # of the way block confirmations work.
-                # new_entries = filter.get_new_entries()
-                # new_unique_entries = []
-                # # Remove entries w txn hashes that already processed on past get_new_entries calls.
-                # for i in range(len(new_entries)):
-                #     entry = new_entries[i]
-                #     # If we have not already processed this txn hash.
-                #     if entry.transactionHash not in self._recent_processed_txns:
-                #         new_unique_entries.append(entry)
-                #     else:
-                #         logging.warning(f'Ignoring txn that has already been processed ({entry.transactionHash})')
-                # # Add all new txn hashes to recent processed set/dict.
-                # for entry in new_unique_entries:
-                #     # Arbitrary value. Using this as a set.
-                #     self._recent_processed_txns[entry.transactionHash] = True
-                # # Keep the recent txn queue size within limit.
-                # for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
-                #     self._recent_processed_txns.popitem(last=False)
-                # return new_unique_entries
-                return filter.get_all_entries() # Use this to search for old events.
+                new_entries = filter.get_new_entries()
+                new_unique_entries = []
+                # Remove entries w txn hashes that already processed on past get_new_entries calls.
+                for i in range(len(new_entries)):
+                    entry = new_entries[i]
+                    # If we have not already processed this txn hash.
+                    if entry.transactionHash not in self._recent_processed_txns:
+                        new_unique_entries.append(entry)
+                    else:
+                        logging.warning(f'Ignoring txn that has already been processed ({entry.transactionHash})')
+                # Add all new txn hashes to recent processed set/dict.
+                for entry in new_unique_entries:
+                    # Arbitrary value. Using this as a set.
+                    self._recent_processed_txns[entry.transactionHash] = True
+                # Keep the recent txn queue size within limit.
+                for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
+                    self._recent_processed_txns.popitem(last=False)
+                return new_unique_entries
+                # return filter.get_all_entries() # Use this to search for old events.
             except (ValueError, asyncio.TimeoutError, Exception) as e:
                 logging.warning(e, exc_info=True)
                 logging.warning(
