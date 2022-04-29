@@ -52,7 +52,8 @@ class TelegramBot(object):
 
         ############################################################################################
 
-        self.barn_raise_monitor = util.BarnRaiseMonitor(self.send_msg, prod=prod)
+        self.barn_raise_monitor = util.BarnRaiseMonitor(
+            self.send_msg, prod=prod)
         self.barn_raise_monitor.start()
 
     def send_msg(self, msg):
