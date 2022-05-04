@@ -195,7 +195,7 @@ class BarnRaiseSqlClient(object):
         # General query string with bean sub fields placeholder.
         query_str = """
             query get_bids_with_weather {
-                bids(orderBy: idx, orderDirection: asc, where: {weather: """ + str(weather) + """})
+                bids(orderBy: idx, orderDirection: asc, where: {weather: """ + str(int(weather)) + """})
                 { """ + FIELDS_PLACEHOLDER + """ }
             }
         """
