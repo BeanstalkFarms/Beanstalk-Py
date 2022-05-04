@@ -31,7 +31,8 @@ BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
 BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
-
+# Dev test subgraph for Barn Raise - https://thegraph.com/hosted-service/subgraph/cujowolf/barn-raise-dev
+BEANSTALK_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/barn-raise-dev'
 
 class BeanSqlClient(object):
 
@@ -226,7 +227,7 @@ def string_inject_fields(string, fields):
         ' '.join(fields) + string[fields_index_end:]
 
 
-def execute(client, query_str, max_tries=0):
+def execute(client, query_str, max_tries=10):
     """Convert query string into a gql query and execute query."""
     query = gql(query_str)
 

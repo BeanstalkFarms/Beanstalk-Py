@@ -1278,6 +1278,7 @@ class BarnRaiseMonitor(Monitor):
             last_check_time = time.time()
             # If a new step has begun, process bids in the new step.
             if self.barn_raise_client.steps_complete() > self.steps_complete:
+                logging.info('New sowing step has begun, processing filled bids...')
                 self.steps_complete = self.barn_raise_client.steps_complete()
                 self.process_current_step_bid_fills()
             # Check for new Bids, Bid updates, and Sows.
