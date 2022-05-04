@@ -1325,22 +1325,22 @@ class BarnRaiseMonitor(Monitor):
                 bid['amount'], bid['totalPods'], bid['weather'], bid['bonusWeather']))
 
     def sow_string(self, amount, weather, pods):
-        event_str = f'🚜 {round_num(amount, 0)} TOKEN sown at {round_num(weather, 0)}% Weather ({round_num(pods, 0)} Pods)'
+        event_str = f'🚜 ${round_num(amount, 0)} sown at {round_num(weather, 0)}% Weather ({round_num(pods, 0)} Pods)'
         event_str += f'\n{value_to_emojis(amount)}'
         return event_str
 
     def create_bid_string(self, amount, weather, bonus, pods):
-        event_str = f'🔒 {round_num(amount, 0)} TOKEN bid for {round_num(weather, 0)}% Weather with {round_num(bonus, 0)}% bonus ({round_num(pods, 0)} Pods)'
+        event_str = f'🔒 ${round_num(amount, 0)} bid for {round_num(weather, 0)}% Weather with {round_num(bonus, 0)}% bonus ({round_num(pods, 0)} Pods)'
         event_str += f'\n{value_to_emojis(amount)}'
         return event_str
 
     def update_bid_string(self, amount, old_weather, new_weather, new_bonus, new_pods):
-        event_str = f'🔏 {round_num(amount, 0)} TOKEN bid update for {round_num(new_weather, 0)}% Weather with {round_num(new_bonus, 0)}% bonus, previous bid was {round_num(old_weather, 0)}% Weather ({round_num(new_pods, 0)} Pods)'
+        event_str = f'🔏 ${round_num(amount, 0)} bid update for {round_num(new_weather, 0)}% Weather with {round_num(new_bonus, 0)}% bonus, previous bid was {round_num(old_weather, 0)}% Weather ({round_num(new_pods, 0)} Pods)'
         event_str += f'\n{value_to_emojis(amount)}'
         return event_str
 
     def bid_filled_string(self, amount, pods, weather, bonus):
-        event_str = f'🚛 {round_num(amount, 0)} TOKEN Bid fulfilled with {round_num(weather, 0)}% Weather and {round_num(bonus, 0)}% bonus ({round_num(pods, 0)} Pods)'
+        event_str = f'🚛 ${round_num(amount, 0)} Bid fulfilled with {round_num(weather, 0)}% Weather and {round_num(bonus, 0)}% bonus ({round_num(pods, 0)} Pods)'
         event_str += f'\n{value_to_emojis(amount)}'
         return event_str
 
