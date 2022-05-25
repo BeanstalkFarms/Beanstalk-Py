@@ -46,6 +46,8 @@ BARN_RAISE_CHECK_PERIOD = 12  # seconds
 ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
 RESET_MONITOR_DELAY_INIT = 5  # seconds
+# Timestamp for start of Barn Raise.
+BARNRAISE_START_TIME = 1652112000 # seconds
 
 
 class PegCrossType(Enum):
@@ -1259,14 +1261,20 @@ class MarketMonitor(Monitor):
 
 
 class BarnRaiseMonitor(Monitor):
-    def __init__(self, message_function, prod=False):
+    def __init__(self, message_function, report_events=True, report_summaries=False, prod=False):
         super().__init__('BarnRaise', message_function,
                          BARN_RAISE_CHECK_PERIOD, prod=prod, dry_run=False)
+        self.report_events = report_events
+        self.report_summaries = report_summaries
         self.barn_raise_graph_client = BarnRaiseSqlClient()
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
         self.steps_complete = self.barn_raise_client.steps_complete()
+        # Init time to last complete hour in subgraph or to the start of the barn raise.
+        # self.last_summarized_hour = int(self.barn_raise_graph_client.last_hourly_stats().get('id') or BARNRAISE_START_TIME)
+        # For TEST.
+        self.last_summarized_hour = int(self.barn_raise_graph_client.last_hourly_stats().get('id') or 0)
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1276,6 +1284,19 @@ class BarnRaiseMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
+            # If an hour has passed, publish summary.
+            if self.report_summaries and time.time() > self.last_summarized_hour + 3600:
+                last_hourly_stats = self.barn_raise_graph_client.last_hourly_stats()
+                # Only produce a summary once the subgraph has put out the necessary stats.
+                if int(last_hourly_stats['id']) > self.last_summarized_hour:
+                    self.last_summarized_hour = int(last_hourly_stats['id'])
+                    stats = self.barn_raise_graph_client.stats()
+                    self.message_function(self.summary_string(self.last_summarized_hour,
+                        last_hourly_stats, stats['numberOfBids'], stats['totalBid'],
+                        stats['totalBidSown'], stats['totalSown'], stats['totalPods']))
+            # If not reporting events nothing else to do.
+            if not self.report_events:
+                continue
             # If a new step has begun, process bids in the new step.
             if self.barn_raise_client.steps_complete() > self.steps_complete:
                 logging.info('New sowing step has begun, processing filled bids...')
@@ -1287,6 +1308,7 @@ class BarnRaiseMonitor(Monitor):
                 all_events.extend(event_logs)
             for event_log in all_events:
                 self._handle_event_log(event_log)
+
 
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
@@ -1344,6 +1366,25 @@ class BarnRaiseMonitor(Monitor):
         event_str += f'\n{value_to_emojis(amount)}'
         return event_str
 
+    def summary_string(self, end_hour_timestamp, hourly_stat, total_number_of_bids, total_bid, total_bid_sown, total_sown, total_pods):
+        return_str = f"Raise the Barn!"
+        # If bidding period.
+        if end_hour_timestamp < self.barn_raise_client.sowing_start:
+            if int(hourly_stat['numberOfBids']) == 0:
+                return ''
+            return_str += f"\nIn the past hour there was {hourly_stat['numberOfBids']} new bids worth ${round_num(hourly_stat['totalBid'], 0)}"
+            return_str += f"\n\nIn total ${round_num(total_bid, 0)} has been locked into bids!"
+        # If sowing period.
+        elif end_hour_timestamp < self.barn_raise_client.sowing_start + self.barn_raise_client.sowing_length:
+            if int(hourly_stat['totalSown']) == 0:
+                return ''
+            return_str += f"\nIn the past hour ${round_num(hourly_stat['totalSown'], 0)} was sown ({round_num(int(hourly_stat['totalBidSown']) / int(hourly_stat['totalSown']) * 100, 0)}% from bids)"
+            return_str += f"\n\nIn total ${round_num(total_sown, 0)} has been sown for {round_num(total_pods, 0)} Pods!"
+            return_str += f"\nThere is ${total_bid - total_bid_sown} worth of unsown bids remaining"
+        # If done.
+        else:
+            return ''
+        return return_str
 
 class MsgHandler(logging.Handler):
     """A handler class which sends a message on a text channel."""
