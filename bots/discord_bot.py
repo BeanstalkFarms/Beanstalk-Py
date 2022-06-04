@@ -22,11 +22,13 @@ DISCORD_CHANNEL_ID_POOL = 915372733758603284
 DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
 DISCORD_CHANNEL_ID_MARKET = 940729085095723069
 DISCORD_CHANNEL_ID_REPORT = 943711736391933972
+DISCORD_CHANNEL_ID_BARN_RAISE = 969594841455558717
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 BUCKET_NAME = 'bots_data_8723748'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
 STAGE_BLOB_NAME = 'stage_channel_to_wallets'
 WALLET_WATCH_LIMIT = 10
+
 
 class Channel(Enum):
     PEG = 0
@@ -35,6 +37,8 @@ class Channel(Enum):
     BEANSTALK = 3
     MARKET = 4
     REPORT = 5
+    BARN_RAISE = 6
+
 
 class DiscordClient(discord.ext.commands.Bot):
 
@@ -42,7 +46,7 @@ class DiscordClient(discord.ext.commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
         self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
-        
+
         # Retrieve bucket.
         bucket = self.retrieve_or_init_bucket()
 
@@ -54,6 +58,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
             self._chat_id_market = DISCORD_CHANNEL_ID_MARKET
+            self._chat_id_barn_raise = DISCORD_CHANNEL_ID_BARN_RAISE
             logging.info('Configured as a production instance.')
         else:
             self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
@@ -63,6 +68,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_market = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_barn_raise = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
@@ -81,41 +87,50 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
+        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
         # the publicly visible BeanBot from having its name changed. Prod price_monitor lives in
         # discord_price_bot.py. This price monitor is only for testing/staging.
-        if not prod:
-            self.price_monitor = util.PreviewMonitor(
-                self.set_nickname_price, self.set_status)
-            self.price_monitor.start()
+        # if not prod:
+        #     self.price_monitor = util.PreviewMonitor(
+        #         self.set_nickname_price, self.set_status)
+        #     self.price_monitor.start()
 
-        self.peg_cross_monitor = util.PegCrossMonitor(
-            self.send_msg_peg, prod=prod)
-        self.peg_cross_monitor.start()
+        # self.peg_cross_monitor = util.PegCrossMonitor(
+        #     self.send_msg_peg, prod=prod)
+        # self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(
-            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        self.sunrise_monitor.start()
+        # self.sunrise_monitor = util.SunriseMonitor(
+        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+        # self.sunrise_monitor.start()
 
-        self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
-        self.uniswap_pool_monitor.start()
+        # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
+        # self.uniswap_pool_monitor.start()
 
-        self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
-        self.curve_3crv_pool_monitor.start()
+        # self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
+        # self.curve_3crv_pool_monitor.start()
 
-        self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
-        self.curve_lusd_pool_monitor.start()
+        # self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
+        # self.curve_lusd_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
-        self.beanstalk_monitor.start()
+        # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
+        # self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
-        self.market_monitor.start()
+        # self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
+        # self.market_monitor.start()
+
+        ############################################################################################
+
+        self.barn_raise_monitor = util.BarnRaiseMonitor(
+            self.send_msg_barn_raise, report_events=True, report_summaries=True, prod=prod, dry_run=False)
+        self.barn_raise_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
-        self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
+        self.send_queued_messages.add_exception_type(
+            discord.errors.DiscordServerError)
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
 
@@ -126,15 +141,18 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.upload_channel_to_wallets()
-        if not prod:
-            self.price_monitor.stop()
-        self.peg_cross_monitor.stop()
-        self.sunrise_monitor.stop()
-        self.uniswap_pool_monitor.stop()
-        self.curve_3crv_pool_monitor.stop()
-        self.curve_lusd_pool_monitor.stop()
-        self.beanstalk_monitor.stop()
-        self.market_monitor.stop()
+        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+        # if not prod:
+        #     self.price_monitor.stop()
+        # self.peg_cross_monitor.stop()
+        # self.sunrise_monitor.stop()
+        # self.uniswap_pool_monitor.stop()
+        # self.curve_3crv_pool_monitor.stop()
+        # self.curve_lusd_pool_monitor.stop()
+        # self.beanstalk_monitor.stop()
+        # self.market_monitor.stop()
+        ############################################################################################
+        self.barn_raise_monitor.stop()
 
     # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
     # silently do nothing.
@@ -170,6 +188,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the market channel."""
         self.msg_queue.append((Channel.MARKET, text))
 
+    def send_msg_barn_raise(self, text):
+        """Send a message through the Discord bot in the Barn Raise channel."""
+        self.msg_queue.append((Channel.BARN_RAISE, text))
+
     async def on_ready(self):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_peg = self.get_channel(self._chat_id_peg)
@@ -178,19 +200,20 @@ class DiscordClient(discord.ext.commands.Bot):
         self._channel_pool = self.get_channel(self._chat_id_pool)
         self._channel_beanstalk = self.get_channel(self._chat_id_beanstalk)
         self._channel_market = self.get_channel(self._chat_id_market)
+        self._channel_barn_raise = self.get_channel(self._chat_id_barn_raise)
 
         # Init DM channels.
         for channel_id in self.channel_to_wallets.keys():
             self.channel_id_to_channel[channel_id] = await self.fetch_channel(channel_id)
-        
+
         logging.info(
             f'Discord channels are {self._channel_report}, {self._channel_peg}, {self._channel_seasons}, '
-            f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}')
+            f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}, {self._channel_barn_raise}')
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
             cwd=os.path.dirname(os.path.realpath(__file__))
-            ).decode('ascii').strip())
+        ).decode('ascii').strip())
 
     async def send_dm(self, channel_id, text):
         logging.warning(channel_id)
@@ -222,7 +245,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
         Reconnect logic applies to Loop._valid_exception (OSError, discord.GatewayNotFound,
         discord.ConnectionClosed, aiohttp.ClientError, asyncio.TimeoutError).
-        
+
         We handle unexpected exceptions in this method so that:
         1. We can log them usefully.
         2. This thread does not crash forever.
@@ -234,7 +257,8 @@ class DiscordClient(discord.ext.commands.Bot):
                 if len(msg) > 2000:
                     msg = msg[-2000:]
                     logging.warning(f'Clipping message length down to 2000.')
-                logging.info(f'Sending message through {channel} channel:\n{msg}\n')
+                logging.info(
+                    f'Sending message through {channel} channel:\n{msg}\n')
                 # Ignore empty messages.
                 if not msg:
                     pass
@@ -250,15 +274,19 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_beanstalk.send(msg)
                 elif channel is Channel.MARKET:
                     await self._channel_market.send(msg)
+                elif channel is Channel.BARN_RAISE:
+                    await self._channel_barn_raise.send(msg)
                 # If channel is a channel_id string.
                 elif type(channel) == str:
                     await self.send_dm(channel, msg)
                 else:
-                    logging.error('Unknown channel seen in msg queue: {channel}')
+                    logging.error(
+                        'Unknown channel seen in msg queue: {channel}')
                 self.msg_queue = self.msg_queue[1:]
         except Exception as e:
             logging.warning(e, exc_info=True)
-            logging.warning('Failed to send message to Discord server. Will retry.')
+            logging.warning(
+                'Failed to send message to Discord server. Will retry.')
             return
 
     @send_queued_messages.before_loop
@@ -278,16 +306,17 @@ class DiscordClient(discord.ext.commands.Bot):
     def retrieve_or_init_bucket(self):
         """Get the Google Cloud Storage bucket, or create a new one with pertinent files."""
         storage_client = storage.Client()
-        bucket = storage_client.lookup_bucket(BUCKET_NAME) 
-        
+        bucket = storage_client.lookup_bucket(BUCKET_NAME)
+
         # If no bucket, this bucket did not exist and a new empty bucket has been created.
         # This could indicate a very bad data loss event has occurred if it is not the first run.
         if bucket is None:
             logging.critical('Existing bucket not detected. New bucket created. '
                              'This is likely a data loss event.')
             # Initialize new bucket.
-            bucket = storage_client.create_bucket(BUCKET_NAME, location='US-CENTRAL1')
-        
+            bucket = storage_client.create_bucket(
+                BUCKET_NAME, location='US-CENTRAL1')
+
         return bucket
 
     def add_to_watched_addresses(self, address, channel_id):
@@ -297,11 +326,11 @@ class DiscordClient(discord.ext.commands.Bot):
             # If nothing is being watched for this channel_id, initialize list.
             wallets = []
             self.channel_to_wallets[channel_id] = wallets
-        
+
         # If this address is already being watched in this channel, do nothing.
         if address in wallets:
             return
-        
+
         # Append the address to the existing watch list.
         wallets.append(address)
         logging.info(f'Discord channel {channel_id} is now watching {address}')
@@ -315,14 +344,15 @@ class DiscordClient(discord.ext.commands.Bot):
         except KeyError:
             # If nothing is being watched for this channel_id, then nothing to remove.
             return
-        
+
         # If this address not already being watched in this channel, do nothing.
         if address not in wallets:
             return
-        
+
         # Remove the address from the existing watch list.
         wallets.remove(address)
-        logging.info(f'Discord channel {channel_id} is no longer watching {address}')
+        logging.info(
+            f'Discord channel {channel_id} is no longer watching {address}')
 
         # Update cloud source of truth with new data.
         self.upload_channel_to_wallets()
@@ -330,8 +360,10 @@ class DiscordClient(discord.ext.commands.Bot):
     def download_channel_to_wallets(self):
         """Pull down data from cloud source of truth. Returns True/False based on success."""
         try:
-            map_str = self.wallets_blob.download_as_string(timeout=120).decode('utf8')
-            logging.info(f'Channel to wallets map string pulled from cloud source:\n{map_str}')
+            map_str = self.wallets_blob.download_as_string(
+                timeout=120).decode('utf8')
+            logging.info(
+                f'Channel to wallets map string pulled from cloud source:\n{map_str}')
             self.channel_to_wallets = json.loads(map_str)
         except google_api_exceptions.NotFound as e:
             # Data blob not found. Confirm it does not exist, then init to empty file.
@@ -350,13 +382,13 @@ class DiscordClient(discord.ext.commands.Bot):
         logging.info('Successfully downloaded channel_to_wallets map.')
         return True
 
-
     def upload_channel_to_wallets(self):
         """Update cloud source of truth with new data. Returns True/False based on success."""
         try:
-            self.wallets_blob.upload_from_string(json.dumps(self.channel_to_wallets), num_retries=3, timeout=20)
+            self.wallets_blob.upload_from_string(json.dumps(
+                self.channel_to_wallets), num_retries=3, timeout=20)
         except Exception as e:
-            logging.error('Failed to upload wallet watching changes to cloud. Will attempt again ' \
+            logging.error('Failed to upload wallet watching changes to cloud. Will attempt again '
                           'on next change.')
             logging.exception(e)
             return False
@@ -368,9 +400,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """Return True is this context is from a dm, else False."""
         return isinstance(channel, discord.channel.DMChannel)
 
+
 def configure_bot_commands(bot):
     """Define all bot chat commands that users can utilize.
-    
+
     Due to quirks of the discord.py lib, these commands must be defined outside of the bot class
     definition.
     """
@@ -379,8 +412,10 @@ def configure_bot_commands(bot):
         """Check if bot is currently running."""
         await ctx.send('I am alive and running!')
 
+
 class WalletMonitoring(commands.Cog):
     """Wallet watching commands."""
+
     def __init__(self, bot):
         self.bot = bot
 
@@ -396,14 +431,13 @@ class WalletMonitoring(commands.Cog):
         else:
             await ctx.send(f'You are not currently watching any wallets.')
 
-
     # This is challenging because the synchronous subgraph access cannot be called by the
     # discord coroutines. Would we even want to allow random users to use our subgraph key to
     # make requests on demand?
     # @commands.command(pass_context=True)
     # @commands.dm_only()
     # async def status(self, ctx):
-    #     """Get Beanstalk status of watched addresses."""      
+    #     """Get Beanstalk status of watched addresses."""
     #     # Check if no addresses are being watched.
     #     dm_id = channel_id(ctx)
     #     watched_addrs = self.bot.channel_to_wallets.get(dm_id)
@@ -411,7 +445,6 @@ class WalletMonitoring(commands.Cog):
     #         await ctx.send(f'You are not currently watching any addresses.')
     #         return
     #     await ctx.send(self.bot.sunrise_monitor.wallets_str(self.bot.channel_to_wallets[dm_id]))
-
 
     @commands.command(pass_context=True)
     @commands.dm_only()
@@ -432,12 +465,12 @@ class WalletMonitoring(commands.Cog):
             await ctx.send(f'Each user may only monitor up to {WALLET_WATCH_LIMIT} wallets. '
                            'No change to watch list.')
             return
-        
+
         # Check if address is already being watched.
         if address in watched_addrs:
             await ctx.send(f'You are already watching `{address}`. No change to watch list.')
             return
-        
+
         # Append the address to the list of watched addresses.
         self.bot.add_to_watched_addresses(address, channel_id(ctx))
 
@@ -446,7 +479,6 @@ class WalletMonitoring(commands.Cog):
             self.bot.channel_id_to_channel[channel_id(ctx)] = ctx.channel
 
         await ctx.send(f'You are now watching `{address}` in this DM conversation.')
-
 
     @commands.command(pass_context=True)
     @commands.dm_only()
@@ -460,19 +492,21 @@ class WalletMonitoring(commands.Cog):
         if not is_valid_wallet_address(address):
             await ctx.send(f'Invalid address provided (`{address}`). No change to watch list.')
             return
-        
+
         # Check if address is already being watched.
         watched_addrs = self.bot.channel_to_wallets.get(channel_id(ctx)) or []
         if address not in watched_addrs:
             await ctx.send(f'You are not already watching `{address}`. No change to watch list.')
             return
-        
+
         self.bot.remove_from_watched_addresses(address, channel_id(ctx))
         await ctx.send(f'You are no longer watching `{address}` in this DM conversation.')
+
 
 def channel_id(ctx):
     """Returns a string representation of the channel id from a context object."""
     return str(ctx.channel.id)
+
 
 if __name__ == '__main__':
     logging.basicConfig(format=f'Discord Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',

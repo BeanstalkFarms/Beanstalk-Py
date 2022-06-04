@@ -31,7 +31,6 @@ BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
 BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 
-
 class BeanSqlClient(object):
 
     def __init__(self):
@@ -66,15 +65,8 @@ class BeanSqlClient(object):
                 { """ + FIELDS_PLACEHOLDER + """ }
             }
         """
-
-        # Index where desired fields should be injected.
-        fields_index_start = query_str.find(FIELDS_PLACEHOLDER)
-        fields_index_end = query_str.find(
-            FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
-
-        # Stringify array and inject it into query string.
-        query_str = query_str[:fields_index_start] + \
-            ' '.join(fields) + query_str[fields_index_end:]
+        # Stringify array and inject fields into query string.
+        query_str = string_inject_fields(query_str, fields)
 
         # Create gql query and execute.
         # Note that there is always only 1 bean item returned.
@@ -148,14 +140,8 @@ class BeanstalkSqlClient(object):
             }
         """
 
-        # Index where desired fields should be injected.
-        fields_index_start = query_str.find(FIELDS_PLACEHOLDER)
-        fields_index_end = query_str.find(
-            FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
-
-        # Stringify array and inject it into query string.
-        query_str = query_str[:fields_index_start] + \
-            ' '.join(fields) + query_str[fields_index_end:]
+        # Stringify array and inject fields into query string.
+        query_str = string_inject_fields(query_str, fields)
 
         # Create gql query and execute.
         try:
@@ -197,8 +183,19 @@ class BeanstalkSqlClient(object):
 class GraphAccessException(Exception):
     """Failed to access the graph."""
 
+def string_inject_fields(string, fields):
+    """Modify string by replacing fields placeholder with stringified array of fields."""
+    # Index where desired fields should be injected.
+    fields_index_start = string.find(FIELDS_PLACEHOLDER)
+    fields_index_end = string.find(
+        FIELDS_PLACEHOLDER) + len(FIELDS_PLACEHOLDER)
 
-def execute(client, query_str, max_tries=0):
+    # Stringify array and inject it into query string.
+    return string[:fields_index_start] + \
+        ' '.join(fields) + string[fields_index_end:]
+
+
+def execute(client, query_str, max_tries=10):
     """Convert query string into a gql query and execute query."""
     query = gql(query_str)
 

@@ -166,7 +166,17 @@ add_event_to_dict('PodOrderFilled(address,address,bytes32,uint256,uint256,uint25
                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 # add_event_to_dict('PodOrderCancelled(address,bytes32)',
 #                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
-print(MARKET_EVENT_MAP)
+
+
+# Barn Raise events.
+FERTILIZER_EVENT_MAP = {}
+FERTILIZER_SIGNATURES_LIST = []
+add_event_to_dict('TransferSingle(address,address,address,uint256,uint256)',
+                  FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
+add_event_to_dict('TransferBatch(address,address,address,uint256[],uint256[])',
+                  FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
+print(FERTILIZER_EVENT_MAP)
+
 
 def generate_sig_hash_map(sig_str_list):
     return {sig.split('(')[0]: Web3.keccak(
@@ -213,6 +223,9 @@ with open(os.path.join(os.path.dirname(__file__),
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/bean_price_oracle_abi.json')) as bean_price_oracle_abi_file:
     bean_price_abi = json.load(bean_price_oracle_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/fertilizer_abi.json')) as fertilizer_abi_file:
+    fertilizer_abi = json.load(fertilizer_abi_file)
 
 
 def get_web3_instance():
@@ -260,6 +273,11 @@ def get_bean_price_contract(web3):
     """Get a web.eth.contract object for the Bean price oracle contract. Contract is not thread safe."""
     return web3.eth.contract(
         address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
+
+def get_fertilizer_contract(web3):
+    """Get a web.eth.contract object for the Barn Raise Fertilizer contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=FERTILIZER_ADDR, abi=fertilizer_abi)
 
 
 class ChainClient():
@@ -398,6 +416,68 @@ class CurveClient(ChainClient):
         super().__init__(web3)
         self.bean_3crv_contract = get_bean_3crv_pool_contract(self._web3)
 
+class BarnRaiseClient(ChainClient):
+    """Common functionality related to the Barn Raise Fertilizer contract."""
+
+    def __init__(self, web3=None):
+        super().__init__(web3)
+        self.contract = get_fertilizer_contract(self._web3)
+        # self.token_contract = get_fertilizer_token_contract(self._web3)
+        # Set immutable variables.
+        self.barn_raise_start = 1654516800 # seconds, epoch
+        self.unpause_start = 1654516800 + 999999 # seconds, epoch  # TODO(funderberker): Unknown restart epoch
+        # self.replant_season = call_contract_function_with_retry(self.contract.functions.REPLANT_SEASON()) # int (6074); unpause season
+        # self.end_decrease_season = call_contract_function_with_retry(self.contract.functions.END_DECREASE_SEASON()) # int (REPLANT_SEASON + 461)
+        # self.base_humidity = call_contract_function_with_retry(self.contract.functions.RESTART_HUMIDITY()) / 10 # float % (250.0)
+        self.replant_season = 6074
+        self.end_decrease_season = self.replant_season + 461
+        self.base_humidity = 2500 / 10
+        self.step_size = 0.5 # %
+        self.step_duration = 3600 # seconds
+        self.min_humidity = 20.0 # %
+
+
+    def steps_complete(self):
+        """Return the total number of steps that have fully completed."""
+        # If unpause has not yet occurred, return 0.
+        if time.time() < self.unpause_start:
+            return 0
+        return (time.time() - self.unpause_start) // self.step_duration
+
+    def humidity(self):
+        """Calculate and return current humidity."""
+        # If barn raise has not yet started, return 0.
+        if time.time() < self.barn_raise_start:
+            return 0
+        elif self.steps_complete() >= self.end_decrease_season - self.unpause_season:
+            return self.min_humidity
+        # Humidity starts at the base and decreases at each step.
+        return self.base_humidity - self.step_size * self.steps_complete()
+
+    def weather_at_step(self, step_number):
+        """Return the weather at a given step."""
+        return step_number+ self.base_weather
+
+    def seconds_until_step_end(self):
+        """Calculate and return the seconds until the current humidity step ends."""
+        unpaused_time = time.time() - self.unpause_start
+        # If barn raise has not yet started, return time to unpause.
+        if unpaused_time < 0:
+            return abs(unpaused_time)
+        return unpaused_time % self.step_duration
+
+    def remaining(self):
+        """Amount of USDC still needed to be raised as decimal float."""
+        return usdc_to_float(self.contract.functions.remaining().call())
+
+    # def purchased(self):
+    #     """Amount of fertilizer that has been purchased.
+
+    #     Note that this is not the same as amount 'raised', since forfeitted silo assets contribute
+    #     to the raised amount.
+    #     """
+    #     return self.token_contract 
+
 
 def avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price):
     """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
@@ -420,6 +500,7 @@ class EventClientType(IntEnum):
     BEANSTALK = 2
     MARKET = 3
     CURVE_LUSD_POOL = 4
+    BARN_RAISE = 5
 
 
 class EthEventsClient():
@@ -458,6 +539,12 @@ class EthEventsClient():
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
             self._set_filter()
+        elif self._event_client_type == EventClientType.BARN_RAISE:
+            self._contract = get_fertilizer_contract(self._web3)
+            self._contract_address = FERTILIZER_ADDR
+            self._events_dict = FERTILIZER_EVENT_MAP
+            self._signature_list = FERTILIZER_SIGNATURES_LIST
+            self._set_filter()
         else:
             raise ValueError("Illegal event client type.")
 
@@ -466,7 +553,8 @@ class EthEventsClient():
         self._event_filter = self._web3.eth.filter({
             "address": self._contract_address,
             "topics": [self._signature_list],
-            # "fromBlock": 14205000, # Use this to search for old events.
+            # "fromBlock": 10581687, # Use this to search for old events. # Rinkeby
+            # "fromBlock": 14205000, # Use this to search for old events. # Mainnet
             "toBlock": 'latest'
         })
 
@@ -492,7 +580,8 @@ class EthEventsClient():
 
         # Track which unique logs have already been processed from this event batch.
         for entry in new_entries:
-            # This should only be triggered when pulling dry run test entries directly.
+            # This should only be triggered when pulling dry run test entries set directly since it
+            # will include entries from other contracts.
             if entry.address != self._contract_address:
                 continue
             # The event topic associated with this entry.
@@ -611,6 +700,7 @@ def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
         # because the txn has not been confirmed at the time of call, even though the logs may
         # have already been seen. In this case, wait and hope it will confirm soon.
         except Exception as e:
+            logging.info(e)
             if try_count < max_retries:
                 # At least 1 ETH block time.
                 time.sleep(15)
@@ -796,7 +886,10 @@ def get_test_entries():
                       'data': '0x00000000000000000000000000000000000000000000000000027681c7755547000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008d33f790c', 'blockNumber': 14367955, 'transactionHash': HexBytes('0x917358c88d6b3c5be4c0a968877a30236783585de6a796ca5e0a4b1330bcf2c5'), 'transactionIndex': 178, 'blockHash': HexBytes('0x1b6d23607a523bd2eecef1aec6c4c7139d01644d9d8a8259e574e660a2714ffa'), 'logIndex': 362, 'removed': False}),
         # Deposit.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc029ec31661394b8aeb2a4598bf332b51272255c4843c7401de2f2624a53b59a'), 'blockNumber': 14219352, 'data': '0x000000000000000000000000000000000000000000000000000000000000122200000000000000000000000000000000000000000000021d92c60f1bf35400b10000000000000000000000000000000000000000000000000000000254274980', 'logIndex': 225,
-                       'removed': False, 'topics': [HexBytes('0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6'), HexBytes('0x000000000000000000000000771433c3bb5b9ef6e97d452d265cfff930e6dddb'), HexBytes('0x0000000000000000000000003a70dfa7d2262988064a2d051dd47521e43c9bdd')], 'transactionHash': HexBytes('0x697e588801005031f905f3fbd009a24d643cfb4d715deaff92059d15f4143320'), 'transactionIndex': 167})
+                       'removed': False, 'topics': [HexBytes('0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6'), HexBytes('0x000000000000000000000000771433c3bb5b9ef6e97d452d265cfff930e6dddb'), HexBytes('0x0000000000000000000000003a70dfa7d2262988064a2d051dd47521e43c9bdd')], 'transactionHash': HexBytes('0x697e588801005031f905f3fbd009a24d643cfb4d715deaff92059d15f4143320'), 'transactionIndex': 167}),
+        # Barn Raise - TransferSingle from Null address (Mint). ROPSTEN.
+        AttributeDict({'address': '0xd598d3799521a3F95784A81c883ddf1122Ad769B', 'topics': [HexBytes('0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4')], 'data': '0x00000000000000000000000000000000000000000000000000000000000017ba0000000000000000000000000000000000000000000000000000000000000001', 'blockNumber': 12312645 , 'transactionHash': HexBytes(
+                       '0x57e89d1f5bddddb2199ada7aabf46b9178e51e37401a7606f0bdb2a9174034e4'), 'transactionIndex': 3, 'blockHash': HexBytes('0x88da4209db288be2140634db3855bf464240fc54cb2f5f8c8241c5d7f9eff0c3'), 'logIndex': 5, 'removed': False})
     ]
     return entries
 
