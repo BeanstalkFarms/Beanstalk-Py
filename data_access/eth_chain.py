@@ -334,7 +334,7 @@ class BeanClient(ChainClient):
         raw_price_info = call_contract_function_with_retry(
             self.price_contract.functions.price())
         return BeanClient.map_price_info(raw_price_info)
-`
+
     @abstractmethod
     def map_price_info(raw_price_info):
         price_dict = {}
