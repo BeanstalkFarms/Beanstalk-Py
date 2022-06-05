@@ -23,7 +23,7 @@ except KeyError:
 # Rinkeby testing.
 # URL = 'wss://eth-rinkeby.alchemyapi.io/v2/***REMOVED***'
 # Ropsten testing.
-URL = 'wss://ropsten.infura.io/ws/v3/7c8f6cba358d4e43969b2aff6673a4b8' # 'wss://ropsten.infura.io/ws/v3/***REMOVED***'
+URL = 'wss://ropsten.infura.io/ws/v3/***REMOVED***' # 'wss://ropsten.infura.io/ws/v3/***REMOVED***'
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
