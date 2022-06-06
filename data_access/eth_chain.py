@@ -19,11 +19,11 @@ try:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
 except KeyError:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
-# URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
 # Rinkeby testing.
 # URL = 'wss://eth-rinkeby.alchemyapi.io/v2/***REMOVED***'
 # Ropsten testing.
-URL = 'wss://ropsten.infura.io/ws/v3/***REMOVED***' # 'wss://ropsten.infura.io/ws/v3/***REMOVED***'
+# URL = 'wss://ropsten.infura.io/ws/v3/***REMOVED***' # 'wss://ropsten.infura.io/ws/v3/***REMOVED***'
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -892,9 +892,9 @@ def get_test_entries():
         # Deposit.
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc029ec31661394b8aeb2a4598bf332b51272255c4843c7401de2f2624a53b59a'), 'blockNumber': 14219352, 'data': '0x000000000000000000000000000000000000000000000000000000000000122200000000000000000000000000000000000000000000021d92c60f1bf35400b10000000000000000000000000000000000000000000000000000000254274980', 'logIndex': 225,
                        'removed': False, 'topics': [HexBytes('0x4e2ca0515ed1aef1395f66b5303bb5d6f1bf9d61a353fa53f73f8ac9973fa9f6'), HexBytes('0x000000000000000000000000771433c3bb5b9ef6e97d452d265cfff930e6dddb'), HexBytes('0x0000000000000000000000003a70dfa7d2262988064a2d051dd47521e43c9bdd')], 'transactionHash': HexBytes('0x697e588801005031f905f3fbd009a24d643cfb4d715deaff92059d15f4143320'), 'transactionIndex': 167}),
-        # Barn Raise - TransferSingle from Null address (Mint). ROPSTEN.
-        AttributeDict({'address': '0xd598d3799521a3F95784A81c883ddf1122Ad769B', 'topics': [HexBytes('0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4')], 'data': '0x00000000000000000000000000000000000000000000000000000000000017ba0000000000000000000000000000000000000000000000000000000000000001', 'blockNumber': 12312645 , 'transactionHash': HexBytes(
-                       '0x57e89d1f5bddddb2199ada7aabf46b9178e51e37401a7606f0bdb2a9174034e4'), 'transactionIndex': 3, 'blockHash': HexBytes('0x88da4209db288be2140634db3855bf464240fc54cb2f5f8c8241c5d7f9eff0c3'), 'logIndex': 5, 'removed': False})
+        # # Barn Raise - TransferSingle from Null address (Mint). ROPSTEN.
+        # AttributeDict({'address': '0xd598d3799521a3F95784A81c883ddf1122Ad769B', 'topics': [HexBytes('0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4')], 'data': '0x00000000000000000000000000000000000000000000000000000000000017ba0000000000000000000000000000000000000000000000000000000000000001', 'blockNumber': 12312645 , 'transactionHash': HexBytes(
+        #                '0x57e89d1f5bddddb2199ada7aabf46b9178e51e37401a7606f0bdb2a9174034e4'), 'transactionIndex': 3, 'blockHash': HexBytes('0x88da4209db288be2140634db3855bf464240fc54cb2f5f8c8241c5d7f9eff0c3'), 'logIndex': 5, 'removed': False})
     ]
     return entries
 
