@@ -1,8 +1,12 @@
 from abc import abstractmethod
 import asyncio.exceptions
 from collections import OrderedDict
+import discord
+from discord.ext import tasks, commands
 from enum import Enum, IntEnum
 import logging
+import os
+import subprocess
 import sys
 import threading
 import time
@@ -25,6 +29,8 @@ LOGGING_FORMAT_STR_SUFFIX = '%(levelname)s : %(asctime)s : %(message)s'
 LOGGING_FORMATTER = logging.Formatter(LOGGING_FORMAT_STR_SUFFIX)
 
 TIMESTAMP_KEY = 'timestamp'
+# Discord server guild ID.
+BEANSTALK_GUILD_ID = 880413392916054098
 ID_KEY = 'id'
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
@@ -242,8 +248,8 @@ class PegCrossMonitor(Monitor):
             return 'Peg not crossed.'
 
 
-class PreviewMonitor(Monitor):
-    """Monitor data that offers a peek into current Bean status and update bot name/status."""
+class PricePreviewMonitor(Monitor):
+    """Monitor data that offers a view into current Bean status and update bot name/status."""
 
     def __init__(self, name_function, status_function):
         super().__init__('Price', status_function,
@@ -293,6 +299,47 @@ class PreviewMonitor(Monitor):
                 if self.status_display_index == 2:
                     self.status_function(
                         f'{round_num(sum(mints), 0)} Minted - {self.HOURS}hr')
+
+
+class BarnRaisePreviewMonitor(Monitor):
+    """Monitor data that offers a view into current Barn Raise status."""
+
+    def __init__(self, name_function, status_function):
+        super().__init__('Barn Raise Preview', status_function,
+                         PRICE_CHECK_PERIOD, prod=True, dry_run=False)
+        self.STATUS_DISPLAYS_COUNT = 2
+        self.barn_raise_client = eth_chain.BarnRaiseClient()
+        self.last_name = ''
+        self.status_display_index = 0
+        self.name_function = name_function
+        self.status_function = status_function
+
+    def _monitor_method(self):
+        # Delay startup to protect against crash loops.
+        min_update_time = time.time() + 1
+        while self._thread_active:
+            # Attempt to check as quickly as the graph allows, but no faster than set period.
+            if not time.time() > min_update_time:
+                time.sleep(1)
+                continue
+            min_update_time = time.time() + PRICE_CHECK_PERIOD
+
+            remaining = self.barn_raise_client.remaining()
+            total_raised = BARN_RAISE_USDC_TARGET - remaining
+            name_str = f'Raised: ${round_num(total_raised, 0)}'
+            if name_str != self.last_name:
+                self.name_function(name_str)
+                self.last_name = name_str
+
+            # Rotate data and update status.
+            self.status_display_index = (
+                self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
+            if self.status_display_index == 0:
+                self.status_function(
+                    f'Avail: ${round_num(remaining, 0)}')
+            elif self.status_display_index == 1:
+                self.status_function(
+                    f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
 
 
 class SunriseMonitor(Monitor):
@@ -1324,6 +1371,65 @@ class BarnRaiseMonitor(Monitor):
             # Empty line that does not get stripped.
             event_str += '\n_ _'
             self.message_function(event_str)
+
+
+class DiscordSidebarClient(discord.ext.commands.Bot):
+
+    def __init__(self, monitor, prod=False):
+        super().__init__(command_prefix=commands.when_mentioned_or("!"))
+        # There is only production for this bot.
+        logging.info('Configured as a production instance.')
+
+        self.nickname = ''
+        self.status_text = ''
+        self.monitor = monitor(self.set_nickname, self.set_status) # subclass of util.Monitor
+        self.monitor.start()
+
+        # Ignore exceptions of this type and retry. Note that no logs will be generated.
+        self._update_naming.add_exception_type(discord.errors.DiscordServerError)
+        # Start the price display task in the background.
+        self._update_naming.start()
+
+    def stop(self):
+        self.monitor.stop()
+
+    def set_nickname(self, text):
+        """Set bot server nickname."""
+        self.nickname = text
+
+    def set_status(self, text):
+        """Set bot custom status text."""
+        self.status_text = text
+
+    async def on_ready(self):
+        # Log the commit of this run.
+        logging.info('Git commit is ' + subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            cwd=os.path.dirname(os.path.realpath(__file__))
+            ).decode('ascii').strip())
+
+        self.user_id = self.user.id
+        self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
+
+    @tasks.loop(seconds=0.1, reconnect=True)
+    async def _update_naming(self):
+        if self.nickname:
+            # Note(funderberker): Is this rate limited?
+            await self.beanstalk_guild.me.edit(nick=self.nickname)
+            logging.info(f'Bot nickname changed to {self.nickname}')
+            self.nickname = ''
+        if self.status_text:
+            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
+                                                                 name=self.status_text))
+            logging.info(f'Bot status changed to {self.status_text}')
+            self.status_text = ''
+
+    @_update_naming.before_loop
+    async def before__update_nickname_loop(self):
+        """Wait until the bot logs in."""
+        await self.wait_until_ready()
+
+
 
 class MsgHandler(logging.Handler):
     """A handler class which sends a message on a text channel."""
