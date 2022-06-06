@@ -21,9 +21,9 @@ except KeyError:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
 URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
 # Rinkeby testing.
-# URL = 'wss://eth-rinkeby.alchemyapi.io/v2/***REMOVED***'
+# URL = 'wss://eth-rinkeby.alchemyapi.io/v2/XXXXXXXXXXXXXXXXXXX'
 # Ropsten testing.
-# URL = 'wss://ropsten.infura.io/ws/v3/***REMOVED***' # 'wss://ropsten.infura.io/ws/v3/***REMOVED***'
+# URL = 'wss://ropsten.infura.io/ws/v3/XXXXXXXXXXXXXXXX' # 'wss://ropsten.infura.io/ws/v3/XXXXXXXXXXXXX'
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
