@@ -1314,8 +1314,8 @@ class BarnRaiseMonitor(Monitor):
         super().__init__('BarnRaise', message_function,
                          BARN_RAISE_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._web3 = eth_chain.get_web3_instance()
-        self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14915795
-        # self.SUMMARY_BLOCK_RANGE = 1430
+        # self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14915795
+        self.SUMMARY_BLOCK_RANGE = 1430
         self.EMOJI_RANKS = ['🥇','🥈','🥉']
         self.report_events = report_events
         self.report_summaries = report_summaries
@@ -1337,8 +1337,8 @@ class BarnRaiseMonitor(Monitor):
             if self.report_summaries:
                 current_block = self._web3.eth.get_block('latest')
                 # # if (time.time() - self.barn_raise_client.barn_raise_start) % (self.SUMMARY_HOUR_RANGE*3600) < BARN_RAISE_CHECK_RATE + 0.5:
-                # if (current_block - 14915799) % self.SUMMARY_BLOCK_RANGE:
-                if True:
+                if (current_block - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
+                # if True:
                     from_block = self._web3.eth.get_block(current_block.number - self.SUMMARY_BLOCK_RANGE)
                     time_range = current_block.timestamp - from_block.timestamp
                     all_events_in_time_range = []
