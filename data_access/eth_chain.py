@@ -564,7 +564,16 @@ class EthEventsClient():
             "toBlock": 'latest'
         })
 
-    def get_new_logs(self, dry_run=False):
+    def get_log_range(self, from_block, to_block='latest'):
+        filter = self._event_filter = self._web3.eth.filter({
+            "address": self._contract_address,
+            "topics": [self._signature_list],
+            "fromBlock": from_block,
+            "toBlock": to_block
+        })
+        return self.get_new_logs(filter=filter, get_all=True)
+
+    def get_new_logs(self, dry_run=False, filter=None, get_all=False):
         """Iterate through all entries passing filter and return list of decoded Log Objects.
 
         Each on-chain event triggered creates one log, which is associated with one entry. We
@@ -575,11 +584,13 @@ class EthEventsClient():
         Note that there may be multiple unique entries with the same topic. Though we assume
         each entry indicates one log of interest.
         """
+        if filter is None:
+            filter = self._event_filter
         # All decoded logs of interest from each txn.
         txn_logs_dict = {}
 
         if not dry_run:
-            new_entries = self.safe_get_new_entries(self._event_filter)
+            new_entries = self.safe_get_new_entries(filter, get_all=get_all)
         else:
             new_entries = get_test_entries()
             time.sleep(3)
@@ -648,7 +659,7 @@ class EthEventsClient():
 
         return txn_logs_dict
 
-    def safe_get_new_entries(self, filter):
+    def safe_get_new_entries(self, filter, get_all=False):
         """Retrieve all new entries that pass the filter.
 
         Returns one entry for every log that matches a filter. So if a single txn has multiple logs
@@ -657,11 +668,13 @@ class EthEventsClient():
         """
         logging.info(
             f'Checking for new {self._event_client_type.name} entries with '
-            f'{self._event_filter}.')
+            f'{filter}.')
         try_count = 0
         while try_count < 5:
             try_count += 1
             try:
+                if get_all:
+                    return filter.get_all_entries()
                 # We must verify new_entries because get_new_entries() will occasionally pull
                 # entries that are not actually new. May be a bug with web3 or may just be a relic
                 # of the way block confirmations work.
@@ -687,7 +700,7 @@ class EthEventsClient():
             except (ValueError, asyncio.TimeoutError, Exception) as e:
                 logging.warning(e, exc_info=True)
                 logging.warning(
-                    'filter.get_new_entries() failed or timed out. Retrying...')
+                    'filter.get_new_entries() (or .get_all_entries()) failed or timed out. Retrying...')
                 time.sleep(1)
         # Filters rely on server state and may be arbitrarily uninstalled by server.
         # https://github.com/ethereum/web3.py/issues/551

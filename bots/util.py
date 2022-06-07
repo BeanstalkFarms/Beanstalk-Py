@@ -1313,17 +1313,16 @@ class BarnRaiseMonitor(Monitor):
     def __init__(self, message_function, report_events=True, report_summaries=False, prod=False, dry_run=False):
         super().__init__('BarnRaise', message_function,
                          BARN_RAISE_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._web3 = eth_chain.get_web3_instance()
+        self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14915795
+        # self.SUMMARY_BLOCK_RANGE = 1430
+        self.EMOJI_RANKS = ['🥇','🥈','🥉']
         self.report_events = report_events
         self.report_summaries = report_summaries
-        # self.barn_raise_graph_client = BarnRaiseSqlClient()
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
         self.steps_complete = self.barn_raise_client.steps_complete()
-        # Init time to last complete hour in subgraph or to the start of the barn raise.
-        # self.last_summarized_hour = int(self.barn_raise_graph_client.last_hourly_stats().get('id') or BARN_RAISE_START_TIME)
-        # For TEST.
-        # self.last_summarized_hour = int(self.barn_raise_graph_client.last_hourly_stats().get('id') or 0)
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1333,18 +1332,43 @@ class BarnRaiseMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            # If an hour has passed, publish summary.
-            # if self.report_summaries and time.time() > self.last_summarized_hour + 3600:
-            #     current_hour = last_check_time // 3600
-            #     past_check_hour = (last_check_time - BARN_RAISE_CHECK_RATE - 0.5) // 3600
-            #     # last_hourly_stats = self.barn_raise_graph_client.last_hourly_stats()
-            #     # Only produce a summary once the subgraph has put out the necessary stats.
-            #     if int(last_hourly_stats['id']) > self.last_summarized_hour:
-            #         self.last_summarized_hour = int(last_hourly_stats['id'])
-            #         stats = self.barn_raise_graph_client.stats()
-            #         self.message_function(self.summary_string(self.last_summarized_hour,
-            #             last_hourly_stats, stats['numberOfBids'], stats['totalBid'],
-            #             stats['totalBidSown'], stats['totalSown'], stats['totalPods']))
+
+            # If reporting summaries and a 6 hour block has passed.
+            if self.report_summaries:
+                current_block = self._web3.eth.get_block('latest')
+                # # if (time.time() - self.barn_raise_client.barn_raise_start) % (self.SUMMARY_HOUR_RANGE*3600) < BARN_RAISE_CHECK_RATE + 0.5:
+                # if (current_block - 14915799) % self.SUMMARY_BLOCK_RANGE:
+                if True:
+                    from_block = self._web3.eth.get_block(current_block.number - self.SUMMARY_BLOCK_RANGE)
+                    time_range = current_block.timestamp - from_block.timestamp
+                    all_events_in_time_range = []
+                    for event_logs in self._eth_event_client.get_log_range(from_block = from_block.number, to_block=current_block.number).values():
+                        all_events_in_time_range.extend(event_logs)
+                    # Do not report a summary if nothing happened.
+                    if len(all_events_in_time_range) == 0:
+                        logging.info('No events detected to summarize. Skipping summary.')
+                        continue
+                    # Sort events based on size.
+                    all_events_in_time_range = sorted(all_events_in_time_range, key=lambda event: event.args.get('value') or sum(event.args.get('values')), reverse=True)
+                    # all_events_in_time_range = sorted(all_events_in_time_range, lambda(event: int(event.args.value)))
+                    total_raised = 0
+                    # major_events = []
+                    for event in all_events_in_time_range:
+                        usdc_amount = int(event.args.value)
+                        total_raised += usdc_amount
+                msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
+                remaining = self.barn_raise_client.remaining()
+                msg_str += f'\n🌱 ${round_num(BARN_RAISE_USDC_TARGET - remaining, 0)} ({round_num((BARN_RAISE_USDC_TARGET - remaining)/BARN_RAISE_USDC_TARGET*100, 2)}%) raised in total'
+                msg_str += f'\n'
+                for i in range(3):
+                    try:
+                        event = all_events_in_time_range[i]
+                    # There may not be 3 events in a time block.
+                    except IndexError:
+                        break
+                    msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
+                self.message_function(msg_str)
+            
             # If reporting events.
             if self.report_events:
                 # Check for new Bids, Bid updates, and Sows.

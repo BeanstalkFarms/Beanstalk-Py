@@ -30,9 +30,14 @@ class TwitterBot(object):
             access_token=access_token, access_token_secret=access_token_secret
         )
 
-        self.sunrise_monitor = util.SunriseMonitor(
-            self.send_msg, short_msgs=True, prod=prod)
-        self.sunrise_monitor.start()
+        ############ DISABLE SUNRISE MONITOR DURING BARN RAISE PRE SALE ############
+        # self.sunrise_monitor = util.SunriseMonitor(
+        #     self.send_msg, short_msgs=True, prod=prod)
+        # self.sunrise_monitor.start()
+        #############################################################################
+        self.barn_raise_monitor = util.BarnRaiseMonitor(
+            self.send_msg, report_events=False, report_summaries=True, prod=prod)
+        self.barn_raise_monitor.start()
 
     def send_msg(self, msg):
         # Remove URL pointy brackets used by md formatting to suppress link previews.
@@ -50,7 +55,10 @@ class TwitterBot(object):
         logging.info(f'Tweeted:\n{msg}\n')
 
     def stop(self):
-        self.sunrise_monitor.stop()
+        ############ DISABLE SUNRISE MONITOR DURING BARN RAISE PRE SALE ############
+        # self.sunrise_monitor.stop()
+        #############################################################################
+        self.barn_raise_monitor.stop()
 
     def infinity_polling(self):
         """Sleep forever while monitors run on background threads. Exit via interrupt."""
