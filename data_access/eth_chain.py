@@ -8,6 +8,7 @@ import json
 import os
 import time
 from discord.ext.commands.errors import ArgumentParsingError
+import websockets
 
 from web3 import Web3, WebsocketProvider
 from web3.logs import DISCARD
@@ -554,23 +555,32 @@ class EthEventsClient():
         else:
             raise ValueError("Illegal event client type.")
 
+
+
     def _set_filter(self):
         """This is located in a method so it can be reset on the fly."""
-        self._event_filter = self._web3.eth.filter({
-            "address": self._contract_address,
-            "topics": [self._signature_list],
-            # "fromBlock": 10581687, # Use this to search for old events. # Rinkeby
-            # "fromBlock": 14205000, # Use this to search for old events. # Mainnet
-            "toBlock": 'latest'
-        })
+        while True:
+            try:
+                self._event_filter = safe_create_filter(self._web3,
+                    address=self._contract_address,
+                    topics=[self._signature_list],
+                    # from_block=10581687, # Use this to search for old events. # Rinkeby
+                    # from_block=14205000, # Use this to search for old events. # Mainnet
+                    from_block=0,
+                    to_block='latest'
+                )
+                return
+            except websockets.exceptions.ConnectionClosedError as e:
+                logging.warning(e, exc_info=True)
+                time.sleep(2)
 
     def get_log_range(self, from_block, to_block='latest'):
-        filter = self._event_filter = self._web3.eth.filter({
-            "address": self._contract_address,
-            "topics": [self._signature_list],
-            "fromBlock": from_block,
-            "toBlock": to_block
-        })
+        filter = safe_create_filter(self._web3,
+            address=self._contract_address,
+            topics=[self._signature_list],
+            from_block=from_block,
+            to_block=to_block
+        )
         return self.get_new_logs(filter=filter, get_all=True)
 
     def get_new_logs(self, dry_run=False, filter=None, get_all=False):
@@ -726,6 +736,36 @@ def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
                 continue
             logging.error(f'Failed to get txn after {try_count} retries. Was the block orphaned?')
             raise(e)
+
+def safe_create_filter(web3, address, topics, from_block, to_block):
+    """Create a filter but handle connection exceptions that web3 cannot manage."""
+    max_tries=15
+    try_count=0
+    while try_count < max_tries:
+        try:
+            return web3.eth.filter({
+                "address": address,
+                "topics": topics,
+                "fromBlock": from_block,
+                "toBlock": to_block
+            })
+        except websockets.exceptions.ConnectionClosedError as e:
+            logging.warning(e, exc_info=True)
+            time.sleep(2)
+            try_count += 1
+    raise Exception('Failed to safely create filter')
+
+def safe_get_block(web3, block_number='latest'):
+    max_tries=15
+    try_count=0
+    while try_count < max_tries:
+        try:
+            return web3.eth.get_block(block_number)
+        except websockets.exceptions.ConnectionClosedError as e:
+            logging.warning(e, exc_info=True)
+            time.sleep(2)
+            try_count += 1
+    raise Exception('Failed to safely get block')
 
 def get_erc20_total_supply(addr, decimals, web3=None):
     """Get the total supply of ERC-20 token in circulation as float."""

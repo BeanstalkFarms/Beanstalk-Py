@@ -1335,11 +1335,11 @@ class BarnRaiseMonitor(Monitor):
 
             # If reporting summaries and a 6 hour block has passed.
             if self.report_summaries:
-                current_block = self._web3.eth.get_block('latest')
+                current_block = eth_chain.safe_get_block(self._web3, 'latest')
                 # # if (time.time() - self.barn_raise_client.barn_raise_start) % (self.SUMMARY_HOUR_RANGE*3600) < BARN_RAISE_CHECK_RATE + 0.5:
                 if (current_block.number - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
                 # if True:
-                    from_block = self._web3.eth.get_block(current_block.number - self.SUMMARY_BLOCK_RANGE)
+                    from_block = eth_chain.safe_get_block(self._web3, current_block.number - self.SUMMARY_BLOCK_RANGE)
                     time_range = current_block.timestamp - from_block.timestamp
                     all_events_in_time_range = []
                     for event_logs in self._eth_event_client.get_log_range(from_block = from_block.number, to_block=current_block.number).values():
