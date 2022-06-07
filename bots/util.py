@@ -1337,7 +1337,7 @@ class BarnRaiseMonitor(Monitor):
             if self.report_summaries:
                 current_block = self._web3.eth.get_block('latest')
                 # # if (time.time() - self.barn_raise_client.barn_raise_start) % (self.SUMMARY_HOUR_RANGE*3600) < BARN_RAISE_CHECK_RATE + 0.5:
-                if (current_block - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
+                if (current_block.number - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
                 # if True:
                     from_block = self._web3.eth.get_block(current_block.number - self.SUMMARY_BLOCK_RANGE)
                     time_range = current_block.timestamp - from_block.timestamp
@@ -1352,22 +1352,21 @@ class BarnRaiseMonitor(Monitor):
                     all_events_in_time_range = sorted(all_events_in_time_range, key=lambda event: event.args.get('value') or sum(event.args.get('values')), reverse=True)
                     # all_events_in_time_range = sorted(all_events_in_time_range, lambda(event: int(event.args.value)))
                     total_raised = 0
-                    # major_events = []
                     for event in all_events_in_time_range:
                         usdc_amount = int(event.args.value)
                         total_raised += usdc_amount
-                msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
-                remaining = self.barn_raise_client.remaining()
-                msg_str += f'\n🌱 ${round_num(BARN_RAISE_USDC_TARGET - remaining, 0)} ({round_num((BARN_RAISE_USDC_TARGET - remaining)/BARN_RAISE_USDC_TARGET*100, 2)}%) raised in total'
-                msg_str += f'\n'
-                for i in range(3):
-                    try:
-                        event = all_events_in_time_range[i]
-                    # There may not be 3 events in a time block.
-                    except IndexError:
-                        break
-                    msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
-                self.message_function(msg_str)
+                    msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
+                    remaining = self.barn_raise_client.remaining()
+                    msg_str += f'\n🌱 ${round_num(BARN_RAISE_USDC_TARGET - remaining, 0)} ({round_num((BARN_RAISE_USDC_TARGET - remaining)/BARN_RAISE_USDC_TARGET*100, 2)}%) raised in total'
+                    msg_str += f'\n'
+                    for i in range(3):
+                        try:
+                            event = all_events_in_time_range[i]
+                        # There may not be 3 events in a time block.
+                        except IndexError:
+                            break
+                        msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
+                    self.message_function(msg_str)
             
             # If reporting events.
             if self.report_events:
