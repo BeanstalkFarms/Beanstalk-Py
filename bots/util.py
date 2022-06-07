@@ -47,7 +47,7 @@ POOL_CHECK_RATE = 12  # seconds
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = 12  # seconds
 # How long to wait between checks for new bids and sows.
-BARN_RAISE_CHECK_RATE = 12  # seconds
+BARN_RAISE_CHECK_RATE = 6  # seconds
 # Bytes in 50 megabytes.
 ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
@@ -1315,8 +1315,8 @@ class BarnRaiseMonitor(Monitor):
                          BARN_RAISE_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._web3 = eth_chain.get_web3_instance()
         # Used for special init cases
-        self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14918083
-        # self.SUMMARY_BLOCK_RANGE = 1430
+        # self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14918083
+        self.SUMMARY_BLOCK_RANGE = 1430
         self.EMOJI_RANKS = ['🥇','🥈','🥉']
         self.report_events = report_events
         self.report_summaries = report_summaries
@@ -1338,8 +1338,8 @@ class BarnRaiseMonitor(Monitor):
             if self.report_summaries:
                 current_block = eth_chain.safe_get_block(self._web3, 'latest')
                 # # if (time.time() - self.barn_raise_client.barn_raise_start) % (self.SUMMARY_HOUR_RANGE*3600) < BARN_RAISE_CHECK_RATE + 0.5:
-                # if (current_block.number - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
-                if True:
+                if (current_block.number - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
+                # if True:
                     from_block = eth_chain.safe_get_block(self._web3, current_block.number - self.SUMMARY_BLOCK_RANGE)
                     time_range = current_block.timestamp - from_block.timestamp
                     all_events_in_time_range = []
