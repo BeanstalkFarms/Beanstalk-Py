@@ -1214,7 +1214,8 @@ class MarketMonitor(Monitor):
         start_index = plot_index + relative_start_index
         # Current index at start of pod line (number of pods ever harvested).
         pods_harvested = eth_chain.pods_to_float(
-            self.beanstalk_contract.functions.harvestableIndex().call())
+            eth_chain.call_contract_function_with_retry(
+                self.beanstalk_contract.functions.harvestableIndex()))
         # Lowest place in line of a listing.
         start_place_in_line = start_index - pods_harvested
         # Highest place in line an order will purchase.

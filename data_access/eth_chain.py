@@ -395,7 +395,8 @@ class UniswapClient(ChainClient):
         self.eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
 
     def current_eth_price(self):
-        reserve0, reserve1, last_swap_block_time = self.eth_usdc_pool_contract.functions.getReserves().call()
+        reserve0, reserve1, last_swap_block_time = call_contract_function_with_retry(
+            self.eth_usdc_pool_contract.functions.getReserves())
         eth_reserves = eth_to_float(reserve1)
         usdc_reserves = usdc_to_float(reserve0)
         eth_price = usdc_reserves / eth_reserves
@@ -407,7 +408,8 @@ class UniswapClient(ChainClient):
     DEPRECATED. Waiting for next implementation of Bean Price Oracle with $/LP to remove.
     """
     def current_eth_and_bean_price(self):
-        reserve0, reserve1, last_swap_block_time = self.eth_bean_pool_contract.functions.getReserves().call()
+        reserve0, reserve1, last_swap_block_time = call_contract_function_with_retry(
+            self.eth_bean_pool_contract.functions.getReserves())
         eth_reserves = eth_to_float(reserve0)
         bean_reserves = bean_to_float(reserve1)
         eth_price = self.current_eth_price()
@@ -475,7 +477,7 @@ class BarnRaiseClient(ChainClient):
 
     def remaining(self):
         """Amount of USDC still needed to be raised as decimal float."""
-        return usdc_to_float(self.contract.functions.remaining().call())
+        return usdc_to_float(call_contract_function_with_retry(self.contract.functions.remaining()))
 
     # def purchased(self):
     #     """Amount of fertilizer that has been purchased.
@@ -559,20 +561,14 @@ class EthEventsClient():
 
     def _set_filter(self):
         """This is located in a method so it can be reset on the fly."""
-        while True:
-            try:
-                self._event_filter = safe_create_filter(self._web3,
-                    address=self._contract_address,
-                    topics=[self._signature_list],
-                    # from_block=10581687, # Use this to search for old events. # Rinkeby
-                    # from_block=14205000, # Use this to search for old events. # Mainnet
-                    from_block=0,
-                    to_block='latest'
-                )
-                return
-            except websockets.exceptions.ConnectionClosedError as e:
-                logging.warning(e, exc_info=True)
-                time.sleep(2)
+        self._event_filter = safe_create_filter(self._web3,
+            address=self._contract_address,
+            topics=[self._signature_list],
+            # from_block=10581687, # Use this to search for old events. # Rinkeby
+            # from_block=14205000, # Use this to search for old events. # Mainnet
+            from_block=0,
+            to_block='latest'
+        )
 
     def get_log_range(self, from_block, to_block='latest'):
         filter = safe_create_filter(self._web3,
@@ -707,7 +703,7 @@ class EthEventsClient():
                     self._recent_processed_txns.popitem(last=False)
                 return new_unique_entries
                 # return filter.get_all_entries() # Use this to search for old events.
-            except (ValueError, asyncio.TimeoutError, Exception) as e:
+            except (ValueError, asyncio.TimeoutError, websockets.exceptions.ConnectionClosedError, Exception) as e:
                 logging.warning(e, exc_info=True)
                 logging.warning(
                     'filter.get_new_entries() (or .get_all_entries()) failed or timed out. Retrying...')
@@ -772,16 +768,17 @@ def get_erc20_total_supply(addr, decimals, web3=None):
     if not web3:
         web3 = get_web3_instance()
     partial_contract = web3.eth.contract(address=addr, abi=erc20_abi)
-    return token_to_float(partial_contract.functions.totalSupply().call(), decimals)
+    return token_to_float(call_contract_function_with_retry(
+        partial_contract.functions.totalSupply()), decimals)
 
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""
     if not web3:
         web3 = get_web3_instance()
     contract = web3.eth.contract(address=addr, abi=erc20_abi)
-    name = contract.functions.name().call()
-    symbol = contract.functions.symbol().call()
-    decimals = contract.functions.decimals().call()
+    name = call_contract_function_with_retry(contract.functions.name())
+    symbol = call_contract_function_with_retry(contract.functions.symbol())
+    decimals = call_contract_function_with_retry(contract.functions.decimals())
     return name, symbol, decimals
 
 
