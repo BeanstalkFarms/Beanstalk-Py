@@ -1387,6 +1387,7 @@ class BarnRaiseMonitor(Monitor):
 
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
+        usdc_amount = None
         # Mint single.
         if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
             usdc_amount = int(event_log.args.value)
@@ -1394,7 +1395,7 @@ class BarnRaiseMonitor(Monitor):
         elif event_log.event == 'TransferBatch' and event_log.args['from'] == NULL_ADDR:
             usdc_amount = sum([int(value) for value in event_log.args.values])
         
-        if usdc_amount:
+        if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC'
             event_str += f' (${round_num(BARN_RAISE_USDC_TARGET - self.barn_raise_client.remaining(), 0)} raised total)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
