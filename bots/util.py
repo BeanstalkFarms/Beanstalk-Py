@@ -342,7 +342,7 @@ class BarnRaisePreviewMonitor(Monitor):
                     f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
             elif self.status_display_index == 2:
                 self.status_function(
-                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET, 2)}% raised')
+                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
 
 
 class SunriseMonitor(Monitor):
