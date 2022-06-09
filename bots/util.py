@@ -1331,6 +1331,10 @@ class BarnRaiseMonitor(Monitor):
 
     def _monitor_method(self):
         last_check_time = 0
+        
+
+        init_str="""🚛 Fertilizer Purchased - 1,026,155 USDC ($8,888,888 raised total)\n🐳🐳🐳🐳🐳🐳🐳🐳🐳🐳\n<https://etherscan.io/tx/0xf3bedc18f05f8a6abd0a72e587cd098040e576bb8c05b6dea034693780e64388>\n_ _"""
+        self.message_function(init_str)
         while self._thread_active:
             # Wait until check rate time has passed.
             if time.time() < last_check_time + BARN_RAISE_CHECK_RATE:
