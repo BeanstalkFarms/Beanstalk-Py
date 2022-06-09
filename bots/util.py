@@ -1371,7 +1371,9 @@ class BarnRaiseMonitor(Monitor):
                         # There may not be 3 events in a time block.
                         except IndexError:
                             break
-                        msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
+                        # msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
+                        msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} (https://etherscan.io/tx/{event.transactionHash.hex()})'
+
                     self.message_function(msg_str)
             
             # If reporting events.
