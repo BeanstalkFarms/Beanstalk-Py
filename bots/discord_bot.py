@@ -125,7 +125,7 @@ class DiscordClient(discord.ext.commands.Bot):
         ############################################################################################
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
-            self.send_msg_barn_raise, report_events=True, report_summaries=True, prod=prod, dry_run=False)
+            self.send_msg_barn_raise, report_events=True, report_summaries=False, prod=prod, dry_run=False)
         self.barn_raise_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
