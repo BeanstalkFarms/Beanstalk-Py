@@ -307,7 +307,7 @@ class BarnRaisePreviewMonitor(Monitor):
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
-        self.STATUS_DISPLAYS_COUNT = 2
+        self.STATUS_DISPLAYS_COUNT = 3
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self.last_name = ''
         self.status_display_index = 0
@@ -340,6 +340,9 @@ class BarnRaisePreviewMonitor(Monitor):
             elif self.status_display_index == 1:
                 self.status_function(
                     f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
+            elif self.status_display_index == 2:
+                self.status_function(
+                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET, 2)}% raised')
 
 
 class SunriseMonitor(Monitor):
