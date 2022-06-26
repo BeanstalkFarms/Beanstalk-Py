@@ -1418,8 +1418,9 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         self.monitor = monitor(self.set_nickname, self.set_status) # subclass of util.Monitor
         self.monitor.start()
 
-        # Ignore exceptions of this type and retry. Note that no logs will be generated.
-        self._update_naming.add_exception_type(discord.errors.DiscordServerError)
+        # Use discord.py reconnect logic for exceptions of this type.
+        # Note that proper logs will not be generated.
+        # self._update_naming.add_exception_type(discord.errors.DiscordServerError)
         # Start the price display task in the background.
         self._update_naming.start()
 
