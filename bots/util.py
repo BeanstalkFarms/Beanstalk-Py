@@ -326,7 +326,7 @@ class BarnRaisePreviewMonitor(Monitor):
 
             remaining = self.barn_raise_client.remaining()
             total_raised = BARN_RAISE_USDC_TARGET - remaining
-            name_str = f'Raised: ${round_num(total_raised, 0)}'
+            name_str = f'Sold: ${round_num(total_raised, 0)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
