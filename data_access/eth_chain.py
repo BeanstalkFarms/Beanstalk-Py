@@ -433,7 +433,7 @@ class BarnRaiseClient(ChainClient):
         # self.token_contract = get_fertilizer_token_contract(self._web3)
         # Set immutable variables.
         self.barn_raise_start = 1654516800 # seconds, epoch
-        self.unpause_start = 1657152000 # seconds, epoch # July 7, 12pm  # TODO(funderberker): This is arbitrary, update when restart time is known.
+        self.unpause_start = 1660564800 # seconds, epoch # August 15 2022, 12pm  # TODO(funderberker): This is arbitrary, update when restart time is known.
         # self.replant_season = call_contract_function_with_retry(self.contract.functions.REPLANT_SEASON()) # int (6074); unpause season
         # self.end_decrease_season = call_contract_function_with_retry(self.contract.functions.END_DECREASE_SEASON()) # int (REPLANT_SEASON + 461)
         # self.base_humidity = call_contract_function_with_retry(self.contract.functions.RESTART_HUMIDITY()) / 10 # float % (250.0)
@@ -458,7 +458,7 @@ class BarnRaiseClient(ChainClient):
         # If barn raise has not yet started, or not yet unpaused, return 500%.
         if time.time() < self.unpause_start:
             return self.pre_sale_humidity
-        elif self.steps_complete() >= self.end_decrease_season - self.unpause_season:
+        elif self.steps_complete() >= self.end_decrease_season - self.replant_season:
             return self.min_humidity
         # Humidity starts at the base and decreases at each step.
         return self.base_humidity - self.step_size * self.steps_complete()
