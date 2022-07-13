@@ -566,7 +566,8 @@ class EthEventsClient():
             topics=[self._signature_list],
             # from_block=10581687, # Use this to search for old events. # Rinkeby
             # from_block=14205000, # Use this to search for old events. # Mainnet
-            from_block=0,
+            from_block=15124184, # Bootstrap Barn Raised missed txns. # Mainnet
+            # from_block=0,
             to_block='latest'
         )
 
@@ -596,7 +597,7 @@ class EthEventsClient():
         txn_logs_dict = {}
 
         if not dry_run:
-            new_entries = self.safe_get_new_entries(filter, get_all=get_all)
+            new_entries = self.safe_get_new_entries(filter, get_all=True)
         else:
             new_entries = get_test_entries()
             time.sleep(3)
