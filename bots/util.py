@@ -1385,7 +1385,6 @@ class BarnRaiseMonitor(Monitor):
                     all_events.extend(event_logs)
                 for event_log in all_events:
                     self._handle_event_log(event_log)
-            exit(1)
 
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
@@ -1399,7 +1398,7 @@ class BarnRaiseMonitor(Monitor):
         
         if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC'
-            # event_str += f' (${round_num(BARN_RAISE_USDC_TARGET - self.barn_raise_client.remaining(), 0)} raised total)'
+            event_str += f' (${round_num(BARN_RAISE_USDC_TARGET - self.barn_raise_client.remaining(), 0)} raised total)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
             # Empty line that does not get stripped.
