@@ -683,14 +683,8 @@ class UniswapPoolMonitor(Monitor):
 
         # Process the txn logs based on the method.
         # Ignore silo conversion events. They will be handled by the beanstalk class.
-        if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
+        if event_in_logs('Convert', event_logs):
             return
-        # No special logic for deposits. If they include a swap we should process it as normal.
-        elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
-            pass
-        else:
-            # All other txn log sets should include a standard ETH:BEAN swap.
-            pass
 
         # Each txn of interest should only include one ETH:BEAN swap.
         if len(event_logs) > 1:
@@ -962,132 +956,86 @@ class BeanstalkMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
-        # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction = self._web3.eth.get_transaction(
-            txn_hash)
-        txn_method_sig_prefix = transaction['input'][:9]
-
-        # Prune embedded bean deposit logs. They are uninteresting clutter.
-        last_bean_deposit = None
-        bean_deposit_logs = []
-        for event_log in event_logs:
-            # Parse through BeanDeposit logs, keeping track of which is last.
-            if event_log.event == 'BeanDeposit':
-                if last_bean_deposit is None or event_log.logIndex > last_bean_deposit.logIndex:
-                    last_bean_deposit = event_log
-                bean_deposit_logs.append(event_log)
-        # Remove all bean_deposit logs from the log list.
-        for event_log in bean_deposit_logs:
-            # Remove this log from the list.
+        # Prune *earned* deposit logs. They are uninteresting clutter.
+        # For each event log remove a corresponding AddDeposit log.
+        event_logs_to_remove = []
+        earn_event_logs = get_logs_by_name('Earn', event_logs)
+        for earn_event_log in earn_event_logs:
+            for event_log in get_logs_by_name('AddDeposit', event_logs):
+                if (event_log.args.get('token') == BEAN_ADDR and
+                    event_log.args.get('amount') == earn_event_log.args.get('beans')):
+                    event_logs_to_remove.append(event_log)
+        for event_log in event_logs_to_remove:
             event_logs.remove(event_log)
 
-        # NOTE(funderberker): Can this logic that uses the txn method be pushed down lower with
-        # use of the txn receipt?
-        # Process some txn logs as groups, based on the contract function signature.
-        # Compile all events within a silo conversion to a single action.
-        if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
-            logging.info(f'Silo conversion txn seen ({txn_hash.hex()}).')
-            # If this is a conversion into beans, include last bean deposit log.
-            if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
-                event_logs.append(last_bean_deposit)
+        # Process conversion logs as a batch.
+        if event_in_logs('Convert', event_logs):
             self.message_function(self.silo_conversion_str(
                 event_logs, self.beanstalk_graph_client))
-            return
-        # If this is a direct bean deposit, do not ignore the last bean deposit event.
-        # If if this a claim+deposit txn and there is a harvest event, do not ignore the last bean
-        # deposit, which represents the harvest redeposit. This ~assumes~ the harvest deposit is
-        # always the last one, which has been true so far but idk if that is a guarantee.
-        elif (sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()) or
-              (any(event_log.event == 'Harvest' for event_log in event_logs) and
-              sig_compare(txn_method_sig_prefix, eth_chain.claim_deposit_beans_sigs.values()))):
-            logging.info(
-                f'Direct bean deposit or harvest+deposit txn seen ({txn_hash.hex()}).')
-            # Include last bean deposit log for this type of txn.
-            event_logs.append(last_bean_deposit)
-
         # Handle txn logs individually using default strings.
-        for event_log in event_logs:
-            event_str = self.any_event_str(event_log,
-                                           self.beanstalk_graph_client)
-            self.message_function(event_str)
+        else:
+            for event_log in event_logs:
+                event_str = self.single_event_str(event_log,
+                                                    self.beanstalk_graph_client)
+                self.message_function(event_str)
 
-    def any_event_str(self, event_log, beanstalk_graph_client):
+    def single_event_str(self, event_log, beanstalk_graph_client):
+        """Create a string representing a single event log.
+        
+        Events that are from a convert call should not be passed into this function as they
+        should be processed in batch.
+        """
         event_str = ''
-
-        # Pull args from the event log. Not all will be populated.
-        token_address = event_log.args.get('token')
-        eth_price = self.uniswap_client.current_eth_price()
         bean_price = self.bean_client.avg_bean_price()
-        lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
-        if lp_amount:
-            lp_eth, lp_beans = lp_eq_values(
-                lp_amount, beanstalk_graph_client=beanstalk_graph_client)
-            token_address = UNI_V2_BEAN_ETH_ADDR
-            lp_value = lp_eth * eth_price + lp_beans * bean_price
-        beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
-        if beans_amount:
-            beans_value = beans_amount * bean_price
-            token_address = BEAN_ADDR
-        pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
-        token_amount_long = event_log.args.get('amount')
-        token_amounts_long = event_log.args.get('amounts')
-        bdv = eth_chain.bean_to_float(event_log.args.get('bdv'))
-        bdv_value = bdv * bean_price
 
         # Ignore these events. They are uninteresting clutter.
-        if event_log.event in ['BeanRemove', 'LPRemove', 'RemoveSeason', 'RemoveSeasons']:
+        if event_log.event in ['RemoveWithdrawal', 'RemoveWithdrawals', 'RemoveDeposit', 'RemoveDeposits', 'Earn']:
             return ''
 
-        # # LP Events.
-        # # NOTE(funderberker): These events will be deprecated eventually in favor of generalized
-        # # Deposit and Withdraw.
-        # elif event_log.event in ['LPDeposit', 'LPWithdraw']:
-        #     if event_log.event == 'LPDeposit':
-        #         event_str += f'📥 Uniswap LP Deposit'
-        #     elif event_log.event == 'LPWithdraw':
-        #         event_str += f'📭 Uniswap LP Withdrawal'
-        #     event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
-        #     event_str += f'\n{value_to_emojis(lp_value)}'
-
         # Deposit & Withdraw events.
-        # NOTE(funderberker): Bean and LP specific events will be deprecated eventually in favor of
-        # generalized Deposit and Withdraw.
-        elif event_log.event in ['Deposit', 'Withdraw', 'BeanDeposit', 'BeanWithdraw', 'LPDeposit', 'LPWithdraw']:
+        elif event_log.event in ['AddDeposit', 'AddWithdrawal']:
+            # Pull args from the event log.
+            token_address = event_log.args.get('token')
+            token_amount_long = event_log.args.get('amount') # AddDeposit, AddWithdrawal
+            bdv = eth_chain.bean_to_float(event_log.args.get('bdv'))
+            bdv_value = bdv * bean_price if bdv else None
+            
             token_name, token_symbol, decimals = eth_chain.get_erc20_info(
                 token_address, web3=self._web3)
-            # If this event is a BeanDeposit or BeanWithdraw.
-            if beans_amount:
-                amount = beans_amount
-                value = beans_value
-            elif lp_amount:
-                amount = lp_amount
-                value = lp_value
+            amount = eth_chain.token_to_float(
+                token_amount_long, decimals)
+            if bdv_value:
+                value = bdv_value
+            # Value is not known for withdrawals, so it must be calculated here.
             else:
-                amount = eth_chain.token_to_float(
-                    token_amount_long or sum(token_amounts_long), decimals)
-                if bdv_value:
-                    value = bdv_value
-                # Value is not known for generalized withdrawals, so it must be calculated here.
-                else:
-                    value = amount * \
-                        self.bean_client.get_lp_token_value(
-                            token_address, decimals)
+                value = amount * \
+                    self.bean_client.get_lp_token_value(
+                        token_address, decimals)
 
-            if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
+            if event_log.event in ['AddDeposit']:
                 event_str += f'📥 Silo Deposit'
-            elif event_log.event in ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
+            elif event_log.event in ['AddWithdrawal']:
                 event_str += f'📭 Silo Withdrawal'
             event_str += f' - {round_num_auto(amount)} {token_symbol}'
             event_str += f' (${round_num(value)})'
             event_str += f'\n{value_to_emojis(value)}'
+        
         # Sow event.
-        elif event_log.event == 'Sow':
-            event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
-                f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
-        elif event_log.event == 'Harvest':
-            event_str += f'👩‍🌾 {round_num(beans_amount)} Pods harvested for Beans (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
+        elif event_log.event in ['Sow', 'Harvest']:
+            # Pull args from the event log.
+            beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
+            beans_value = beans_amount * bean_price
+            pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
+
+            if event_log.event == 'Sow':
+                event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
+                    f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
+                event_str += f'\n{value_to_emojis(beans_value)}'
+            elif event_log.event == 'Harvest':
+                event_str += f'👩‍🌾 {round_num(beans_amount)} Pods harvested for Beans (${round_num(beans_value)})'
+                event_str += f'\n{value_to_emojis(beans_value)}'
+
+        # Unknown event type.
         else:
             logging.warning(
                 f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
@@ -1103,46 +1051,28 @@ class BeanstalkMonitor(Monitor):
 
         Assumes that there are no non-Bean swaps contained in the event logs.
         Assumes event_logs is not empty.
-        Assumes embedded beanDeposits have been removed from logs.
+        Assumes embedded AddDeposit logs have been removed from logs.
         Uses events from Beanstalk contract.
         """
-        beans_converted = lp_converted = None
         bean_price = self.bean_client.avg_bean_price()
-        # Find the relevant logs (Swap + Mint/Burn).
+        # Find the relevant logs, should contain one RemoveDeposit and one AddDeposit.
         for event_log in event_logs:
-            # One Swap event will always be present.
-            # But we cannot parse the Swap event because it is only seen by the pool monitor.
-            # if event_log.event == 'Swap':
+            if event_log.event == 'RemoveDeposit':
+                remove_token_name, remove_token_symbol, remove_decimals = eth_chain.get_erc20_info(
+                    event_log.args.get('token'), web3=self._web3)
+                remove_float = eth_chain.token_to_float(
+                    event_log.args.get('amount'), remove_decimals)
+            elif event_log.event == 'AddDeposit':
+                add_token_name, add_token_symbol, add_decimals = eth_chain.get_erc20_info(
+                    event_log.args.get('token'), web3=self._web3)
+                add_float = eth_chain.token_to_float(
+                    event_log.args.get('amount'), add_decimals)
+                bdv_float = eth_chain.bean_to_float(event_log.args.get('bdv'))
+                value = bdv_float * bean_price
 
-            # One of the below two events will always be present.
-            if event_log.event == 'BeanRemove':
-                beans_converted = eth_chain.bean_to_float(
-                    event_log.args.get('beans'))
-            elif event_log.event == 'LPRemove':
-                lp_converted = eth_chain.lp_to_float(event_log.args.get('lp'))
-                lp_converted_eth, lp_converted_beans = lp_eq_values(
-                    lp_converted, beanstalk_graph_client=beanstalk_graph_client)
-
-            # One of the below two events will always be present.
-            elif event_log.event == 'BeanDeposit':
-                beans_deposited = eth_chain.bean_to_float(
-                    event_log.args.get('beans'))
-                value = beans_deposited * bean_price
-            elif event_log.event == 'LPDeposit':
-                lp_deposited = eth_chain.lp_to_float(event_log.args.get('lp'))
-                lp_deposited_eth, lp_deposited_beans = lp_eq_values(
-                    lp_deposited, beanstalk_graph_client=beanstalk_graph_client)
-                value = lp_deposited_beans * 2 * bean_price
-
-            # elif event_log.event == 'Burn':
-            # elif event_log.event == 'Mint':
-
-        # If converting to LP.
-        if beans_converted:
-            event_str = f'🔃 {round_num(beans_converted)} siloed Beans converted to {round_num(lp_deposited_eth,4)} ETH & {round_num(lp_deposited_beans)} Beans of LP (${round_num(value)})'
-        # If converting to Beans.
-        elif lp_converted:
-            event_str = f'🔄 {round_num(lp_converted_eth,4)} ETH and {round_num(lp_converted_beans)} Beans of siloed LP converted to {round_num(beans_deposited)} siloed Beans (${round_num(value)})'
+        event_str = f'🔄 {round_num_auto(remove_float)} of siloed {remove_token_symbol} ' \
+                    f'converted to {round_num_auto(add_float)} siloed {add_token_symbol} ' \
+                    f'(${round_num(value)})'
 
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(value)}'
@@ -1490,6 +1420,19 @@ class MsgHandler(logging.Handler):
     def __repr__(self):
         level = getLevelName(self.level)
         return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
+
+def event_in_logs(name, event_logs):
+    for event_log in event_logs:
+        if event_log.event == name:
+            return True
+    return False
+
+def get_logs_by_name(name, event_logs):
+    events = []
+    for event_log in event_logs:
+        if event_log.event == name:
+            events.append(event_log)
+    return events
 
 
 def sig_compare(signature, signatures):

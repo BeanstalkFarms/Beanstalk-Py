@@ -120,41 +120,32 @@ BEANSTALK_EVENT_MAP = {}
 BEANSTALK_SIGNATURES_LIST = []
 add_event_to_dict('Sow(address,uint256,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('BeanClaim(address,uint32[],uint256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('LPClaim(address,uint32[],uint256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('BeanDeposit(address,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('LPDeposit(address,uint256,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('BeanRemove(address,uint32[],uint256[],uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('LPRemove(address,uint32[],uint256[],uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('BeanWithdraw(address,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('LPWithdraw(address,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Harvest(address,uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# Generalized silo interactions.
-add_event_to_dict('Deposit(address,address,uint256,uint256,uint256)',
+# Depositing an asset => AddDeposit()
+# Withdrawing an asset => AddWithdrawal() & RemoveDeposit() 
+# Claiming an asset => RemoveWithdrawal()
+# AddWithdrawal and RemoveDeposit are separate because Converting emits a RemoveDeposit but not an AddWithdrawal
+add_event_to_dict('AddDeposit(address,address,uint256,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# Removes indicate the removal of a deposit, but not a withdraw. Seen in converts.
-add_event_to_dict('RemoveSeasons(address,address,uint32[],uint256[],uint256)',
+add_event_to_dict('AddWithdrawal(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('RemoveSeason(address,address,uint32,uint256)',
+add_event_to_dict('RemoveWithdrawal(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# Withdrawls indicate the removal of a deposit as well as adding a withdrawl. Not seen in converts.
-add_event_to_dict('Withdraw(address,address,uint32,uint256)',
+add_event_to_dict('RemoveWithdrawals(address,address,uint32[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# Claim withdrawl(s).
-# add_event_to_dict('ClaimSeasons(address,address,uint32[],uint256)',
+add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('RemoveDeposits(address,address,uint32[],uint256[],uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('Earn(address,uint256)',
 #                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('ClaimSeason(address,address,uint32,uint256)',
+add_event_to_dict('Convert(address,address,address,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# add_event_to_dict('SeedsBalanceChanged(address,int256)',
 #                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-
+# add_event_to_dict('StalkBalanceChanged(address,int256,int256)',
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
@@ -187,18 +178,6 @@ def generate_sig_hash_map(sig_str_list):
     return {sig.split('(')[0]: Web3.keccak(
         text=sig).hex() for sig in sig_str_list}
 
-
-# Method signatures. We handle some logs differently when derived from different methods.
-# Silo conversion signatures.
-silo_conversion_sig_strs = ['convertDepositedLP(uint256,uint256,uint32[],uint256[])',
-                            'convertDepositedBeans(uint256,uint256,uint32[],uint256[])']
-silo_conversion_sigs = generate_sig_hash_map(silo_conversion_sig_strs)
-# Signatures of methods with the explicit bean deposit (most txns include embedded deposit).
-bean_deposit_sig_strs = ['depositBeans(uint256)',
-                         'buyAndDepositBeans(uint256,uint256)',
-                         'claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))',
-                         'claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))']
-bean_deposit_sigs = generate_sig_hash_map(bean_deposit_sig_strs)
 
 # Claim type signatures.
 # claim_sigs = ['claim', 'claimAndUnwrapBeans', 'claimConvertAddAndDepositLP', 'claimAndSowBeans', 'claimBuyAndSowBeans', 'claimAndCreatePodOrder', 'claimAndFillPodListing', 'claimBuyBeansAndCreatePodOrder', 'claimBuyBeansAndFillPodListing', 'claimAddAndDepositLP', 'claimAndDepositBeans', 'claimAndDepositLP', 'claimAndWithdrawBeans', 'claimAndWithdrawLP', 'claimBuyAndDepositBeans']
