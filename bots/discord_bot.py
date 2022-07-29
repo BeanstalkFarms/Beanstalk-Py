@@ -101,26 +101,19 @@ class DiscordClient(discord.ext.commands.Bot):
         #     self.send_msg_peg, prod=prod)
         # self.peg_cross_monitor.start()
 
-        # self.sunrise_monitor = util.SunriseMonitor(
-        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        # self.sunrise_monitor.start()
+        self.sunrise_monitor = util.SunriseMonitor(
+            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+        self.sunrise_monitor.start()
 
-        # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
-        # self.uniswap_pool_monitor.start()
+        self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)
+        self.curve_bean_3crv_pool_monitor.start()
 
-        # self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
-        # self.curve_3crv_pool_monitor.start()
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
+        self.beanstalk_monitor.start()
 
-        # self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
-        # self.curve_lusd_pool_monitor.start()
-
-        # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
-        # self.beanstalk_monitor.start()
-
-        # self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
-        # self.market_monitor.start()
+        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
+        self.market_monitor.start()
 
         ############################################################################################
 
@@ -145,12 +138,10 @@ class DiscordClient(discord.ext.commands.Bot):
         # if not prod:
         #     self.price_monitor.stop()
         # self.peg_cross_monitor.stop()
-        # self.sunrise_monitor.stop()
-        # self.uniswap_pool_monitor.stop()
-        # self.curve_3crv_pool_monitor.stop()
-        # self.curve_lusd_pool_monitor.stop()
-        # self.beanstalk_monitor.stop()
-        # self.market_monitor.stop()
+        self.sunrise_monitor.stop()
+        self.curve_bean_3crv_pool_monitor.stop()
+        self.beanstalk_monitor.stop()
+        self.market_monitor.stop()
         ############################################################################################
         self.barn_raise_monitor.stop()
 

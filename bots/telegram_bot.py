@@ -36,13 +36,9 @@ class TelegramBot(object):
         # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
         # self.uniswap_pool_monitor.start()
 
-        # self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg, EventClientType.CURVE_3CRV_POOL, prod=prod)
-        # self.curve_3crv_pool_monitor.start()
-
-        # self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg, EventClientType.CURVE_LUSD_POOL, prod=prod)
-        # self.curve_lusd_pool_monitor.start()
+        # self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
+        #     self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)
+        # self.curve_bean_3crv_pool_monitor.start()
 
         # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
         # self.beanstalk_monitor.start()
@@ -71,8 +67,7 @@ class TelegramBot(object):
         # self.peg_cross_monitor.stop()
         # self.sunrise_monitor.stop()
         # self.uniswap_pool_monitor.stop()
-        # self.curve_3crv_pool_monitor.stop()
-        # self.curve_lusd_pool_monitor.stop()
+        # self.curve_bean_3crv_pool_monitor.stop()
         # self.beanstalk_monitor.stop()
         # self.market_monitor.stop()
         ############################################################################################

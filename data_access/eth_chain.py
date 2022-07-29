@@ -20,7 +20,11 @@ try:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
 except KeyError:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
-URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+# URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+# URL = 'wss://phoenix.node.bean.money/ ' + API_KEY # Pheonix test node
+# NOTE(funderberker): LOCAL TESTING
+URL = 'http://localhost:8545/' # local anvil test node
+
 # Rinkeby testing.
 # URL = 'wss://eth-rinkeby.alchemyapi.io/v2/XXXXXXXXXXXXXXXXXXX'
 # Ropsten testing.
@@ -42,10 +46,8 @@ CURVE_POOL_TOKENS_DECIMALS = 18
 # Hardcoded human-readable names for tokens.
 HARDCODE_ADDRESS_TO_NAME = {
     BEAN_ADDR:'Bean',
-    UNI_V2_BEAN_ETH_ADDR:'Uni V2 BEAN:ETH LP',
-    UNI_V2_ETH_USDC_ADDR:'Uni V2 ETH:USDC LP',
     CURVE_BEAN_3CRV_ADDR:'Curve BEAN:3CRV LP',
-    CURVE_BEAN_LUSD_ADDR:'Curve BEAN:LUSD LP',
+    UNRIPE_3CRV_ADDR:'Unripe 3CRV LP',
 }
 
 
@@ -126,7 +128,7 @@ add_event_to_dict('Harvest(address,uint256[],uint256)',
 # Withdrawing an asset => AddWithdrawal() & RemoveDeposit() 
 # Claiming an asset => RemoveWithdrawal()
 # AddWithdrawal and RemoveDeposit are separate because Converting emits a RemoveDeposit but not an AddWithdrawal
-add_event_to_dict('AddDeposit(address,address,uint256,uint256,uint256)',
+add_event_to_dict('AddDeposit(address,address,uint32,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('AddWithdrawal(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
@@ -138,14 +140,18 @@ add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveDeposits(address,address,uint32[],uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('Earn(address,uint256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Convert(address,address,address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 # add_event_to_dict('SeedsBalanceChanged(address,int256)',
 #                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 # add_event_to_dict('StalkBalanceChanged(address,int256,int256)',
 #                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('Chop(address,address,uint256,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('Plant(address,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('Pick(address,address,uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
@@ -178,6 +184,9 @@ def generate_sig_hash_map(sig_str_list):
     return {sig.split('(')[0]: Web3.keccak(
         text=sig).hex() for sig in sig_str_list}
 
+# Silo Convert signature.
+convert_function_sig_strs = ['convert(bytes,uint32[],uint256[])']
+convert_sigs = generate_sig_hash_map(convert_function_sig_strs)
 
 # Claim type signatures.
 # claim_sigs = ['claim', 'claimAndUnwrapBeans', 'claimConvertAddAndDepositLP', 'claimAndSowBeans', 'claimBuyAndSowBeans', 'claimAndCreatePodOrder', 'claimAndFillPodListing', 'claimBuyBeansAndCreatePodOrder', 'claimBuyBeansAndFillPodListing', 'claimAddAndDepositLP', 'claimAndDepositBeans', 'claimAndDepositLP', 'claimAndWithdrawBeans', 'claimAndWithdrawLP', 'claimBuyAndDepositBeans']
@@ -205,8 +214,8 @@ with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../constants/abi/bean_price_oracle_abi.json')) as bean_price_oracle_abi_file:
-    bean_price_abi = json.load(bean_price_oracle_abi_file)
+                       '../constants/abi/bean_price_abi.json')) as bean_price_abi_file:
+    bean_price_abi = json.load(bean_price_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/fertilizer_abi.json')) as fertilizer_abi_file:
     fertilizer_abi = json.load(fertilizer_abi_file)
@@ -216,36 +225,30 @@ def get_web3_instance():
     """Get an instance of web3 lib."""
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
-    return Web3(WebsocketProvider(URL, websocket_timeout=60))
-
-
-def get_eth_bean_pool_contract(web3):
-    """Get a web.eth.contract object for the ETH:BEAN pool. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=UNI_V2_BEAN_ETH_ADDR, abi=uniswap_pool_abi)
-
-
-def get_eth_usdc_pool_contract(web3):
-    """Get a web.eth.contract object for the ETH:USDC pool. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=UNI_V2_ETH_USDC_ADDR, abi=uniswap_pool_abi)
-
+    # NOTE(funderberker): LOCAL TESTING
+    # return Web3(WebsocketProvider(URL, websocket_timeout=60))
+    return Web3(HTTPProvider(URL))
+    
 
 def get_bean_3crv_pool_contract(web3):
     """Get a web.eth.contract object for the curve BEAN:3CRV pool. Contract is not thread safe."""
     return web3.eth.contract(
         address=CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
 
-def get_bean_lusd_pool_contract(web3):
-    """Get a web.eth.contract object for the curve BEAN:LUSD pool. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=CURVE_BEAN_LUSD_ADDR, abi=curve_pool_abi)
-
 def get_bean_contract(web3):
     """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
     return web3.eth.contract(
         address=BEAN_ADDR, abi=bean_abi)
 
+def get_unripe_contract(web3):
+    """Get a web.eth.contract object for the unripe bean token. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=UNRIPE_ADDR, abi=curve_pool_abi)
+
+def get_unripe_lp_contract(web3):
+    """Get a web.eth.contract object for the unripe LP token. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=UNRIPE_3CRV_ADDR, abi=curve_pool_abi)
 
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
@@ -298,6 +301,10 @@ class BeanstalkClient(ChainClient):
         """Return the total deposited of the token at address as a float."""
         return token_to_float(call_contract_function_with_retry(self.contract.functions.getTotalDeposited(address)), decimals)
 
+    def get_underlying_token(self, unripe_token):
+        """Return the address of the token that will be redeemed for a given unripe token."""
+        return call_contract_function_with_retry(self.contract.functions.getUnderlying(unripe_token))
+
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""
 
@@ -325,19 +332,25 @@ class BeanClient(ChainClient):
         # Map address:pool_info for each supported pool.
         for pool_info in raw_price_info[3]:
             pool_dict = {}
-            pool_dict['pool'] = pool_info[0] # address
+            pool_dict['pool'] = pool_info[0] # Address
             pool_dict['tokens'] = pool_info[1]
             pool_dict['balances'] = pool_info[2]
             pool_dict['price'] = pool_info[3] # Bean price of pool (6 decimals)
             pool_dict['liquidity'] = pool_info[4] # USD value of the liquidity in the pool
             pool_dict['delta_b'] = pool_info[5]
+            pool_dict['lp_usd'] = pool_info[6] # LP Token price in USD
+            pool_dict['lp_bdv'] = pool_info[7] # LP Token price in BDV
             price_dict['pool_infos'][pool_dict['pool']] = pool_dict
         return price_dict
 
     def get_lp_token_value(self, token_address, decimals, liquidity_long=None):
         """Return the $/LP token value of an LP token at address as a float."""
         if liquidity_long is None:
-            liquidity_long = self.get_price_info()['pool_infos'][token_address]['liquidity']
+            try:
+                liquidity_long = self.get_price_info()['pool_infos'][token_address]['liquidity']
+            # If the LP is not in the price aggregator, we do not know its value.
+            except KeyError:
+                return None
         liquidity_usd = token_to_float(liquidity_long, 6)
         token_supply = get_erc20_total_supply(token_address, decimals)
         return liquidity_usd / token_supply
@@ -346,26 +359,23 @@ class BeanClient(ChainClient):
         """Current float bean price average across LPs from the Bean price oracle contract."""
         return bean_to_float(self.get_price_info()['price'])
 
-    def uniswap_v2_pool_info(self):
-        return self.get_price_info()['pool_infos'][UNI_V2_BEAN_ETH_ADDR]
-
-    def curve_3crv_pool_info(self):
+    def curve_3crv_price(self):
+        """Current float 3CRV price from Bean:3CRV Pool."""
+        pool_info = self.curve_bean_3crv_pool_info()
+        return (pool_info['liquidity'] - pool_info['balances'][1] * pool_info['price']) / pool_info['balances'][0]
+    
+    def curve_bean_3crv_pool_info(self):
+        """Return pool info as list."""
         return self.get_price_info()['pool_infos'][CURVE_BEAN_3CRV_ADDR]
 
-    def curve_lusd_pool_info(self):
-        return self.get_price_info()['pool_infos'][CURVE_BEAN_LUSD_ADDR]
-
-    def uniswap_v2_bean_price(self):
-        """Current float Bean price in the Uniswap V2 Bean:ETH pool."""
-        return bean_to_float(self.uniswap_v2_pool_info()['price'])
-
-    def curve_3crv_bean_price(self):
+    def curve_bean_3crv_bean_price(self):
         """Current float Bean price in the Curve Bean:3CRV pool."""
-        return bean_to_float(self.curve_3crv_pool_info()['price'])
+        return bean_to_float(self.curve_bean_3crv_pool_info()['price'])
 
-    def curve_lusd_bean_price(self):
-        """Current float Bean price in the Curve Bean:LUSD pool."""
-        return bean_to_float(self.curve_lusd_pool_info()['price'])
+    def curve_bean_3crv_token_value(self):
+        """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
+        return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
+
 
 class UniswapClient(ChainClient):
     def __init__(self, web3=None):
@@ -397,11 +407,6 @@ class UniswapClient(ChainClient):
                      f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
         return eth_price, bean_price
 
-
-class CurveClient(ChainClient):
-    def __init__(self, web3=None):
-        super().__init__(web3)
-        self.bean_3crv_contract = get_bean_3crv_pool_contract(self._web3)
 
 class BarnRaiseClient(ChainClient):
     """Common functionality related to the Barn Raise Fertilizer contract."""
@@ -483,12 +488,10 @@ def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
 
 
 class EventClientType(IntEnum):
-    UNISWAP_POOL = 0
-    CURVE_3CRV_POOL = 1
-    BEANSTALK = 2
-    MARKET = 3
-    CURVE_LUSD_POOL = 4
-    BARN_RAISE = 5
+    BEANSTALK = 0
+    MARKET = 1
+    BARN_RAISE = 2
+    CURVE_BEAN_3CRV_POOL = 3
 
 
 class EthEventsClient():
@@ -497,21 +500,9 @@ class EthEventsClient():
         self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
         self._event_client_type = event_client_type
-        if self._event_client_type == EventClientType.UNISWAP_POOL:
-            self._contract = get_eth_bean_pool_contract(self._web3)
-            self._contract_address = UNI_V2_BEAN_ETH_ADDR
-            self._events_dict = UNISWAP_POOL_EVENT_MAP
-            self._signature_list = UNISWAP_POOL_SIGNATURES_LIST
-            self._set_filter()
-        elif self._event_client_type == EventClientType.CURVE_3CRV_POOL:
+        if self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
             self._contract = get_bean_3crv_pool_contract(self._web3)
             self._contract_address = CURVE_BEAN_3CRV_ADDR
-            self._events_dict = CURVE_POOL_EVENT_MAP
-            self._signature_list = CURVE_POOL_SIGNATURES_LIST
-            self._set_filter()
-        elif self._event_client_type == EventClientType.CURVE_LUSD_POOL:
-            self._contract = get_bean_lusd_pool_contract(self._web3)
-            self._contract_address = CURVE_BEAN_LUSD_ADDR
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
             self._set_filter()
@@ -545,7 +536,7 @@ class EthEventsClient():
             topics=[self._signature_list],
             # from_block=10581687, # Use this to search for old events. # Rinkeby
             # from_block=14205000, # Use this to search for old events. # Mainnet
-            from_block=0,
+            from_block='latest',
             to_block='latest'
         )
 
@@ -617,6 +608,7 @@ class EthEventsClient():
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
+                logging.warning(self._contract.events[self._events_dict[signature]]())
                 decoded_logs.extend(self._contract.events[
                     self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD)) 
             logging.info(f'Decoded logs:\n{decoded_logs}')
@@ -626,13 +618,13 @@ class EthEventsClient():
             decoded_logs_copy = decoded_logs.copy()
             decoded_logs.clear()
             for log in decoded_logs_copy:
-                if log.event == 'Swap':
-                    # Only process uniswap swaps with the ETH:BEAN pool.
-                    if log.address != UNI_V2_BEAN_ETH_ADDR:
-                        continue
-                elif log.event == 'TokenExchangeUnderlying' or log.event == 'TokenExchange':
-                    # Only process curve exchanges in the BEAN pools.
-                    if log.address not in [CURVE_BEAN_3CRV_ADDR, CURVE_BEAN_LUSD_ADDR]:
+                # if log.event == 'Swap':
+                #     # Only process uniswap swaps with the ETH:BEAN pool.
+                #     if log.address != UNI_V2_BEAN_ETH_ADDR:
+                #         continue
+                if log.event == 'TokenExchangeUnderlying' or log.event == 'TokenExchange':
+                    # Only process curve exchanges in supported BEAN pools.
+                    if log.address not in [CURVE_BEAN_3CRV_ADDR]:
                         continue
                 decoded_logs.append(log)
 
@@ -700,7 +692,7 @@ def get_txn_receipt_or_wait(web3, txn_hash, max_retries=5):
         try_count += 1
         try:
             return web3.eth.get_transaction_receipt(txn_hash)
-        # Occassionally web3 will fail to pull the txn with "not found" error. This is likely
+        # Occasionally web3 will fail to pull the txn with "not found" error. This is likely
         # because the txn has not been confirmed at the time of call, even though the logs may
         # have already been seen. In this case, wait and hope it will confirm soon.
         except Exception as e:
@@ -941,7 +933,7 @@ def monitor_uni_v2_pair_events():
 
 
 def monitor_curve_pool_events():
-    client = EthEventsClient(EventClientType.CURVE_3CRV_POOL)
+    client = EthEventsClient(EventClientType.CURVE_BEAN_3CRV_POOL)
     while True:
         events = client.get_new_logs(dry_run=False)
         time.sleep(5)
