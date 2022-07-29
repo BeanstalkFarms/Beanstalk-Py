@@ -1320,8 +1320,8 @@ class BarnRaiseMonitor(Monitor):
         self._web3 = eth_chain.get_web3_instance()
         # Used for special init cases
         # self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14918083
-        # self.SUMMARY_BLOCK_RANGE = 1430 # ~ 6 hours
-        self.SUMMARY_BLOCK_RANGE = 5720 + 1192 # ~ 24 hours, offset by 5 hours
+        self.SUMMARY_BLOCK_RANGE = 1430 # ~ 6 hours
+        # self.SUMMARY_BLOCK_RANGE = 5720 + 1192 # ~ 24 hours, offset by 5 hours
         self.EMOJI_RANKS = ['🥇','🥈','🥉']
         self.report_events = report_events
         self.report_summaries = report_summaries

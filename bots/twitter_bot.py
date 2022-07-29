@@ -36,7 +36,7 @@ class TwitterBot(object):
         # self.sunrise_monitor.start()
         #############################################################################
         self.barn_raise_monitor = util.BarnRaiseMonitor(
-            self.send_msg, report_events=False, report_summaries=True, prod=prod)
+            self.send_msg, report_events=True, report_summaries=True, prod=prod)
         self.barn_raise_monitor.start()
 
     def send_msg(self, msg):
