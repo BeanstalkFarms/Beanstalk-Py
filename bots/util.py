@@ -16,7 +16,7 @@ from web3 import eth
 
 from constants.addresses import *
 from data_access.graphs import (
-    BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
+    SnapshotSqlClient, BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
 # Strongly encourage Python 3.8+.
@@ -307,12 +307,13 @@ class BarnRaisePreviewMonitor(Monitor):
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
-        self.STATUS_DISPLAYS_COUNT = 3
+        self.STATUS_DISPLAYS_COUNT = 4
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
+        self.snapshot_sql_client = SnapshotSqlClient()
 
     def _monitor_method(self):
         # Delay startup to protect against crash loops.
@@ -343,6 +344,9 @@ class BarnRaisePreviewMonitor(Monitor):
             elif self.status_display_index == 2:
                 self.status_function(
                     f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
+            elif self.status_display_index == 3:
+                snapshot_sql_client = SnapshotSqlClient()
+                print(f'BIP-21: {round_num(snapshot_sql_client.percent_of_stalk_voted_yes())}% voted For')
 
 
 class SunriseMonitor(Monitor):

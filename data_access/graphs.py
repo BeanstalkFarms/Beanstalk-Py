@@ -30,6 +30,41 @@ BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
 BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
+SNAPSHOT_GRAPH_ENDPOINT = f'https://hub.snapshot.org/graphql'
+
+class SnapshotSqlClient(object):
+    """Lazy programming because this is intended for one time use for BIP-21.
+    
+    Get the % voted For
+    """
+    PRE_EXPLOIT_STALK_COUNT = 213329318.46 # inferred from snapshot
+    def __init__(self):
+        transport = AIOHTTPTransport(url=SNAPSHOT_GRAPH_ENDPOINT)
+        self._client = Client(
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
+
+    def percent_of_stalk_voted_yes(self):
+        query_str = """
+            query Proposal {
+                proposal(id:"0xbe30bc43d7185ef77cd6af0e5c85da7d7c06caad4c0de3a73493ed48eae32d71") {
+                    id
+                    title
+                    choices
+                    start
+                    end
+                    snapshot
+                    state
+                    scores
+                    scores_total
+                    scores_updated
+                }
+            }
+            """
+        result = execute(self._client, query_str)
+        votes_yes = result['proposal']['scores'][0]
+        percent_of_stalk_voted_yes = votes_yes / self.PRE_EXPLOIT_STALK_COUNT
+        return percent_of_stalk_voted_yes * 100
+
 
 class BeanSqlClient(object):
 
@@ -256,3 +291,6 @@ if __name__ == '__main__':
         f'\nPrevious Season Start Price:\n{beanstalk_client.last_completed_season_stat(PRICE_FIELD)}')
     print(
         f'\nCurrent Season Start Price:\n{beanstalk_client.current_season_stat(PRICE_FIELD)}')
+
+    snapshot_sql_client = SnapshotSqlClient()
+    print(f'Voted yes: {snapshot_sql_client.percent_of_stalk_voted_yes()}%')
