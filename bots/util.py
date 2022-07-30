@@ -915,6 +915,7 @@ class BeanstalkMonitor(Monitor):
             eth_chain.EventClientType.BEANSTALK)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = eth_chain.BeanClient()
+        self.beanstalk_client = eth_chain.BeanstalkClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1037,7 +1038,7 @@ class BeanstalkMonitor(Monitor):
             _, chopped_symbol, chopped_decimals = eth_chain.get_erc20_info(token, self._web3)
             chopped_amount = eth_chain.token_to_float(event_log.args.get('amount'), chopped_decimals)
             _, underlying_symbol, underlying_decimals = eth_chain.get_erc20_info(underlying, self._web3)
-            underlying_amount = eth_chain.token_to_float(underlying, underlying_decimals)
+            underlying_amount = eth_chain.token_to_float(event_log.args.get('underlying'), underlying_decimals)
             if underlying == BEAN_ADDR:
                 underlying_token_value = bean_price
             # If underlying assets are Bean-based LP represented in price aggregator.
