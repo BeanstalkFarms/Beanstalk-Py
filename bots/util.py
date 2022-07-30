@@ -346,7 +346,7 @@ class BarnRaisePreviewMonitor(Monitor):
                     f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
             elif self.status_display_index == 3:
                 self.status_function(
-                    f'BIP-21 {round_num(self.snapshot_sql_client.percent_of_stalk_voted())}% voted')
+                    f'BIP-21 voted: {round_num(self.snapshot_sql_client.percent_of_stalk_voted())}%')
 
 
 class SunriseMonitor(Monitor):
