@@ -307,7 +307,7 @@ class BarnRaisePreviewMonitor(Monitor):
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
-        self.STATUS_DISPLAYS_COUNT = 4
+        self.STATUS_DISPLAYS_COUNT = 2
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self.last_name = ''
         self.status_display_index = 0
@@ -337,16 +337,16 @@ class BarnRaisePreviewMonitor(Monitor):
                 self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
             if self.status_display_index == 0:
                 self.status_function(
-                    f'Avail: ${round_num(remaining, 0)}')
+                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
             elif self.status_display_index == 1:
                 self.status_function(
-                    f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
-            elif self.status_display_index == 2:
-                self.status_function(
-                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
-            elif self.status_display_index == 3:
-                self.status_function(
                     f'BIP-21 voted: {round_num(self.snapshot_sql_client.percent_of_stalk_voted())}%')
+            # elif self.status_display_index == 2:
+            #     self.status_function(
+            #         f'Avail: ${round_num(remaining, 0)}')
+            # elif self.status_display_index == 3:
+            #     self.status_function(
+            #         f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
 
 
 class SunriseMonitor(Monitor):
