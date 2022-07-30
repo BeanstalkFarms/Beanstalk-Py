@@ -43,7 +43,7 @@ class SnapshotSqlClient(object):
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
 
-    def percent_of_stalk_voted_yes(self):
+    def percent_of_stalk_voted(self):
         query_str = """
             query Proposal {
                 proposal(id:"0xbe30bc43d7185ef77cd6af0e5c85da7d7c06caad4c0de3a73493ed48eae32d71") {
@@ -61,9 +61,9 @@ class SnapshotSqlClient(object):
             }
             """
         result = execute(self._client, query_str)
-        votes_yes = result['proposal']['scores'][0]
-        percent_of_stalk_voted_yes = votes_yes / self.PRE_EXPLOIT_STALK_COUNT
-        return percent_of_stalk_voted_yes * 100
+        votes_yes = result['proposal']['scores'][0] + result['proposal']['scores'][1]
+        percent_of_stalk_voted = votes_yes / self.PRE_EXPLOIT_STALK_COUNT
+        return percent_of_stalk_voted * 100
 
 
 class BeanSqlClient(object):
@@ -293,4 +293,4 @@ if __name__ == '__main__':
         f'\nCurrent Season Start Price:\n{beanstalk_client.current_season_stat(PRICE_FIELD)}')
 
     snapshot_sql_client = SnapshotSqlClient()
-    print(f'Voted yes: {snapshot_sql_client.percent_of_stalk_voted_yes()}%')
+    print(f'Voted: {snapshot_sql_client.percent_of_stalk_voted()}%')
