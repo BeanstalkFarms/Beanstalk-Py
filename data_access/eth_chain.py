@@ -10,7 +10,7 @@ import time
 import websockets
 
 # NOTE(funderberker): LOCAL TESTING
-from web3 import Web3, HTTPProvider
+from web3 import Web3, HTTPProvider, WebsocketProvider
 from web3.logs import DISCARD
 
 from constants.addresses import *
@@ -226,8 +226,8 @@ def get_web3_instance():
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
     # NOTE(funderberker): LOCAL TESTING
-    # return Web3(WebsocketProvider(URL, websocket_timeout=60))
-    return Web3(HTTPProvider(URL))
+    return Web3(WebsocketProvider(URL, websocket_timeout=60))
+    # return Web3(HTTPProvider(URL))
     
 
 def get_bean_3crv_pool_contract(web3):
