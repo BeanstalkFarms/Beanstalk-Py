@@ -117,7 +117,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
         self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
+        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
         self.market_monitor.start()
 
         ############################################################################################
@@ -143,7 +143,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # if not prod:
         #     self.price_monitor.stop()
         # self.peg_cross_monitor.stop()
-        self.sunrise_monitor.stop()
+        # self.sunrise_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()

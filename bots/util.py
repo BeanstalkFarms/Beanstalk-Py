@@ -1109,6 +1109,7 @@ class MarketMonitor(Monitor):
         self.bean_client = eth_chain.BeanClient(self._web3)
         self.bean_contract = eth_chain.get_bean_contract(self._web3)
         self.beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
+        # self.uniswap_client = eth_chain.UniswapClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1197,15 +1198,35 @@ class MarketMonitor(Monitor):
                 transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
                     transaction_receipt, errors=eth_chain.DISCARD)
                 logging.info(f'Transfer log(s):\n{transfer_logs}')
-                allocation_logs = self.beanstalk_contract.events['BeanAllocation']().processReceipt(
-                    transaction_receipt, errors=eth_chain.DISCARD)
-                logging.info(f'BeanAllocation log(s):\n{allocation_logs}')
                 # There should be exactly one transfer log of Beans.
                 beans_paid = 0
-                for log in allocation_logs:
-                    # Assumes all beans Allocated are spent on the Fill.
-                    beans_paid += eth_chain.bean_to_float(
-                        log.args.get('beans'))
+                # NOTE(funderberker): Unclear if we need to account for balance changes or if we 
+                #   can entirely rely on transfers. Using balance changes creates a significant
+                #   problem of determining value or arbitrary assets.
+                # balance_change_logs = self.beanstalk_contract.events['InternalBalanceChanged']().processReceipt(
+                #     transaction_receipt, errors=eth_chain.DISCARD)
+                # logging.info(f'InternalBalanceChanged log(s):\n{balance_change_logs}')
+                # for log in balance_change_logs:
+                #     # Determine asset value.
+                #     token = log.args.get('token')
+                #     amount = int(log.args.get('delta'))
+                #     if amount >= 0:
+                #         continue
+                #     if token == BEAN_ADDR:
+                #         token_bdv = 1.0
+                #         decimals = eth_chain.BEAN_DECIMALS
+                #     elif token == WRAPPED_ETH:
+                #         token_bdv = self.uniswap_client.current_eth_price()
+                #         decimals = eth_chain.ETH_DECIMALS
+                #     else:
+                #         try:
+                #             token_bdv = self.bean_client.get_lp_token_value(token)
+                #         except KeyError:
+                #             token_bdv = 1.0
+                #         _, _, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                #     # Assumes all bean balance deltas are spent on the Fill.
+                #     beans_paid += abs(eth_chain.token_to_float(
+                #         log.args.get('delta'), decimals))
                 for log in transfer_logs:
                     if log.address == BEAN_ADDR:
                         beans_paid += eth_chain.bean_to_float(
