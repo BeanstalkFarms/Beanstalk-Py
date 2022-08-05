@@ -315,6 +315,8 @@ class BarnRaisePreviewMonitor(Monitor):
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
+        self._eth_event_client = eth_chain.EthEventsClient(
+            eth_chain.EventClientType.BARN_RAISE)
 
     def _monitor_method(self):
         # Delay startup to protect against crash loops.
@@ -325,9 +327,20 @@ class BarnRaisePreviewMonitor(Monitor):
                 time.sleep(1)
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
-
             remaining = self.barn_raise_client.remaining()
-            total_raised = BARN_RAISE_USDC_TARGET - remaining
+
+            # Count total raised from all events.
+            # Duplicate logic :(.
+            total_raised = 0
+            barn_raise_logs = self._eth_event_client.get_log_range(from_block=14910573)
+            for event_log in barn_raise_logs:
+                # Mint single.
+                if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
+                    total_raised += int(event_log.args.value)
+                # Mint batch.
+                elif event_log.event == 'TransferBatch' and event_log.args['from'] == NULL_ADDR:
+                    total_raised += sum([int(value) for value in event_log.args.values])
+
             name_str = f'Sold: ${round_num(total_raised, 0)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
@@ -915,7 +928,6 @@ class BeanstalkMonitor(Monitor):
         self._web3 = eth_chain.get_web3_instance()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BEANSTALK)
-        self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = eth_chain.BeanClient()
         self.beanstalk_client = eth_chain.BeanstalkClient()
 
@@ -958,16 +970,15 @@ class BeanstalkMonitor(Monitor):
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
             self.message_function(self.silo_conversion_str(
-                event_logs, self.beanstalk_graph_client))
+                event_logs))
         # Handle txn logs individually using default strings.
         else:
             for event_log in event_logs:
-                event_str = self.single_event_str(event_log,
-                                                    self.beanstalk_graph_client)
+                event_str = self.single_event_str(event_log)
                 if event_str:
                     self.message_function(event_str)
 
-    def single_event_str(self, event_log, beanstalk_graph_client):
+    def single_event_str(self, event_log):
         """Create a string representing a single event log.
         
         Events that are from a convert call should not be passed into this function as they
@@ -1063,7 +1074,7 @@ class BeanstalkMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    def silo_conversion_str(self, event_logs, beanstalk_graph_client):
+    def silo_conversion_str(self, event_logs):
         """Create a human-readable string representing a silo position conversion.
 
         Assumes that there are no non-Bean swaps contained in the event logs.

@@ -439,7 +439,6 @@ class BarnRaiseClient(ChainClient):
         else:
             self.beanstalk_client = BeanstalkClient()
 
-
     def humidity(self):
         """Calculate and return current humidity."""
         # If unpause has not yet occurred, return 0.
