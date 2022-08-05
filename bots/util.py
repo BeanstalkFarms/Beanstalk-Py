@@ -277,28 +277,30 @@ class PricePreviewMonitor(Monitor):
             status_str = f'BEAN: ${round_num(bean_price, 4)}'
             if status_str != self.last_status:
                 self.name_function(status_str)
-                self.last_status = status_str
+                # TODO(funderberker): Uncomment after unpause.
+                # self.last_status = status_str
 
-            # Rotate data and update status.
-            self.status_display_index = (
-                self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
-            if self.status_display_index == 0:
-                seasons = self.beanstalk_graph_client.seasons_stats(
-                    list(range(self.HOURS)), fields=['price'])
-                prices = [float(season['price']) for season in seasons]
-                self.status_function(
-                    f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
-            elif self.status_display_index in [1, 2]:
-                seasons = self.beanstalk_graph_client.seasons_stats(
-                    list(range(self.HOURS)), fields=['newFarmableBeans', 'newHarvestablePods'])
-                mints = [float(season['newFarmableBeans']) +
-                         float(season['newHarvestablePods']) for season in seasons]
-                if self.status_display_index == 1:
-                    self.status_function(
-                        f'{round_num(sum(mints)/self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
-                if self.status_display_index == 2:
-                    self.status_function(
-                        f'{round_num(sum(mints), 0)} Minted - {self.HOURS}hr')
+            # TODO(funderberker): Uncomment and update after unpause.
+            # # Rotate data and update status.
+            # self.status_display_index = (
+            #     self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
+            # if self.status_display_index == 0:
+            #     seasons = self.beanstalk_graph_client.seasons_stats(
+            #         list(range(self.HOURS)), fields=['price'])
+            #     prices = [float(season['price']) for season in seasons]
+            #     self.status_function(
+            #         f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
+            # elif self.status_display_index in [1, 2]:
+            #     seasons = self.beanstalk_graph_client.seasons_stats(
+            #         list(range(self.HOURS)), fields=['newFarmableBeans', 'newHarvestablePods'])
+            #     mints = [float(season['newFarmableBeans']) +
+            #              float(season['newHarvestablePods']) for season in seasons]
+            #     if self.status_display_index == 1:
+            #         self.status_function(
+            #             f'{round_num(sum(mints)/self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
+            #     if self.status_display_index == 2:
+            #         self.status_function(
+            #             f'{round_num(sum(mints), 0)} Minted - {self.HOURS}hr')
 
 
 class BarnRaisePreviewMonitor(Monitor):
