@@ -30,23 +30,23 @@ class TelegramBot(object):
         # self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
         # self.peg_cross_monitor.start()
 
-        # self.sunrise_monitor = util.SunriseMonitor(self.send_msg, prod=prod)
+        # self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod)
         # self.sunrise_monitor.start()
 
         # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
         # self.uniswap_pool_monitor.start()
 
-        # self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)
-        # self.curve_bean_3crv_pool_monitor.start()
-
-        # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
-        # self.beanstalk_monitor.start()
-
-        # self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod)
-        # self.market_monitor.start()
-
         ############################################################################################
+
+        self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)
+        self.curve_bean_3crv_pool_monitor.start()
+
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
+        self.beanstalk_monitor.start()
+
+        self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod)
+        self.market_monitor.start()
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
             self.send_msg, report_events=True, report_summaries=True, prod=prod, dry_run=False)
@@ -67,10 +67,10 @@ class TelegramBot(object):
         # self.peg_cross_monitor.stop()
         # self.sunrise_monitor.stop()
         # self.uniswap_pool_monitor.stop()
-        # self.curve_bean_3crv_pool_monitor.stop()
-        # self.beanstalk_monitor.stop()
-        # self.market_monitor.stop()
         ############################################################################################
+        self.curve_bean_3crv_pool_monitor.stop()
+        self.beanstalk_monitor.stop()
+        self.market_monitor.stop()
         self.barn_raise_monitor.stop()
 
 

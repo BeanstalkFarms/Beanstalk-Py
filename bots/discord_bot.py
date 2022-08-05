@@ -47,11 +47,13 @@ class DiscordClient(discord.ext.commands.Bot):
         self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
 
+        # NOTE(funderberker): LOCAL TESTING
         # Retrieve bucket.
-        bucket = self.retrieve_or_init_bucket()
+        # bucket = self.retrieve_or_init_bucket()
 
         if prod:
-            self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
+            # NOTE(funderberker): LOCAL TESTING
+            # self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
             self._chat_id_report = DISCORD_CHANNEL_ID_REPORT
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
@@ -61,7 +63,8 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_barn_raise = DISCORD_CHANNEL_ID_BARN_RAISE
             logging.info('Configured as a production instance.')
         else:
-            self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
+            # NOTE(funderberker): LOCAL TESTING
+            # self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
@@ -73,9 +76,11 @@ class DiscordClient(discord.ext.commands.Bot):
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
         # Sets self.channel_to_wallets.
-        if not self.download_channel_to_wallets():
-            logging.critical('Failed to download wallet data. Exiting...')
-            exit(1)
+        # NOTE(funderberker): LOCAL TESTING
+        self.channel_to_wallets = {}
+        # if not self.download_channel_to_wallets():
+        #     logging.critical('Failed to download wallet data. Exiting...')
+        #     exit(1)
         self.channel_id_to_channel = {}
 
         self.msg_queue = []
@@ -101,9 +106,9 @@ class DiscordClient(discord.ext.commands.Bot):
         #     self.send_msg_peg, prod=prod)
         # self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SunriseMonitor(
-            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        self.sunrise_monitor.start()
+        # self.sunrise_monitor = util.SeasonsMonitor(
+        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+        # self.sunrise_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)

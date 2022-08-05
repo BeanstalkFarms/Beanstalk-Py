@@ -31,7 +31,7 @@ class TwitterBot(object):
         )
 
         ############ DISABLE SUNRISE MONITOR DURING BARN RAISE PRE SALE ############
-        # self.sunrise_monitor = util.SunriseMonitor(
+        # self.sunrise_monitor = util.SeasonsMonitor(
         #     self.send_msg, short_msgs=True, prod=prod)
         # self.sunrise_monitor.start()
         #############################################################################
@@ -49,6 +49,10 @@ class TwitterBot(object):
                          f'\n{e.api_messages}')
             return
         except tweepy.errors.Forbidden as e:
+            logging.info(f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
+                         f'Was it a repeat tweet?\n{e.api_messages}')
+            return
+        except e:
             logging.info(f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
                          f'Was it a repeat tweet?\n{e.api_messages}')
             return
