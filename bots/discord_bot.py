@@ -144,10 +144,10 @@ class DiscordClient(discord.ext.commands.Bot):
         #     self.price_monitor.stop()
         # self.peg_cross_monitor.stop()
         # self.sunrise_monitor.stop()
+        ############################################################################################
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
-        ############################################################################################
         self.barn_raise_monitor.stop()
 
     # NOTE(funderberker): This bot does not have permissions to change its nickname. This will

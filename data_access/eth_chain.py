@@ -383,10 +383,6 @@ class BeanClient(ChainClient):
         """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
 
-    def get_lp_token_value(self, token_address):
-        """Get the value of the LP token at address and return it as a float."""
-        return bean_to_float(self.get_price_info()['pool_infos'][token_address]()['lp_usd'])
-
 class UniswapClient(ChainClient):
     def __init__(self, web3=None):
         super().__init__(web3)
