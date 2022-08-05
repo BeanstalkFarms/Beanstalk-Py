@@ -1087,8 +1087,8 @@ class BeanstalkMonitor(Monitor):
                 bdv_float = eth_chain.bean_to_float(event_log.args.get('bdv'))
                 value = bdv_float * bean_price
 
-        event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} of siloed {remove_token_symbol} ' \
-                    f'converted to {round_num_auto(add_float, min_precision=0)} siloed {add_token_symbol} ' \
+        event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} of Deposited {remove_token_symbol} ' \
+                    f'converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
                     f'(${round_num(value, 0)})'
 
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
@@ -1331,7 +1331,7 @@ class BarnRaiseMonitor(Monitor):
                         total_raised += usdc_amount
                     msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
                     remaining = self.barn_raise_client.remaining()
-                    msg_str += f'\n🌱 ${round_num(BARN_RAISE_USDC_TARGET - remaining, 0)} ({round_num((BARN_RAISE_USDC_TARGET - remaining)/BARN_RAISE_USDC_TARGET*100, 2)}%) raised in total'
+                    msg_str += f'\n🌱 ${round_num(remaining, 0)} of Fertilizer remaining'
                     msg_str += f'\n'
                     for i in range(3):
                         try:
@@ -1365,7 +1365,7 @@ class BarnRaiseMonitor(Monitor):
         
         if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
-            event_str += f' (${round_num(BARN_RAISE_USDC_TARGET - self.barn_raise_client.remaining(), 0)} raised total)'
+            event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Fertilizer remaining)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
             # Empty line that does not get stripped.
