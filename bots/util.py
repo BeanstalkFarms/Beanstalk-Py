@@ -973,7 +973,7 @@ class BeanstalkMonitor(Monitor):
         """
         # Ignore deposits and withdrawals of unripe assets. Not interesting.
         if (event_log.event in ['AddDeposit', 'RemoveWithdrawal', 'RemoveWithdrawals']
-           and event_log.args.get('token') in UNRIPE_TOKENS):
+           and event_log.args.get('token').startswith(UNRIPE_TOKEN_PREFIX)):
             return ''
 
         event_str = ''

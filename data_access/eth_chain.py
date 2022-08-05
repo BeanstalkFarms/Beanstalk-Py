@@ -7,10 +7,10 @@ import logging
 import json
 import os
 import time
-from discord.ext.commands.errors import ArgumentParsingError
 import websockets
 
-from web3 import Web3, WebsocketProvider
+# NOTE(funderberker): LOCAL TESTING
+from web3 import Web3, HTTPProvider
 from web3.logs import DISCARD
 
 from constants.addresses import *
