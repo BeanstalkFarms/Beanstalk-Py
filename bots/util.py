@@ -1294,7 +1294,6 @@ class BarnRaiseMonitor(Monitor):
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
-        self.steps_complete = self.barn_raise_client.steps_complete()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1363,7 +1362,7 @@ class BarnRaiseMonitor(Monitor):
             usdc_amount = sum([int(value) for value in event_log.args.values])
         
         if usdc_amount is not None:
-            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC'
+            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
             event_str += f' (${round_num(BARN_RAISE_USDC_TARGET - self.barn_raise_client.remaining(), 0)} raised total)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'

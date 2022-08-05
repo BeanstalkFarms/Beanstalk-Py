@@ -284,6 +284,10 @@ class BeanstalkClient(ChainClient):
         super().__init__(web3)
         self.contract = get_beanstalk_contract(self._web3)
 
+    def get_season(self):
+        """Get current season."""
+        return call_contract_function_with_retry(self.contract.functions.season())
+
     def get_weather(self):
         """Get current weather object."""
         return call_contract_function_with_retry(self.contract.functions.weather())
@@ -417,7 +421,7 @@ class UniswapClient(ChainClient):
 class BarnRaiseClient(ChainClient):
     """Common functionality related to the Barn Raise Fertilizer contract."""
 
-    def __init__(self, web3=None):
+    def __init__(self, web3=None, beanstalk_client=None):
         super().__init__(web3)
         self.contract = get_fertilizer_contract(self._web3)
         # self.token_contract = get_fertilizer_token_contract(self._web3)
@@ -429,29 +433,24 @@ class BarnRaiseClient(ChainClient):
         # self.base_humidity = call_contract_function_with_retry(self.contract.functions.RESTART_HUMIDITY()) / 10 # float % (250.0)
         self.replant_season = 6074
         self.end_decrease_season = self.replant_season + 461
-        self.pre_sale_humidity = 5000 / 10
+        # self.pre_sale_humidity = 5000 / 10
         self.base_humidity = 2500 / 10
         self.step_size = 0.5 # %
         self.step_duration = 3600 # seconds
         self.min_humidity = 20.0 # %
+        if beanstalk_client is not None:
+            self.beanstalk_client = beanstalk_client
+        else:
+            self.beanstalk_client = BeanstalkClient()
 
-
-    def steps_complete(self):
-        """Return the total number of steps that have fully completed."""
-        # If unpause has not yet occurred, return 0.
-        if time.time() < self.unpause_start:
-            return 0
-        return (time.time() - self.unpause_start) // self.step_duration
 
     def humidity(self):
         """Calculate and return current humidity."""
-        # If barn raise has not yet started, or not yet unpaused, return 500%.
-        if time.time() < self.unpause_start:
-            return self.pre_sale_humidity
-        elif self.steps_complete() >= self.end_decrease_season - self.replant_season:
-            return self.min_humidity
-        # Humidity starts at the base and decreases at each step.
-        return self.base_humidity - self.step_size * self.steps_complete()
+        # If unpause has not yet occurred, return 0.
+        current_season = self.beanstalk_client.get_season()
+        if current_season <= self.replant_season:
+            return self.base_humidity
+        return self.base_humidity - (current_season - self.replant_season) * self.step_size
 
     def weather_at_step(self, step_number):
         """Return the weather at a given step."""
