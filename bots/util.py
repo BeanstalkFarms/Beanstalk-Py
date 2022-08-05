@@ -328,18 +328,7 @@ class BarnRaisePreviewMonitor(Monitor):
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
             remaining = self.barn_raise_client.remaining()
-
-            # Count total raised from all events.
-            # Duplicate logic :(.
-            total_raised = 0
-            barn_raise_logs = self._eth_event_client.get_log_range(from_block=14910573)
-            for event_log in barn_raise_logs:
-                # Mint single.
-                if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
-                    total_raised += int(event_log.args.value)
-                # Mint batch.
-                elif event_log.event == 'TransferBatch' and event_log.args['from'] == NULL_ADDR:
-                    total_raised += sum([int(value) for value in event_log.args.values])
+            total_raised = BARN_RAISE_USDC_TARGET - remaining
 
             name_str = f'Sold: ${round_num(total_raised, 0)}'
             if name_str != self.last_name:
