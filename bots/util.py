@@ -95,8 +95,8 @@ class Monitor():
         if self._dry_run:
             self.message_function(
                 f'{self.name} monitoring started (with simulated data).')
-        elif not self.prod:
-            self.message_function(f'{self.name} monitoring started.')
+        # elif not self.prod:
+        self.message_function(f'{self.name} monitoring started.')
         self._thread_active = True
         self._thread_wrapper.start()
 
