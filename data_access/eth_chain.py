@@ -20,7 +20,7 @@ try:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
 except KeyError:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
-URL = 'wss://eth-mainnet.alchemyapi.io/v2/' + API_KEY
+URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 # URL = 'wss://phoenix.node.bean.money/ ' + API_KEY # Pheonix test node
 # NOTE(funderberker): LOCAL TESTING
 # URL = 'http://localhost:8545/' # local anvil test node
