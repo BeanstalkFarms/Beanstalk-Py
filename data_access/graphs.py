@@ -6,6 +6,8 @@ import time
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
+from data_access.eth_chain import bean_to_float, token_to_float
+
 # Reduce log spam from the gql package.
 from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
@@ -13,8 +15,7 @@ requests_logger.setLevel(logging.WARNING)
 
 FIELDS_PLACEHOLDER = 'FIELDS'
 DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans',
-                         'newHarvestablePods', 'newPods', 'pooledBeans', 'pooledEth', 'lp', 'pods',
-                         'beans'
+                         'newHarvestablePods', 'newPods', 'lp', 'pods', 'beans'
                         ]
 
 # Names of common graph fields.
@@ -28,8 +29,12 @@ NEWLINE_CHAR = '\n'
 SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
 BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
-BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
-    'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
+# BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
+#     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
+BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
+# BEANSTALK_GRAPH_ENDPOINT = 'http://graph.playgrounds.academy/subgraphs/name/beanstalk' # cujo tester, with sunrise
+# BEANSTALK_GRAPH_ENDPOINT = 'http://graph.playgrounds.academy:8001/subgraphs/name/beanstalk-pending'
+
 
 class BeanSqlClient(object):
 
@@ -108,6 +113,96 @@ class BeanstalkSqlClient(object):
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
 
+    def get_fertilizer_bought(self):
+        query_str = """
+            query {
+                fertilizers {
+                    totalSupply
+                }
+            }
+    """
+
+    def silo_assets_seasonal_change(self):
+        """Get address, delta balance, and delta BDV of all silo assets across last season.
+        
+        Note that season snapshots are taken at the beginning of each season.
+
+        Returns:
+            Map of asset deltas with keys [token, delta_amount, delta_bdv].
+        """
+        current_silo_assets, previous_silo_assets = [season_stats.assets for season_stats in self.seasons_stats()]
+        
+        assets_deltas = []
+        for i in range(len(current_silo_assets)):
+            asset_current = current_silo_assets[i]
+            asset_previous = previous_silo_assets[i]
+            asset_deltas = {}
+            asset_deltas['token'] = asset_current['token']
+            asset_deltas['delta_amount'] = int(asset_current['totalDepositedAmount']) - int(asset_previous['totalDepositedAmount'])
+            asset_deltas['delta_bdv'] = int(asset_current['totalDepositedBDV']) - int(asset_previous['totalDepositedBDV'])
+            assets_deltas.append(asset_deltas)
+        return assets_deltas
+
+    def seasons_stats(self):
+        """Get a standard set of data corresponding to current season.
+        
+        Returns array of last 2 season in descending order, each value a graphql map structure of all requested data.
+        """
+        query_str = """
+            query current_season_stats {
+                seasons(first: 2, skip: 0, orderBy: season, orderDirection: desc) {
+                    season
+                    timestamp
+                    price
+                    beans
+                }
+                siloHourlySnapshots(
+                    where: {silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}
+                    orderBy: season
+                    orderDirection: desc
+                    first: 2
+                ){
+                    season
+                    hourlyBeanMints #newFarmableBeans
+                    silo {
+                        assets(first: 100, orderBy: token) {
+                            token
+                            totalDepositedAmount
+                            totalDepositedBDV
+                        }
+                    }
+                }
+                fieldHourlySnapshots(
+                    where: {field: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}
+                    orderBy: season
+                    orderDirection: desc
+                    first: 2
+                ) {
+                    id
+                    season
+                    weather
+                    newPods
+                    totalPods #pods
+                    newSoil
+                    sownBeans
+                }
+            }
+        """
+
+        # Create gql query and execute.
+        try:
+            result = execute(self._client, query_str)
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
+
+        # Return current_season_stats, last_season_stats
+        return SeasonStats(result, 0), SeasonStats(result, 1)
+
+### DEPRECATED VIA SUBGRAPH IMPL CHANGES ###
+'''
     def current_season_stat(self, field):
         return self.current_season_stats([field])[field]
 
@@ -178,7 +273,29 @@ class BeanstalkSqlClient(object):
             logging.error(
                 'Killing all processes due to inability to access Beanstalk subgraph...')
             os._exit(os.EX_UNAVAILABLE)
+'''
 
+class SeasonStats():
+    """Standard object containing fields for all fields of interest for a single season.
+
+    Populated from subgraph data.
+    """
+    def __init__(self, graph_seasons_response, season_index=0):
+        """Create a SeasonStats object directly from the response of a graphql request.
+
+        If the response contains multiple seasons use the season_index to pull desired season.
+        """
+        self.season = graph_seasons_response['seasons'][season_index]['season']
+        self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
+        self.price = graph_seasons_response['seasons'][season_index]['price']
+        self.total_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['beans']) # Bean supply
+        self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
+        self.assets = graph_seasons_response['siloHourlySnapshots'][season_index]['silo']['assets'] # Beans minted this season # newFarmableBeans
+        self.weather = graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'] 
+        self.newPods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newPods'])
+        self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['totalPods'])  # pods
+        self.new_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newSoil'])
+        self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['sownBeans'])
 
 class GraphAccessException(Exception):
     """Failed to access the graph."""

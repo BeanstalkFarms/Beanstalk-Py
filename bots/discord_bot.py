@@ -44,7 +44,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def __init__(self, prod=False):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
-        self.add_cog(WalletMonitoring(self))
+        # self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
 
         # NOTE(funderberker): LOCAL TESTING
@@ -92,8 +92,6 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
-
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
         # the publicly visible BeanBot from having its name changed. Prod price_monitor lives in
         # discord_price_bot.py. This price monitor is only for testing/staging.
@@ -106,9 +104,9 @@ class DiscordClient(discord.ext.commands.Bot):
         #     self.send_msg_peg, prod=prod)
         # self.peg_cross_monitor.start()
 
-        # self.sunrise_monitor = util.SeasonsMonitor(
-        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        # self.sunrise_monitor.start()
+        self.sunrise_monitor = util.SeasonsMonitor(
+            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+        self.sunrise_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)
@@ -119,8 +117,6 @@ class DiscordClient(discord.ext.commands.Bot):
 
         self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
         self.market_monitor.start()
-
-        ############################################################################################
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
             self.send_msg_barn_raise, report_events=True, report_summaries=False, prod=prod, dry_run=False)
@@ -138,13 +134,11 @@ class DiscordClient(discord.ext.commands.Bot):
         self.set_presence.start()
 
     def stop(self):
-        self.upload_channel_to_wallets()
-        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+        # self.upload_channel_to_wallets()
         # if not prod:
         #     self.price_monitor.stop()
         # self.peg_cross_monitor.stop()
-        # self.sunrise_monitor.stop()
-        ############################################################################################
+        self.sunrise_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()

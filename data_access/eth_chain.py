@@ -228,7 +228,7 @@ def get_web3_instance():
     # NOTE(funderberker): LOCAL TESTING
     return Web3(WebsocketProvider(URL, websocket_timeout=60))
     # return Web3(HTTPProvider(URL))
-    
+
 def get_eth_usdc_pool_contract(web3):
     """Get a web.eth.contract object for the uniswap ETH:USDC pool. Contract is not thread safe."""
     return web3.eth.contract(
@@ -246,13 +246,11 @@ def get_bean_contract(web3):
 
 def get_unripe_contract(web3):
     """Get a web.eth.contract object for the unripe bean token. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=UNRIPE_ADDR, abi=curve_pool_abi)
+    return get_erc20_contract(web3, UNRIPE_ADDR)
 
 def get_unripe_lp_contract(web3):
     """Get a web.eth.contract object for the unripe LP token. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=UNRIPE_3CRV_ADDR, abi=curve_pool_abi)
+    return get_erc20_contract(web3, UNRIPE_3CRV_ADDR)
 
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
@@ -269,6 +267,11 @@ def get_fertilizer_contract(web3):
     return web3.eth.contract(
         address=FERTILIZER_ADDR, abi=fertilizer_abi)
 
+def get_erc20_contract(web3, address):
+    """Get a web3.eth.contract object for a standard ERC20 token contract."""
+    # Ignore checksum requirement.
+    address = web3.toChecksumAddress(address.lower())
+    return web3.eth.contract(address=address, abi=erc20_abi)
 
 class ChainClient():
     """Base class for clients of Eth chain data."""
@@ -466,7 +469,7 @@ class BarnRaiseClient(ChainClient):
     # def purchased(self):
     #     """Amount of fertilizer that has been purchased.
 
-    #     Note that this is not the same as amount 'raised', since forfeitted silo assets contribute
+    #     Note that this is not the same as amount 'raised', since forfeit silo assets contribute
     #     to the raised amount.
     #     """
     #     return self.token_contract 
@@ -738,15 +741,15 @@ def get_erc20_total_supply(addr, decimals, web3=None):
     """Get the total supply of ERC-20 token in circulation as float."""
     if not web3:
         web3 = get_web3_instance()
-    partial_contract = web3.eth.contract(address=addr, abi=erc20_abi)
+    contract = get_erc20_contract(web3, address=addr)
     return token_to_float(call_contract_function_with_retry(
-        partial_contract.functions.totalSupply()), decimals)
+        contract.functions.totalSupply()), decimals)
 
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""
     if not web3:
         web3 = get_web3_instance()
-    contract = web3.eth.contract(address=addr, abi=erc20_abi)
+    contract = get_erc20_contract(web3, address=addr)
     name = call_contract_function_with_retry(contract.functions.name())
     symbol = call_contract_function_with_retry(contract.functions.symbol())
     decimals = call_contract_function_with_retry(contract.functions.decimals())
