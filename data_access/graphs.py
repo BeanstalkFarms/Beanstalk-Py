@@ -125,7 +125,7 @@ class BeanstalkSqlClient(object):
     def silo_assets_seasonal_change(self):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
         
-        Note that season snapshots are taken at the beginning of each season.
+        Note that season snapshots are created at the beginning of each season and updated throughout season.
 
         Returns:
             Map of asset deltas with keys [token, delta_amount, delta_bdv].

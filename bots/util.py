@@ -19,6 +19,8 @@ from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
+REPLANT_SEASON_NUM = 6074
+
 # Strongly encourage Python 3.8+.
 # If not 3.8+ uncaught exceptions on threads will not be logged.
 MIN_PYTHON = (3, 8)
@@ -446,26 +448,36 @@ class SeasonsMonitor(Monitor):
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
             ret_string += f'\n🌱 {round_num(newMintedBeans, 0)} Beans minted'
-            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
-            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
+            # Edge case, first season after replant.
+            if int(last_season_stats.season) != REPLANT_SEASON_NUM:
+                ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
+                ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
 
             # Silo balance stats.
+            ret_string += f'\n\n**Silo**'
             # Edge case, first season after replant.
             # TODO(funderberker): implement something more interesting here?
-            # if str(last_season_stats.season) == '6074':
-            #     pass
-            # else:
-            ret_string += f'\n\n**Silo**'
-            for asset in silo_asset_changes:
-                token = asset['token']
-                token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
-                
-                # Different wording for Beans (and tokens with unknown value).
-                if token == BEAN_ADDR:
-                    ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
-                # Known BDV.
-                else:
-                    ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
+            if int(last_season_stats.season) == REPLANT_SEASON_NUM:
+                for asset in current_season_stats.assets:
+                    token = self._web3.toChecksumAddress(asset['token'])
+                    token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                    float_amount = eth_chain.token_to_float(asset['totalDepositedAmount'], decimals)
+                    float_bdv = eth_chain.bean_to_float(asset['totalDepositedBDV'])
+                    if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
+                        ret_string += f'\n🗒 {round_num(float_amount, 0)} {token_symbol} in Silo'
+                    else:
+                        ret_string += f'\n🗒 {round_num(float_bdv, 0)} BDV of {token_symbol} in Silo'
+            else:
+                for asset in silo_asset_changes:
+                    token = self._web3.toChecksumAddress( asset['token'])
+                    token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                    
+                    # Different wording for Beans, unripe assets, and tokens with unknown value.
+                    if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
+                        ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
+                    # Known BDV.
+                    else:
+                        ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
 
             # Field.
             ret_string += f'\n\n**Field**'
@@ -480,14 +492,15 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n'
             ret_string += f'\n🌱 {round_num(newMintedBeans, 0)} Beans minted'
 
+            silo_bdv = 0
+            for asset in current_season_stats.assets:
+                token = self._web3.toChecksumAddress(asset['token'])
+                token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
+            ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
             # Edge case, first season after replant.
-            # TODO(funderberker): implement something more interesting here?
-            # if str(last_season_stats.season) == '6074':
-            #     pass
-            # else:
-            silo_bdv = sum([asset['delta_bdv'] for asset in silo_asset_changes])
-            ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", delta_bdv=silo_bdv)}'
-            ret_string += f'\n🚜 {round_num(sown_beans)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
+            if int(last_season_stats.season) != REPLANT_SEASON_NUM:
+                ret_string += f'\n🚜 {round_num(sown_beans)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
         return ret_string
 
 
@@ -524,12 +537,13 @@ class SeasonsMonitor(Monitor):
         """Return string representing the total deposited amount of a token."""
         ret_string = f'\n'
         if deposits is not None:
-            ret_string += f'{deposits} {name} in Silo'
+            ret_string += f'🏦 {round_num(deposits, 0)} {name} in Silo'
         elif bdv is not None:
-            ret_string += f'{bdv} BDV worth of {name} in Silo'
+            ret_string += f'🏦 {round_num(bdv, 0)} BDV worth of {name} in Silo'
         else:
             raise ValueError(
                 'Must specify either delta_deposits or bdv (Bean denominated value)')
+        return ret_string
 
     @abstractmethod
     def silo_balance_delta_str(name, delta_deposits=None, delta_bdv=None):
