@@ -414,9 +414,9 @@ class SeasonsMonitor(Monitor):
         while self._thread_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
-            if (self.current_season_id != current_season_stats['id'] and
-                    int(current_season_stats['timestamp']) > time.time() - SEASON_DURATION / 2):
-                self.current_season_id = current_season_stats['id']
+            if (self.current_season_id != current_season_stats.season and
+                    int(current_season_stats.timestamp) > time.time() - SEASON_DURATION / 2):
+                self.current_season_id = current_season_stats.season
                 logging.info(
                     f'New season detected with id {self.current_season_id}')
                 return current_season_stats, last_season_stats
