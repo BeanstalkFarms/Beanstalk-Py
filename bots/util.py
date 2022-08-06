@@ -19,6 +19,7 @@ from data_access.graphs import (
     BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
+# Season before first sunrise of replant.
 REPLANT_SEASON_NUM = 6074
 
 # Strongly encourage Python 3.8+.
@@ -794,7 +795,8 @@ class CurvePoolMonitor(Monitor):
         if coin_amount is not None:
             if (self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL):
                 token_value = self.bean_client.curve_bean_3crv_token_value()
-            value = token_amount * token_value
+                amount = eth_chain.token_to_float(token_amount, eth_chain.CRV_DECIMALS)
+            value = amount * token_value
 
         if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
             # Set the variables of quantity and direction of exchange.
