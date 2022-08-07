@@ -447,18 +447,18 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
             ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
 
-            # Silo balance stats.
-            ret_string += f'\n\n**Silo**'
-            for asset in silo_asset_changes:
-                token = self._web3.toChecksumAddress( asset['token'])
-                token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+            # # Silo balance stats.
+            # ret_string += f'\n\n**Silo**'
+            # for asset in silo_asset_changes:
+            #     token = self._web3.toChecksumAddress( asset['token'])
+            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
                 
-                # Different wording for Beans, unripe assets, and tokens with unknown value.
-                if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
-                    ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
-                # Known BDV.
-                else:
-                    ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
+            #     # Different wording for Beans, unripe assets, and tokens with unknown value.
+            #     if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
+            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
+            #     # Known BDV.
+            #     else:
+            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
 
             # Field.
             ret_string += f'\n\n**Field**'
