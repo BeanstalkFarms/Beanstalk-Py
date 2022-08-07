@@ -427,7 +427,7 @@ class SeasonsMonitor(Monitor):
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = float(current_season_stats.reward_beans)
-        new_minted_beans = reward_beans * 2
+        new_minted_beans = reward_beans * 3
         pod_rate = float(
             current_season_stats.total_pods) / float(current_season_stats.total_beans) * 100
         twap = float(current_season_stats.price)
