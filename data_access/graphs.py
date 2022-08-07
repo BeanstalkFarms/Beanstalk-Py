@@ -290,7 +290,7 @@ class SeasonStats():
         self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
         self.price = graph_seasons_response['seasons'][season_index]['price']
         self.total_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['beans']) # Bean supply
-        self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans'])
+        self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans']) # silo rewards + fert rewards + pods harvestable
         self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
         self.assets = graph_seasons_response['siloHourlySnapshots'][season_index]['silo']['assets'] # Beans minted this season # newFarmableBeans
         self.weather = graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'] 

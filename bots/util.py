@@ -427,7 +427,6 @@ class SeasonsMonitor(Monitor):
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = float(current_season_stats.reward_beans)
-        new_minted_beans = reward_beans * 3
         pod_rate = float(
             current_season_stats.total_pods) / float(current_season_stats.total_beans) * 100
         twap = float(current_season_stats.price)
@@ -447,7 +446,7 @@ class SeasonsMonitor(Monitor):
         if not short_str:
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n🌱 {round_num(new_minted_beans, 0)} Beans minted'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
             # Edge case, first season after replant.
             if int(last_season_stats.season) != REPLANT_SEASON_NUM:
                 ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
@@ -491,7 +490,7 @@ class SeasonsMonitor(Monitor):
         else:
             ret_string += f'\n🌤 The weather is {current_season_stats.weather}%'
             ret_string += f'\n'
-            ret_string += f'\n🌱 {round_num(new_minted_beans, 0)} Beans minted'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
 
             silo_bdv = 0
             for asset in current_season_stats.assets:
