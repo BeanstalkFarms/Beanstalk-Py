@@ -93,12 +93,12 @@ class DiscordClient(discord.ext.commands.Bot):
         logging.getLogger().addHandler(discord_report_handler)
 
         # Because this changes the bot name, prod vs stage is handled differently. This prevents
-        # the publicly visible BeanBot from having its name changed. Prod price_monitor lives in
+        # the publicly visible BeanBot from having its name changed. Prod preview_monitor lives in
         # discord_price_bot.py. This price monitor is only for testing/staging.
-        # if not prod:
-        #     self.price_monitor = util.PricePreviewMonitor(
-        #         self.set_nickname_price, self.set_status)
-        #     self.price_monitor.start()
+        if not prod:
+            self.preview_monitor = util.BarnRaisePreviewMonitor(
+                self.set_nickname, self.set_status)
+            self.preview_monitor.start()
 
         # self.peg_cross_monitor = util.PegCrossMonitor(
         #     self.send_msg_peg, prod=prod)
@@ -135,8 +135,8 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         # self.upload_channel_to_wallets()
-        # if not prod:
-        #     self.price_monitor.stop()
+        if not prod:
+            self.preview_monitor.stop()
         # self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
@@ -146,7 +146,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
     # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
     # silently do nothing.
-    def set_nickname_price(self, text):
+    def set_nickname(self, text):
         """Set bot server nickname price."""
         self.nickname = f'(stage) BEAN: {text}'
 

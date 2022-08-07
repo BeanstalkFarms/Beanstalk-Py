@@ -57,8 +57,6 @@ ONE_HUNDRED_MEGABYTES = 100**6
 RESET_MONITOR_DELAY_INIT = 5  # seconds
 # Timestamp for start of Barn Raise.
 BARN_RAISE_START_TIME = 1652112000 # seconds
-# Initial goal USDC of Barn Raise.
-BARN_RAISE_USDC_TARGET = 77000000
 
 
 class PegCrossType(Enum):
@@ -313,7 +311,7 @@ class BarnRaisePreviewMonitor(Monitor):
         super().__init__('Barn Raise Preview', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
         self.STATUS_DISPLAYS_COUNT = 3
-        self.barn_raise_client = eth_chain.BarnRaiseClient()
+        self.beanstalk_client = eth_chain.BeanstalkClient()
         self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
@@ -330,8 +328,9 @@ class BarnRaisePreviewMonitor(Monitor):
                 time.sleep(1)
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
-            remaining = self.barn_raise_client.remaining()
-            total_raised = BARN_RAISE_USDC_TARGET - remaining
+            remaining = self.beanstalk_client.get_remaining_recapitalization()
+            percent_funded = self.beanstalk_client.get_recap_funded_percent()
+            total_raised = self.beanstalk_client.get_amount_funded(remaining, percent_funded)
 
             name_str = f'Sold: ${round_num(total_raised, 0)}'
             if name_str != self.last_name:
@@ -346,10 +345,10 @@ class BarnRaisePreviewMonitor(Monitor):
                     f'Avail: ${round_num(remaining, 0)}')
             elif self.status_display_index == 1:
                 self.status_function(
-                    f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
+                    f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
             elif self.status_display_index == 2:
                 self.status_function(
-                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
+                    f'{round_num(percent_funded*100, 2)}% raised')
 
 
 class SeasonsMonitor(Monitor):

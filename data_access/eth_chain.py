@@ -286,6 +286,9 @@ class BeanstalkClient(ChainClient):
     def __init__(self, web3=None):
         super().__init__(web3)
         self.contract = get_beanstalk_contract(self._web3)
+        self.replant_season = 6074
+        self.base_humidity = 2500 / 10
+        self.humidity_step_size = 0.5 # %
 
     def get_season(self):
         """Get current season."""
@@ -314,6 +317,27 @@ class BeanstalkClient(ChainClient):
     def get_underlying_token(self, unripe_token):
         """Return the address of the token that will be redeemed for a given unripe token."""
         return call_contract_function_with_retry(self.contract.functions.getUnderlyingToken(unripe_token))
+
+    def get_recap_funded_percent(self):
+        """Return the % of target funds that have already been funded via fertilizer sales."""
+        # Note that % recap is same for all unripe tokens.
+        return token_to_float(call_contract_function_with_retry(self.contract.functions.getRecapFundedPercent(UNRIPE_3CRV_ADDR)), 6)
+
+    def get_remaining_recapitalization(self):
+        """Return the USDC amount remaining to full capitalization."""
+        return usdc_to_float(call_contract_function_with_retry(self.contract.functions.remainingRecapitalization()))
+
+    def get_amount_funded(self, remaining_recap, recap_funded_percent):
+        """Return amount in USDC that has already been recapitalized."""
+        recap_target = remaining_recap / (1 - recap_funded_percent)
+        return recap_funded_percent * recap_target
+
+    def get_humidity(self):
+        """Calculate and return current humidity."""
+        current_season = self.get_season()
+        if current_season <= self.replant_season:
+            return self.base_humidity
+        return self.base_humidity - (current_season - self.replant_season) * self.humidity_step_size
 
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""

@@ -120,7 +120,7 @@ class BeanstalkSqlClient(object):
                     totalSupply
                 }
             }
-    """
+        """
 
     def silo_assets_seasonal_change(self):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
