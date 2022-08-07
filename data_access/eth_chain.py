@@ -292,7 +292,7 @@ class BeanstalkClient(ChainClient):
         return call_contract_function_with_retry(self.contract.functions.season())
 
     def get_weather(self):
-        """Get current weather object."""
+        """Get current weather (temperature) object."""
         return call_contract_function_with_retry(self.contract.functions.weather())
 
     def get_season_start_soil(self):

@@ -483,12 +483,12 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n\n**Field**'
             ret_string += f'\n🧮 {round_num(pod_rate)}% Pod Rate'
             ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No soil in the Field'
-            ret_string += f'\n🌤 {current_season_stats.weather}% Weather'
+            ret_string += f'\n🌤 {current_season_stats.weather}% Temperature'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
         else:
-            ret_string += f'\n🌤 The weather is {current_season_stats.weather}%'
+            ret_string += f'\n🌤 The Temperature is {current_season_stats.weather}%'
             ret_string += f'\n'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
 
@@ -1060,7 +1060,7 @@ class BeanstalkMonitor(Monitor):
                 bdv_float = eth_chain.bean_to_float(event_log.args.get('bdv'))
                 value = bdv_float * bean_price
 
-        event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} of Deposited {remove_token_symbol} ' \
+        event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
                     f'converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
                     f'({round_num(bdv_float, 0)} BDV)'
 
@@ -1168,6 +1168,7 @@ class MarketMonitor(Monitor):
                 event_str += f'🖌 Pods ordered'
             event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} in Line @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
+            event_str += f'💰 Pods Exchanged - '
             # Pull the Bean Transfer log to find cost.
             if event_log.event == 'PodListingFilled':
                 transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
@@ -1212,6 +1213,9 @@ class MarketMonitor(Monitor):
                               f'({transaction_receipt.transactionHash.hex()}). Exiting...'
                     logging.error(err_str)
                     raise ValueError(err_str)
+                event_str += f'{amount_str} Pods listed at ' \
+                            f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
+                            f'Beans/Pod (${round_num(bean_price * beans_paid)})'
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
                 # NOTE(funderberker): This is a lot of duplicate logic from EthEventsClient.get_new_logs()
@@ -1242,9 +1246,9 @@ class MarketMonitor(Monitor):
                 logging.info(decoded_log_entry)
                 price_per_pod = decoded_log_entry.args.pricePerPod
                 beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
-            event_str += f'💰 Pods Exchanged - {amount_str} Pods queued at ' \
-                         f'{start_place_in_line_str} purchased @ {round_num(beans_paid/amount, 3)} ' \
-                         f'Beans/Pod (${round_num(bean_price * beans_paid)})'
+                event_str += f'{amount_str} Pods ordered at ' \
+                            f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
+                            f'Beans/Pod (${round_num(bean_price * beans_paid)})'
             event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
@@ -1304,7 +1308,7 @@ class BarnRaiseMonitor(Monitor):
                         total_raised += usdc_amount
                     msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
                     remaining = self.barn_raise_client.remaining()
-                    msg_str += f'\n🌱 ${round_num(remaining, 0)} of Fertilizer remaining'
+                    msg_str += f'\n🌱 {round_num(remaining, 0)} of Fertilizer remaining'
                     msg_str += f'\n'
                     for i in range(3):
                         try:
