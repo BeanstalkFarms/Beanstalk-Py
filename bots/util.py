@@ -209,11 +209,6 @@ class PegCrossMonitor(Monitor):
         last_known_cross_id = int(self.last_known_cross['id'])
         number_of_new_crosses = last_cross_id - last_known_cross_id
 
-        # TODO(funderberker): Remove this when subgraph fixed.
-        # TEMP
-        # ID not working, assume at most 1 cross.
-        number_of_new_crosses = 1
-
         if number_of_new_crosses > 1:
             # Returns n crosses ordered most recent -> least recent.
             new_cross_list = self.bean_graph_client.get_last_crosses(
