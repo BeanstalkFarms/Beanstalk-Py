@@ -1011,7 +1011,7 @@ class BeanstalkMonitor(Monitor):
             # If not in aggregator, will return none and not display value.
             else:
                 underlying_token_value = self.bean_client.get_lp_token_value(underlying, underlying_decimals)
-            event_str += f'🪓 {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0)} {underlying_symbol}'
+            event_str += f'⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0)} {underlying_symbol}'
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
                 event_str += f' (${round_num(underlying_value, 0)})'
