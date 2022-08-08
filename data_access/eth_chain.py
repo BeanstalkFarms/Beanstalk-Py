@@ -188,6 +188,10 @@ def generate_sig_hash_map(sig_str_list):
 convert_function_sig_strs = ['convert(bytes,uint32[],uint256[])']
 convert_sigs = generate_sig_hash_map(convert_function_sig_strs)
 
+# Buy Fertilizer signature.
+buy_fert_function_sig_strs = ['buyAndMint(uint256)', 'mint(uint256)']
+buy_fert_sigs = generate_sig_hash_map(convert_function_sig_strs)
+
 # Claim type signatures.
 # claim_sigs = ['claim', 'claimAndUnwrapBeans', 'claimConvertAddAndDepositLP', 'claimAndSowBeans', 'claimBuyAndSowBeans', 'claimAndCreatePodOrder', 'claimAndFillPodListing', 'claimBuyBeansAndCreatePodOrder', 'claimBuyBeansAndFillPodListing', 'claimAddAndDepositLP', 'claimAndDepositBeans', 'claimAndDepositLP', 'claimAndWithdrawBeans', 'claimAndWithdrawLP', 'claimBuyAndDepositBeans']
 claim_deposit_beans_sig_strs = ['claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool))',

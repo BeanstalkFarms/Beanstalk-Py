@@ -759,11 +759,11 @@ class CurvePoolMonitor(Monitor):
         # No default since each pool must have support manually built in.
         for event_log in event_logs:
             event_str = self.any_event_str(
-                event_log, bean_price)
+                event_log, bean_price, transaction)
             if event_str:
                 self.message_function(event_str)
 
-    def any_event_str(self, event_log, bean_price):
+    def any_event_str(self, event_log, bean_price, transaction):
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         sold_id = event_log.args.get('sold_id')
@@ -829,7 +829,7 @@ class CurvePoolMonitor(Monitor):
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
                 return ''
 
-            event_str += self.exchange_event_str(bean_price, stable_name,
+            event_str += self.exchange_event_str(bean_price, stable_name, transaction,
                                                  bean_out=bean_out, bean_in=bean_in,
                                                  stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
@@ -848,12 +848,13 @@ class CurvePoolMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    def exchange_event_str(self, bean_price, stable_name, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+    def exchange_event_str(self, bean_price, stable_name, transaction, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
         """Generate a standard token exchange string.
 
         Note that we assume all tokens in 3CRV have a value of $1.
         """
         event_str = ''
+        is_fert_purchase = False
         if ((not stable_in and not bean_in) or (not stable_out and not bean_out)):
             logging.error(
                 'Must set at least one input and one output of swap.')
@@ -867,10 +868,15 @@ class CurvePoolMonitor(Monitor):
             swap_value = stable_in
         elif bean_in:
             event_str += f'📕 {round_num(bean_in, 0)} Beans sold for {round_num(stable_out, 0)} {stable_name}'
+            # If this is a sale of Beans for a fertilizer purchase.
+            if sig_compare(transaction['input'][:9], eth_chain.buy_fert_sigs.values()):
+                is_fert_purchase = True
             swap_price = stable_out / bean_in
             swap_value = stable_out
         event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value, 0)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
+        if is_fert_purchase:
+            event_str += f'[🚛 Fertilizer Purchase]'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
 
