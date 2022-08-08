@@ -27,11 +27,11 @@ class TelegramBot(object):
 
         ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
 
-        # self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
-        # self.peg_cross_monitor.start()
+        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
+        self.peg_cross_monitor.start()
 
-        # self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod)
-        # self.sunrise_monitor.start()
+        self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod)
+        self.sunrise_monitor.start()
 
         # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg, prod=prod)
         # self.uniswap_pool_monitor.start()
@@ -64,8 +64,8 @@ class TelegramBot(object):
 
     def stop(self):
         ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
-        # self.peg_cross_monitor.stop()
-        # self.sunrise_monitor.stop()
+        self.peg_cross_monitor.stop()
+        self.sunrise_monitor.stop()
         # self.uniswap_pool_monitor.stop()
         ############################################################################################
         self.curve_bean_3crv_pool_monitor.stop()

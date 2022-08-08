@@ -100,9 +100,9 @@ class DiscordClient(discord.ext.commands.Bot):
                 self.set_nickname, self.set_status)
             self.preview_monitor.start()
 
-        # self.peg_cross_monitor = util.PegCrossMonitor(
-        #     self.send_msg_peg, prod=prod)
-        # self.peg_cross_monitor.start()
+        self.peg_cross_monitor = util.PegCrossMonitor(
+            self.send_msg_peg, prod=prod)
+        self.peg_cross_monitor.start()
 
         self.sunrise_monitor = util.SeasonsMonitor(
             self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
@@ -137,7 +137,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # self.upload_channel_to_wallets()
         if not prod:
             self.preview_monitor.stop()
-        # self.peg_cross_monitor.stop()
+        self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()

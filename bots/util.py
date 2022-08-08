@@ -164,7 +164,11 @@ class PegCrossMonitor(Monitor):
                 continue
             min_update_time = time.time() + PEG_CHECK_PERIOD
 
-            cross_types = self._check_for_peg_crosses()
+            try:
+                cross_types = self._check_for_peg_crosses()
+            # Will get index error before there is data in the subgraph.
+            except IndexError:
+                continue
             for cross_type in cross_types:
                 if cross_type != PegCrossType.NO_CROSS:
                     output_str = PegCrossMonitor.peg_cross_string(cross_type)
