@@ -389,9 +389,21 @@ class BeanClient(ChainClient):
         token_supply = get_erc20_total_supply(token_address, decimals)
         return liquidity_usd / token_supply
 
-    def avg_bean_price(self):
+    def avg_bean_price(self, price_info=None):
         """Current float bean price average across LPs from the Bean price oracle contract."""
-        return bean_to_float(self.get_price_info()['price'])
+        if price_info:
+            price = price_info['price']
+        else:
+            price = self.get_price_info()['price']
+        return bean_to_float(price)
+
+    def total_delta_b(self, price_info=None):
+        """Current deltaB across all pools."""
+        if price_info:
+            delta_b = price_info['delta_b']
+        else:
+            delta_b = self.get_price_info()['delta_b']
+        return bean_to_float(delta_b)
 
     def curve_3crv_price(self):
         """Current float 3CRV price from Bean:3CRV Pool."""
