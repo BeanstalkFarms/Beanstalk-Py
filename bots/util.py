@@ -361,9 +361,9 @@ class BarnRaisePreviewMonitor(Monitor):
 
 
 class SeasonsMonitor(Monitor):
-    def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False):
-        super().__init__('Sunrise', message_function,
-                         SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
+    def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False, dry_run=False):
+        super().__init__('Seasons', message_function,
+                         SUNRISE_CHECK_PERIOD, prod=prod, dry_run=dry_run)
         # Toggle shorter messages (must fit into <280 character safely).
         self.short_msgs = short_msgs
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
@@ -379,7 +379,10 @@ class SeasonsMonitor(Monitor):
     def _monitor_method(self):
         while self._thread_active:
             # Wait until the eligible for a sunrise.
-            self._wait_until_expected_sunrise()
+            if not self._dry_run:
+                self._wait_until_expected_sunrise()
+            else:
+                time.sleep(5)
             # Once the sunrise is complete, get the season stats.
             current_season_stats, last_season_stats = self._block_and_get_seasons_stats()
             # A new season has begun.
@@ -423,8 +426,9 @@ class SeasonsMonitor(Monitor):
         while self._thread_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
-            if (self.current_season_id != current_season_stats.season and
-                    int(current_season_stats.timestamp) > time.time() - SEASON_DURATION / 2):
+            if ((self.current_season_id != current_season_stats.season and
+                    int(current_season_stats.timestamp) > time.time() - SEASON_DURATION / 2) or
+                    self._dry_run):
                 self.current_season_id = current_season_stats.season
                 logging.info(
                     f'New season detected with id {self.current_season_id}')
@@ -434,14 +438,12 @@ class SeasonsMonitor(Monitor):
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
-        reward_beans = float(current_season_stats.reward_beans)
-        pod_rate = float(
-            current_season_stats.total_pods) / float(current_season_stats.total_beans) * 100
-        # NOTE(funderberker): In current subgraph impl the twap is just the price at sunrise time.
-        twap = current_season_stats.price
-        newSoil = float(current_season_stats.new_soil)
-
-        last_weather = float(last_season_stats.weather)
+        reward_beans = current_season_stats.reward_beans
+        pod_rate = current_season_stats.total_pods / current_season_stats.total_beans * 100
+        price = current_season_stats.price
+        delta_b = current_season_stats.delta_beans
+        newSoil = current_season_stats.new_soil
+        last_weather = last_season_stats.weather
         sown_beans = last_season_stats.sown_beans
 
         # Silo asset balances.
@@ -449,12 +451,13 @@ class SeasonsMonitor(Monitor):
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
-        ret_string += f'\n💵 Current price is ${round_num(twap, 3)}'
+        ret_string += f'\n💵 Current price is ${round_num(price, 3)}'
 
         # Full string message.
         if not short_str:
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
+            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} DeltaB'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
             ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'

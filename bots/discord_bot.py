@@ -107,7 +107,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.peg_cross_monitor.start()
 
         self.sunrise_monitor = util.SeasonsMonitor(
-            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
+            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod, dry_run=False)
         self.sunrise_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
