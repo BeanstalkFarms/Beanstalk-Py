@@ -431,6 +431,7 @@ class SeasonsMonitor(Monitor):
         reward_beans = float(current_season_stats.reward_beans)
         pod_rate = float(
             current_season_stats.total_pods) / float(current_season_stats.total_beans) * 100
+        # NOTE(funderberker): In current subgraph impl the twap is just the price at sunrise time.
         twap = float(current_season_stats.price)
         newSoil = float(current_season_stats.new_soil)
 
@@ -442,7 +443,7 @@ class SeasonsMonitor(Monitor):
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
-        ret_string += f'\n💵 The TWAP last season was ${round_num(twap, 3)}'
+        ret_string += f'\n💵 Current price is ${round_num(twap, 3)}'
 
         # Full string message.
         if not short_str:
