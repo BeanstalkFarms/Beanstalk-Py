@@ -196,7 +196,7 @@ class PegCrossMonitor(Monitor):
             logging.info('Peg cross timestamp initialized with last peg cross = '
                          f'{last_cross[TIMESTAMP_KEY]}')
             self.last_known_cross = last_cross
-            return [PegCrossType.CROSS_ABOVE]
+            return [PegCrossType.NO_CROSS]
 
         # If the cross is not newer than the last known cross or id is not greater, return.
         # These checks are necessary due to unpredictable variations in the graph.
