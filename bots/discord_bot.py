@@ -96,7 +96,9 @@ class DiscordClient(discord.ext.commands.Bot):
         # the publicly visible BeanBot from having its name changed. Prod preview_monitor lives in
         # discord_price_bot.py. This price monitor is only for testing/staging.
         if not prod:
-            self.preview_monitor = util.BarnRaisePreviewMonitor(
+            # self.preview_monitor = util.BarnRaisePreviewMonitor(
+            #     self.set_nickname, self.set_status)
+            self.preview_monitor = util.PricePreviewMonitor(
                 self.set_nickname, self.set_status)
             self.preview_monitor.start()
 

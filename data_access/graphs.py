@@ -144,42 +144,49 @@ class BeanstalkSqlClient(object):
             assets_deltas.append(asset_deltas)
         return assets_deltas
 
-    def seasons_stats(self):
+    def seasons_stats(self, num_seasons=2, seasons=True, siloHourlySnapshots=True, fieldHourlySnapshots=True):
         """Get a standard set of data corresponding to current season.
         
         Returns array of last 2 season in descending order, each value a graphql map structure of all requested data.
         """
-        query_str = """
-            query current_season_stats {
-                seasons(first: 2, skip: 0, orderBy: season, orderDirection: desc) {
+        query_str = 'query seasons_stats {'
+        if seasons:
+            query_str += f"""
+                seasons(first: {num_seasons}, skip: 0, orderBy: season, orderDirection: desc) {{
                     season
                     timestamp
                     price
                     beans
                     rewardBeans
-                }
+                }}
+            """
+        if siloHourlySnapshots:
+            query_str += f"""
                 siloHourlySnapshots(
-                    where: {silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}
+                    where: {{silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
                     orderBy: season
                     orderDirection: desc
-                    first: 2
-                ){
+                    first: {num_seasons}
+                ){{
                     season
                     hourlyBeanMints #newFarmableBeans
-                    silo {
-                        assets(first: 100, orderBy: token) {
+                    silo {{
+                        assets(first: 100, orderBy: token) {{
                             token
                             totalDepositedAmount
                             totalDepositedBDV
-                        }
-                    }
-                }
+                        }}
+                    }}
+                }}
+            """
+        if fieldHourlySnapshots:
+            query_str += f"""
                 fieldHourlySnapshots(
-                    where: {field: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}
+                    where: {{field: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
                     orderBy: season
                     orderDirection: desc
-                    first: 2
-                ) {
+                    first: {num_seasons}
+                ) {{
                     id
                     season
                     weather
@@ -187,9 +194,9 @@ class BeanstalkSqlClient(object):
                     totalPods #pods
                     newSoil
                     sownBeans
-                }
-            }
-        """
+                }}
+            """
+        query_str += '}'
 
         # Create gql query and execute.
         try:
@@ -200,8 +207,8 @@ class BeanstalkSqlClient(object):
                 'Killing all processes due to inability to access Beanstalk subgraph...')
             os._exit(os.EX_UNAVAILABLE)
 
-        # Return current_season_stats, last_season_stats
-        return SeasonStats(result, 0), SeasonStats(result, 1)
+        # Return list of SeasnStat class instances
+        return [SeasonStats(result, i) for i in range(num_seasons)]
 
 ### DEPRECATED VIA SUBGRAPH IMPL CHANGES ###
 '''
@@ -287,18 +294,21 @@ class SeasonStats():
 
         If the response contains multiple seasons use the season_index to pull desired season.
         """
-        self.season = graph_seasons_response['seasons'][season_index]['season']
-        self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
-        self.price = graph_seasons_response['seasons'][season_index]['price']
-        self.total_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['beans']) # Bean supply
-        self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans']) # silo rewards + fert rewards + pods harvestable
-        self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
-        self.assets = graph_seasons_response['siloHourlySnapshots'][season_index]['silo']['assets'] # Beans minted this season # newFarmableBeans
-        self.weather = graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'] 
-        self.newPods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newPods'])
-        self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['totalPods'])  # pods
-        self.new_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newSoil'])
-        self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['sownBeans'])
+        if 'seasons' in graph_seasons_response:
+            self.season = graph_seasons_response['seasons'][season_index]['season']
+            self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
+            self.price = float(graph_seasons_response['seasons'][season_index]['price'])
+            self.total_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['beans']) # Bean supply
+            self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans']) # silo rewards + fert rewards + pods harvestable
+        if 'siloHourlySnapshots' in graph_seasons_response:
+            self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
+            self.assets = graph_seasons_response['siloHourlySnapshots'][season_index]['silo']['assets'] # Beans minted this season # newFarmableBeans
+        if 'fieldHourlySnapshots' in graph_seasons_response:
+            self.weather = graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'] 
+            self.newPods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newPods'])
+            self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['totalPods'])  # pods
+            self.new_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newSoil'])
+            self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['sownBeans'])
 
 class GraphAccessException(Exception):
     """Failed to access the graph."""

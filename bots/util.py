@@ -289,28 +289,29 @@ class PricePreviewMonitor(Monitor):
             # Rotate data and update status.
             self.status_display_index = (
                 self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
-            if self.status_display_index == 0:
+            if self.status_display_index in [0, 1, 2]:
                 seasons = self.beanstalk_graph_client.seasons_stats(
-                    list(range(self.HOURS)), fields=['price'])
-                prices = [float(season['price']) for season in seasons]
-                self.status_function(
-                    f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
-            elif self.status_display_index in [1, 2]:
-                seasons = self.beanstalk_graph_client.seasons_stats(
-                    list(range(self.HOURS)), fields=['newFarmableBeans', 'newHarvestablePods'])
-                mints = [float(season['newFarmableBeans']) +
-                         float(season['newHarvestablePods']) for season in seasons]
+                    self.HOURS, seasons=True, siloHourlySnapshots=False, fieldHourlySnapshots=False)
+                prices = [season.price for season in seasons]
+                rewards = [season.reward_beans for season in seasons]
+                if self.status_display_index == 0:
+                    self.status_function(
+                        f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
                 if self.status_display_index == 1:
                     self.status_function(
-                        f'{round_num(sum(mints)/self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
+                        f'{round_num(sum(rewards) / self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
                 if self.status_display_index == 2:
                     self.status_function(
-                        f'{round_num(sum(mints), 0)} Minted - {self.HOURS}hr')
+                        f'{round_num(sum(rewards), 0)} Minted - {self.HOURS}hr')
             elif self.status_display_index == 3:
+                status_str = ''
+                if delta_b > 0:
+                    status_str += '+'
+                elif delta_b < 0:
+                    status_str += '-'
+                status_str += round_num(abs(delta_b))
                 self.status_function(
-                    f'{round_num(delta_b, 0)} deltaB')
-                    
-
+                    f'{status_str} deltaB')
 
 class BarnRaisePreviewMonitor(Monitor):
     """Monitor data that offers a view into current Barn Raise status."""
@@ -437,7 +438,7 @@ class SeasonsMonitor(Monitor):
         pod_rate = float(
             current_season_stats.total_pods) / float(current_season_stats.total_beans) * 100
         # NOTE(funderberker): In current subgraph impl the twap is just the price at sunrise time.
-        twap = float(current_season_stats.price)
+        twap = current_season_stats.price
         newSoil = float(current_season_stats.new_soil)
 
         last_weather = float(last_season_stats.weather)
