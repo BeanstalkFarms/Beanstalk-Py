@@ -31,7 +31,7 @@ LOGGING_FORMATTER = logging.Formatter(LOGGING_FORMAT_STR_SUFFIX)
 
 TIMESTAMP_KEY = 'timestamp'
 # Discord server guild ID.
-BEANSTALK_GUILD_ID = 880413392916054098
+# BEANSTALK_GUILD_ID = 880413392916054098
 ID_KEY = 'id'
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
@@ -1389,14 +1389,19 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
             ).decode('ascii').strip())
 
         self.user_id = self.user.id
-        self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
+        # self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
+        # Guild IDs for all servers this bot is in.
+        self.guilds = []
+        for guild in self.guilds:
+            self.guilds.append(guild)
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def _update_naming(self):
         if self.nickname:
             # Note(funderberker): Is this rate limited?
-            await self.beanstalk_guild.me.edit(nick=self.nickname)
-            logging.info(f'Bot nickname changed to {self.nickname}')
+            for guild in self.guilds:
+                await self.guild.me.edit(nick=self.nickname)
+            logging.info(f'Bot nickname changed to {self.nickname} in guild with id {guild.id}')
             self.nickname = ''
         if self.status_text:
             await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
