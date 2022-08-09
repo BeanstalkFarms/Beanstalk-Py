@@ -83,7 +83,7 @@ class BeanSqlClient(object):
         return self.get_last_crosses()[0]
 
     def get_last_crosses(self, n=1):
-        """Retrive the last n peg crosses, including timestamp and cross direction.
+        """Retrieve the last n peg crosses, including timestamp and cross direction.
 
         Args:
             n: number of recent crosses to retrieve.

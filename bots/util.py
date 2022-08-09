@@ -309,7 +309,7 @@ class PricePreviewMonitor(Monitor):
                     status_str += '+'
                 elif delta_b < 0:
                     status_str += '-'
-                status_str += round_num(abs(delta_b))
+                status_str += round_num(abs(delta_b), 0)
                 self.status_function(
                     f'{status_str} deltaB')
 
@@ -494,7 +494,7 @@ class SeasonsMonitor(Monitor):
                 token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
                 silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
             ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
-            ret_string += f'\n🚜 {round_num(sown_beans)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
         return ret_string
 
 
@@ -753,17 +753,21 @@ class CurvePoolMonitor(Monitor):
         txn_method_sig_prefix = transaction['input'][:9]
         if sig_compare(txn_method_sig_prefix, eth_chain.convert_sigs.values()):
             return
+
+        # Special indication of a fert purchase.
+        if get_logs_by_names(['TransferSingle', 'TransferBatch']):
+            is_fert_purchase = True
         
         if self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL:
             bean_price = self.bean_client.curve_bean_3crv_bean_price()
         # No default since each pool must have support manually built in.
         for event_log in event_logs:
             event_str = self.any_event_str(
-                event_log, bean_price, transaction)
+                event_log, bean_price, transaction, is_fert_purchase=is_fert_purchase)
             if event_str:
                 self.message_function(event_str)
 
-    def any_event_str(self, event_log, bean_price, transaction):
+    def any_event_str(self, event_log, bean_price, is_fert_purchase=False):
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         sold_id = event_log.args.get('sold_id')
@@ -829,7 +833,7 @@ class CurvePoolMonitor(Monitor):
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
                 return ''
 
-            event_str += self.exchange_event_str(bean_price, stable_name, transaction,
+            event_str += self.exchange_event_str(bean_price, stable_name, is_fert_purchase=is_fert_purchase,
                                                  bean_out=bean_out, bean_in=bean_in,
                                                  stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
@@ -848,7 +852,7 @@ class CurvePoolMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    def exchange_event_str(self, bean_price, stable_name, transaction, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+    def exchange_event_str(self, bean_price, stable_name, is_fert_purchase=False, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
         """Generate a standard token exchange string.
 
         Note that we assume all tokens in 3CRV have a value of $1.
@@ -869,8 +873,6 @@ class CurvePoolMonitor(Monitor):
         elif bean_in:
             event_str += f'📕 {round_num(bean_in, 0)} Beans sold for {round_num(stable_out, 0)} {stable_name}'
             # If this is a sale of Beans for a fertilizer purchase.
-            if sig_compare(transaction['input'][:9], eth_chain.buy_fert_sigs.values()):
-                is_fert_purchase = True
             swap_price = stable_out / bean_in
             swap_value = stable_out
         event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value, 0)})'
