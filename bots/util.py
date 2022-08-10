@@ -16,7 +16,7 @@ from web3 import eth
 
 from constants.addresses import *
 from data_access.graphs import (
-    BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
+    SnapshotSqlClient, BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
 
@@ -326,6 +326,7 @@ class BarnRaisePreviewMonitor(Monitor):
         self.status_function = status_function
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
+        # self.snapshot_sql_client = SnapshotSqlClient()
 
     def _monitor_method(self):
         # Delay startup to protect against crash loops.
@@ -350,7 +351,7 @@ class BarnRaisePreviewMonitor(Monitor):
                 self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
             if self.status_display_index == 0:
                 self.status_function(
-                    f'Avail: ${round_num(remaining, 0)}')
+                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
             elif self.status_display_index == 1:
                 self.status_function(
                     f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
@@ -1260,8 +1261,8 @@ class BarnRaiseMonitor(Monitor):
         self._web3 = eth_chain.get_web3_instance()
         # Used for special init cases
         # self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14918083
-        # self.SUMMARY_BLOCK_RANGE = 1430 # ~ 6 hours
-        self.SUMMARY_BLOCK_RANGE = 5720 + 1192 # ~ 24 hours, offset by 5 hours
+        self.SUMMARY_BLOCK_RANGE = 1430 # ~ 6 hours
+        # self.SUMMARY_BLOCK_RANGE = 5720 + 1192 # ~ 24 hours, offset by 5 hours
         self.EMOJI_RANKS = ['🥇','🥈','🥉']
         self.report_events = report_events
         self.report_summaries = report_summaries
@@ -1329,7 +1330,7 @@ class BarnRaiseMonitor(Monitor):
         """Process a single event log for the Barn Raise."""
         usdc_amount = None
         # Mint single.
-        if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
+        if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR,:
             usdc_amount = int(event_log.args.value)
         # Mint batch.   <- is this even possible???
         elif event_log.event == 'TransferBatch' and event_log.args['from'] == NULL_ADDR:

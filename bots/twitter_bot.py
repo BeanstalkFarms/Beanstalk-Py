@@ -38,23 +38,26 @@ class TwitterBot(object):
         # self.barn_raise_monitor.start()
 
     def send_msg(self, msg):
+        logging.info(f'Attempting to tweet:\n{msg}\n')
         # Remove URL pointy brackets used by md formatting to suppress link previews.
         msg = msg.replace('<', '').replace('>', '')
         try:
             self.client.create_tweet(text=msg)
         except tweepy.errors.BadRequest as e:
-            logging.info(f'HTTP Error 400 (Bad Request) for tweet with body "{msg}" '
-                         f'\n{e.api_messages}')
+            logging.error(f'HTTP Error 400 (Bad Request) for tweet with body "{msg}" '
+                         f'\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}')
             return
         except tweepy.errors.Forbidden as e:
-            logging.info(f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
-                         f'Was it a repeat tweet?\n{e.api_messages}')
+            logging.error(f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
+                         f'Was it a repeat tweet?\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}')
             return
-        except e:
-            logging.info(f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
-                         f'Was it a repeat tweet?\n{e.api_messages}')
+        except tweepy.errors.TooManyRequests as e:
+            logging.error(f'HTTP Error 429 (Too Many Requests) for tweet with body "{msg}" '
+                         f'\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}'
+                         f'\n\nAggressively idling...')
+            time.sleep(16 * 60) # Wait 16 minutes to be safe, expect 15 minutes to reset.
             return
-        logging.info(f'Tweeted:\n{msg}\n')
+        logging.info(f'Tweet successful')
 
     def stop(self):
         self.sunrise_monitor.stop()
