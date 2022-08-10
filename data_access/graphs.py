@@ -157,6 +157,7 @@ class BeanstalkSqlClient(object):
                     timestamp
                     price
                     deltaBeans
+                    deltaB
                     beans
                     rewardBeans
                 }}
@@ -299,7 +300,8 @@ class SeasonStats():
             self.season = graph_seasons_response['seasons'][season_index]['season']
             self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
             self.price = float(graph_seasons_response['seasons'][season_index]['price'])
-            self.delta_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['deltaBeans'])
+            self.delta_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['deltaBeans']) # deltaB at beginning of season
+            self.delta_b = bean_to_float(graph_seasons_response['seasons'][season_index]['deltaB']) # time weighted deltaB based from previous 2 seasons - same as from oracle - used to determine mints and soil
             self.total_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['beans']) # Bean supply
             self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans']) # silo rewards + fert rewards + pods harvestable
         if 'siloHourlySnapshots' in graph_seasons_response:

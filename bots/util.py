@@ -441,7 +441,7 @@ class SeasonsMonitor(Monitor):
         reward_beans = current_season_stats.reward_beans
         pod_rate = current_season_stats.total_pods / current_season_stats.total_beans * 100
         price = current_season_stats.price
-        delta_b = current_season_stats.delta_beans
+        delta_b = current_season_stats.delta_b
         newSoil = current_season_stats.new_soil
         last_weather = last_season_stats.weather
         sown_beans = last_season_stats.sown_beans
@@ -457,7 +457,7 @@ class SeasonsMonitor(Monitor):
         if not short_str:
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} DeltaB'
+            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
             ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
