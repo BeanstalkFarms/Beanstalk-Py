@@ -39,7 +39,7 @@ class TelegramBot(object):
         ############################################################################################
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
-            self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod)
+            self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)
         self.curve_bean_3crv_pool_monitor.start()
 
         self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
@@ -58,6 +58,7 @@ class TelegramBot(object):
             return
         # Remove URL pointy brackets used by md formatting to suppress link previews.
         msg = msg.replace('<', '').replace('>', '')
+        # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
         self.tele_bot.send_message(
             chat_id=self._chat_id, text=msg, disable_web_page_preview=True)
         logging.info(f'Message sent:\n{msg}\n')
