@@ -262,7 +262,7 @@ class PricePreviewMonitor(Monitor):
         self.HOURS = 24
         self.bean_client = eth_chain.BeanClient()
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        self.last_status = ''
+        self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
@@ -280,11 +280,10 @@ class PricePreviewMonitor(Monitor):
             price_info = self.bean_client.get_price_info()
             bean_price = self.bean_client.avg_bean_price(price_info=price_info)
             delta_b = self.bean_client.total_delta_b(price_info=price_info)
-            status_str = f'BEAN: ${round_num(bean_price, 4)}'
-            if status_str != self.last_status:
-                self.name_function(status_str)
-                # TODO(funderberker): Uncomment after unpause.
-                # self.last_status = status_str
+            name_str = f'BEAN: ${round_num(bean_price, 4)}'
+            if name_str != self.last_name:
+                self.name_function(name_str)
+                self.last_name = name_str
 
             # Rotate data and update status.
             self.status_display_index = (
@@ -1385,17 +1384,19 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         self.user_id = self.user.id
         # self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
         # Guild IDs for all servers this bot is in.
-        self.guilds = []
+        self.current_guilds = []
         for guild in self.guilds:
-            self.guilds.append(guild)
+            self.current_guilds.append(guild)
+            logging.info(f'Guild found: {guild.id}')
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def _update_naming(self):
         if self.nickname:
             # Note(funderberker): Is this rate limited?
-            for guild in self.guilds:
-                await self.guild.me.edit(nick=self.nickname)
-            logging.info(f'Bot nickname changed to {self.nickname} in guild with id {guild.id}')
+            for guild in self.current_guilds:
+                logging.info(f'Attempting to set nickname in guild with id {guild.id}')
+                await guild.me.edit(nick=self.nickname)
+                logging.info(f'Bot nickname changed to {self.nickname} in guild with id {guild.id}')
             self.nickname = ''
         if self.status_text:
             await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,

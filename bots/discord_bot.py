@@ -84,23 +84,12 @@ class DiscordClient(discord.ext.commands.Bot):
         self.channel_id_to_channel = {}
 
         self.msg_queue = []
-        self.status_text = ''
 
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
         discord_report_handler.setLevel(logging.ERROR)
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
-
-        # Because this changes the bot name, prod vs stage is handled differently. This prevents
-        # the publicly visible BeanBot from having its name changed. Prod preview_monitor lives in
-        # discord_price_bot.py. This price monitor is only for testing/staging.
-        if not prod:
-            # self.preview_monitor = util.BarnRaisePreviewMonitor(
-            #     self.set_nickname, self.set_status)
-            self.preview_monitor = util.PricePreviewMonitor(
-                self.set_nickname, self.set_status)
-            self.preview_monitor.start()
 
         self.peg_cross_monitor = util.PegCrossMonitor(
             self.send_msg_peg, prod=prod)
@@ -136,25 +125,13 @@ class DiscordClient(discord.ext.commands.Bot):
         self.set_presence.start()
 
     def stop(self):
-        # self.upload_channel_to_wallets()
-        if not prod:
-            self.preview_monitor.stop()
+        self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
         self.barn_raise_monitor.stop()
-
-    # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
-    # silently do nothing.
-    def set_nickname(self, text):
-        """Set bot server nickname price."""
-        self.nickname = f'(stage) BEAN: {text}'
-
-    def set_status(self, text):
-        """Set bot custom status text."""
-        self.status_text = text
 
     def send_msg_report(self, text):
         """Send a message through the Discord bot in the error reporting channel."""
@@ -217,19 +194,6 @@ class DiscordClient(discord.ext.commands.Bot):
         except AttributeError as e:
             logging.error('Failed to send DM')
             logging.exception(e)
-
-    @tasks.loop(seconds=0.1, reconnect=True)
-    async def set_presence(self):
-        if self.status_text:
-            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
-                                                                 name=self.status_text))
-            logging.info(f'Bot status changed to {self.status_text}')
-            self.status_text = ''
-
-    @set_presence.before_loop
-    async def before_set_presence_loop(self):
-        """Wait until the bot logs in."""
-        await self.wait_until_ready()
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):
