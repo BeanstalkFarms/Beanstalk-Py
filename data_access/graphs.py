@@ -157,6 +157,14 @@ class BeanstalkSqlClient(object):
                 }
             }
         """
+        # Create gql query and execute.
+        try:
+            return float(execute(self._client, query_str)['fertilizers'][0]['totalSupply'])
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
 
     def silo_assets_seasonal_change(self):
         """Get address, delta balance, and delta BDV of all silo assets across last season.

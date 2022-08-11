@@ -318,8 +318,9 @@ class BarnRaisePreviewMonitor(Monitor):
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
-        self.STATUS_DISPLAYS_COUNT = 3
+        self.STATUS_DISPLAYS_COUNT = 2
         self.beanstalk_client = eth_chain.BeanstalkClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
         self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
@@ -335,11 +336,10 @@ class BarnRaisePreviewMonitor(Monitor):
                 time.sleep(1)
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
-            remaining = self.beanstalk_client.get_remaining_recapitalization()
             percent_funded = self.beanstalk_client.get_recap_funded_percent()
-            total_raised = self.beanstalk_client.get_amount_funded(remaining, percent_funded)
+            fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
-            name_str = f'Sold: ${round_num(total_raised, 0)}'
+            name_str = f'Sold: ${round_num(fertilizer_bought, 0)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
@@ -349,11 +349,8 @@ class BarnRaisePreviewMonitor(Monitor):
                 self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
             if self.status_display_index == 0:
                 self.status_function(
-                    f'${round_num(total_raised, 0)} raised')
-            elif self.status_display_index == 1:
-                self.status_function(
                     f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
-            elif self.status_display_index == 2:
+            elif self.status_display_index == 1:
                 self.status_function(
                     f'{round_num(percent_funded*100, 2)}% raised')
 
@@ -446,16 +443,17 @@ class SeasonsMonitor(Monitor):
 
         # Silo asset balances.
         silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
+        fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
         ret_string += f'\n💵 Current price is ${round_num(price, 4)}'
+        ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
 
         # Full string message.
         if not short_str:
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
             ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
@@ -479,6 +477,11 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No soil in the Field'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
+
+            # Barn.
+            ret_string += f'\n\n**Barn**'
+            ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
+            ret_string += f'\n🧱 {round_num(fertilizer_bought, 0)}% recapitalized'
 
         # Short string version (for Twitter).
         else:

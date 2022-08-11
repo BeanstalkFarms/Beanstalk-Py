@@ -346,7 +346,11 @@ class BeanstalkClient(ChainClient):
         return remaining_recap / (1 - recap_funded_percent)
 
     def get_amount_funded(self, remaining_recap, recap_funded_percent):
-        """Return amount in USDC that has already been recapitalized."""
+        """Return amount in USDC that has already been recapitalized.
+        
+        WARNING: This is imperfect. Will vary slightly based on unknown conditions of Beanstalk.
+        Use graph to acquire supply when possible.
+        """
         target = self.get_target_amount(remaining_recap, recap_funded_percent)
         return target - remaining_recap
 
