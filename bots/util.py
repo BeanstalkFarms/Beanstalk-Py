@@ -475,9 +475,9 @@ class SeasonsMonitor(Monitor):
 
             # Field.
             ret_string += f'\n\n**Field**'
-            ret_string += f'\n🧮 {round_num(pod_rate)}% Pod Rate'
+            ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
             ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No soil in the Field'
-            ret_string += f'\n🌤 {current_season_stats.weather}% Temperature'
+            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
