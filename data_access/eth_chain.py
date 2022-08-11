@@ -342,10 +342,13 @@ class BeanstalkClient(ChainClient):
         """Return the USDC amount remaining to full capitalization."""
         return usdc_to_float(call_contract_function_with_retry(self.contract.functions.remainingRecapitalization()))
 
+    def get_target_amount(self, remaining_recap, recap_funded_percent):
+        return remaining_recap / (1 - recap_funded_percent)
+
     def get_amount_funded(self, remaining_recap, recap_funded_percent):
         """Return amount in USDC that has already been recapitalized."""
-        recap_target = remaining_recap / (1 - recap_funded_percent)
-        return recap_funded_percent * recap_target
+        target = self.get_target_amount(remaining_recap, recap_funded_percent)
+        return target - remaining_recap
 
     def get_humidity(self):
         """Calculate and return current humidity."""

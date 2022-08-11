@@ -349,7 +349,7 @@ class BarnRaisePreviewMonitor(Monitor):
                 self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
             if self.status_display_index == 0:
                 self.status_function(
-                    f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
+                    f'${round_num(total_raised, 0)} raised')
             elif self.status_display_index == 1:
                 self.status_function(
                     f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
