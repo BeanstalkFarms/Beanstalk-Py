@@ -449,7 +449,7 @@ class SeasonsMonitor(Monitor):
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
-        ret_string += f'\n💵 Current price is ${round_num(price, 3)}'
+        ret_string += f'\n💵 Current price is ${round_num(price, 4)}'
 
         # Full string message.
         if not short_str:
