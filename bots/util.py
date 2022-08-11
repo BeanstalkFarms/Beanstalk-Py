@@ -840,6 +840,7 @@ class CurvePoolMonitor(Monitor):
                 f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
             return ''
 
+        event_str += f'\n{value_to_emojis(value)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'
@@ -1018,6 +1019,7 @@ class BeanstalkMonitor(Monitor):
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
                 event_str += f' (${round_num(underlying_value, 0)})'
+                event_str += f'\n{value_to_emojis(underlying_value)}'
 
         # Unknown event type.
         else:
