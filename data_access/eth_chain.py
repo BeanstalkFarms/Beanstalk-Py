@@ -662,7 +662,7 @@ class EthEventsClient():
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
-                logging.warning(self._contract.events[self._events_dict[signature]]())
+                # logging.warning(self._contract.events[self._events_dict[signature]]())
                 decoded_logs.extend(self._contract.events[
                     self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD)) 
             logging.info(f'Decoded logs:\n{decoded_logs}')
@@ -813,6 +813,15 @@ def is_valid_wallet_address(address):
         return False
     return True
 
+# NOTE(funderberker): What an atrocious name I have chosen. I apologize to readers.
+def is_6_not_18_decimal_token_amount(amount):
+    """Attempt to determine if the amount belongs to Bean (6 decimal) or an 18 decimal token."""
+    amount = int(amount)
+    # If at least 16 digits present assume it is an 18 decimal token (1 billion Bean).
+    if amount > 1000000000000000:
+        return False
+    else:
+        return True
 
 def txn_topic_combo_id(entry):
     """Return a unique string identifying this transaction and topic combo."""
@@ -962,6 +971,13 @@ def get_test_entries():
         # # Farmer's market: PodOrderFilled, after re-order.
         # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'topics': [HexBytes('0xcde76f76bb5e9a4f97126b0428845b44e01404c9fc99ce9eeb029533f77e5ca9'), HexBytes('0x000000000000000000000000de13b8b32a0c7c1c300cd4151772b7ebd605660b'), HexBytes('0x000000000000000000000000eafc0e4acf147e53398a4c9ae5f15950332cce06')],
         #               'data': '0x656f15e31fde7a753fa054712ff9a3f3fd50bf38c365f6eb917d1872ccb3dca80000000000000000000000000000000000000000000000000000265ac54b663b0000000000000000000000000000000000000000000000000000004015d49b3e00000000000000000000000000000000000000000000000000000000c75315aa', 'blockNumber': 14374880, 'transactionHash': HexBytes('0xc9c8ecf03558d4c4bbdbf02f9cf2fdafa6b0e186b754ef2d6cd6c18af5c0cb71'), 'transactionIndex': 288, 'blockHash': HexBytes('0x99111767441abfbf1094ecb8b96c17ad16ba90635da5d0b5578de541380d60f1'), 'logIndex':372, 'removed': False}),
+
+        # Bean:3CRV RemoveLiquidityOne - remove Bean.
+        AttributeDict({'address': '0xc9C32cd16Bf7eFB85Ff14e0c8603cc90F6F2eE49', 'blockHash': HexBytes('0x1b6ea196d0a669dac906db5d20105a34ba6cd881b4ee2904a40c496599ff485f'), 'blockNumber': 15318843, 'data': '0x000000000000000000000000000000000000000000000f0410de0ab4bcf3ab7a0000000000000000000000000000000000000000000000000000001084364d840000000000000000000000000000000000000000001dbcbf16c93639317b55dd',
+                      'logIndex': 242, 'removed': False, 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5')], 'transactionHash': HexBytes('0xc91ae5056aebbf162ddcbaf6c6767e0c7d70d704f1b923cf883d7ff5e0051c0f'), 'transactionIndex': 165}),
+        # Bean:3CRV RemoveLiquidityOne - remove 3CRV.
+        AttributeDict({'address': '0xc9C32cd16Bf7eFB85Ff14e0c8603cc90F6F2eE49', 'blockHash': HexBytes('0x72f7458127752eb6d8fe2bdd987e4524b3a21798168bc283cf9f0b3afdfe57b4'), 'blockNumber': 15318758, 'data': '0x000000000000000000000000000000000000000000001de7f3f28265d1e49016000000000000000000000000000000000000000000001d3c59efbb5be72fa4590000000000000000000000000000000000000000001dda0ecbc7e515c1b9b8ad',
+                      'logIndex': 14, 'removed': False, 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'transactionHash': HexBytes('0x66f626e3c556cf8130f80fb26a4ac41008ace62ac220b5ba4915fb0aaaad6676'), 'transactionIndex': 23}),
 
         # Curve sell Bean for USDC for Fertilizer.
         AttributeDict({'address': '0xc9C32cd16Bf7eFB85Ff14e0c8603cc90F6F2eE49', 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5')], 'data': '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005cfe91e00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000005ce841f', 'blockNumber': 15307175, 'transactionHash': HexBytes(

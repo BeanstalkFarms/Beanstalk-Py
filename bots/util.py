@@ -772,6 +772,7 @@ class CurvePoolMonitor(Monitor):
         token_amount = event_log.args.get('token_amount')
         coin_amount = event_log.args.get('coin_amount')
 
+        value = None
         if token_amounts is not None:
             bean_lp_amount = eth_chain.bean_to_float(
                 token_amounts[eth_chain.FACTORY_3CRV_INDEX_BEAN])
@@ -834,13 +835,21 @@ class CurvePoolMonitor(Monitor):
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
             event_str += f'📤 LP removed - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} (${round_num(value, 0)})'
         elif event_log.event == 'RemoveLiquidityOne':
-            event_str += f'📤 LP removed - ${round_num(value, 0)}'
+            event_str += f'📤 LP removed - '
+            if self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL:
+                # If 6 decimal then it must be Bean that was withdrawn. 18 decimal is 3CRV.
+                if eth_chain.is_6_not_18_decimal_token_amount(coin_amount):
+                    event_str += f'{round_num(eth_chain.bean_to_float(coin_amount), 0)} Beans'
+                else:
+                    event_str += f'{round_num(eth_chain.crv_to_float(coin_amount), 0)} 3CRV'
+            event_str += f' (${round_num(value, 0)})'
         else:
             logging.warning(
                 f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
             return ''
 
-        event_str += f'\n{value_to_emojis(value)}'
+        if value is not None:
+            event_str += f'\n{value_to_emojis(value)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'
@@ -870,8 +879,9 @@ class CurvePoolMonitor(Monitor):
             swap_value = stable_out
         event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value, 0)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
-        if sig_compare(transaction['input'][:9], eth_chain.buy_fert_sigs.values()):
-            event_str += f'\n_(🚛 Fertilizer purchase)_'
+        # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.
+        # if sig_compare(transaction['input'][:9], eth_chain.buy_fert_sigs.values()):
+        #     event_str += f'\n_(🚛 Fertilizer purchase)_'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
 
