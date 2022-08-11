@@ -19,6 +19,7 @@ from data_access.graphs import (
     SnapshotSqlClient, BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
 from data_access import eth_chain
 
+
 # Strongly encourage Python 3.8+.
 # If not 3.8+ uncaught exceptions on threads will not be logged.
 MIN_PYTHON = (3, 8)
@@ -30,7 +31,7 @@ LOGGING_FORMATTER = logging.Formatter(LOGGING_FORMAT_STR_SUFFIX)
 
 TIMESTAMP_KEY = 'timestamp'
 # Discord server guild ID.
-BEANSTALK_GUILD_ID = 880413392916054098
+# BEANSTALK_GUILD_ID = 880413392916054098
 ID_KEY = 'id'
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
@@ -54,8 +55,6 @@ ONE_HUNDRED_MEGABYTES = 100**6
 RESET_MONITOR_DELAY_INIT = 5  # seconds
 # Timestamp for start of Barn Raise.
 BARN_RAISE_START_TIME = 1652112000 # seconds
-# Initial goal USDC of Barn Raise.
-BARN_RAISE_USDC_TARGET = 77000000
 
 
 class PegCrossType(Enum):
@@ -165,7 +164,11 @@ class PegCrossMonitor(Monitor):
                 continue
             min_update_time = time.time() + PEG_CHECK_PERIOD
 
-            cross_types = self._check_for_peg_crosses()
+            try:
+                cross_types = self._check_for_peg_crosses()
+            # Will get index error before there is data in the subgraph.
+            except IndexError:
+                continue
             for cross_type in cross_types:
                 if cross_type != PegCrossType.NO_CROSS:
                     output_str = PegCrossMonitor.peg_cross_string(cross_type)
@@ -205,6 +208,7 @@ class PegCrossMonitor(Monitor):
         last_cross_id = int(last_cross['id'])
         last_known_cross_id = int(self.last_known_cross['id'])
         number_of_new_crosses = last_cross_id - last_known_cross_id
+
         if number_of_new_crosses > 1:
             # Returns n crosses ordered most recent -> least recent.
             new_cross_list = self.bean_graph_client.get_last_crosses(
@@ -254,11 +258,11 @@ class PricePreviewMonitor(Monitor):
     def __init__(self, name_function, status_function):
         super().__init__('Price', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
-        self.STATUS_DISPLAYS_COUNT = 3
+        self.STATUS_DISPLAYS_COUNT = 4
         self.HOURS = 24
         self.bean_client = eth_chain.BeanClient()
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        self.last_status = ''
+        self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
@@ -273,33 +277,40 @@ class PricePreviewMonitor(Monitor):
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
 
-            bean_price = self.bean_client.avg_bean_price()
-            status_str = f'BEAN: ${round_num(bean_price, 4)}'
-            if status_str != self.last_status:
-                self.name_function(status_str)
-                self.last_status = status_str
+            price_info = self.bean_client.get_price_info()
+            bean_price = self.bean_client.avg_bean_price(price_info=price_info)
+            delta_b = self.bean_client.total_delta_b(price_info=price_info)
+            name_str = f'BEAN: ${round_num(bean_price, 4)}'
+            if name_str != self.last_name:
+                self.name_function(name_str)
+                self.last_name = name_str
 
             # Rotate data and update status.
             self.status_display_index = (
                 self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
-            if self.status_display_index == 0:
+            if self.status_display_index in [0, 1, 2]:
                 seasons = self.beanstalk_graph_client.seasons_stats(
-                    list(range(self.HOURS)), fields=['price'])
-                prices = [float(season['price']) for season in seasons]
-                self.status_function(
-                    f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
-            elif self.status_display_index in [1, 2]:
-                seasons = self.beanstalk_graph_client.seasons_stats(
-                    list(range(self.HOURS)), fields=['newFarmableBeans', 'newHarvestablePods'])
-                mints = [float(season['newFarmableBeans']) +
-                         float(season['newHarvestablePods']) for season in seasons]
+                    self.HOURS, seasons=True, siloHourlySnapshots=False, fieldHourlySnapshots=False)
+                prices = [season.price for season in seasons]
+                rewards = [season.reward_beans for season in seasons]
+                if self.status_display_index == 0:
+                    self.status_function(
+                        f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
                 if self.status_display_index == 1:
                     self.status_function(
-                        f'{round_num(sum(mints)/self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
+                        f'{round_num(sum(rewards) / self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
                 if self.status_display_index == 2:
                     self.status_function(
-                        f'{round_num(sum(mints), 0)} Minted - {self.HOURS}hr')
-
+                        f'{round_num(sum(rewards), 0)} Minted - {self.HOURS}hr')
+            elif self.status_display_index == 3:
+                status_str = ''
+                if delta_b > 0:
+                    status_str += '+'
+                elif delta_b < 0:
+                    status_str += '-'
+                status_str += round_num(abs(delta_b), 0)
+                self.status_function(
+                    f'{status_str} deltaB')
 
 class BarnRaisePreviewMonitor(Monitor):
     """Monitor data that offers a view into current Barn Raise status."""
@@ -307,13 +318,13 @@ class BarnRaisePreviewMonitor(Monitor):
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', status_function,
                          PRICE_CHECK_PERIOD, prod=True, dry_run=False)
-        self.STATUS_DISPLAYS_COUNT = 2
-        self.barn_raise_client = eth_chain.BarnRaiseClient()
+        self.STATUS_DISPLAYS_COUNT = 3
+        self.beanstalk_client = eth_chain.BeanstalkClient()
         self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
-        self.snapshot_sql_client = SnapshotSqlClient()
+        # self.snapshot_sql_client = SnapshotSqlClient()
 
     def _monitor_method(self):
         # Delay startup to protect against crash loops.
@@ -324,9 +335,10 @@ class BarnRaisePreviewMonitor(Monitor):
                 time.sleep(1)
                 continue
             min_update_time = time.time() + PRICE_CHECK_PERIOD
+            remaining = self.beanstalk_client.get_remaining_recapitalization()
+            percent_funded = self.beanstalk_client.get_recap_funded_percent()
+            total_raised = self.beanstalk_client.get_amount_funded(remaining, percent_funded)
 
-            remaining = self.barn_raise_client.remaining()
-            total_raised = BARN_RAISE_USDC_TARGET - remaining
             name_str = f'Sold: ${round_num(total_raised, 0)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
@@ -340,67 +352,45 @@ class BarnRaisePreviewMonitor(Monitor):
                     f'{round_num(total_raised/BARN_RAISE_USDC_TARGET*100, 2)}% raised')
             elif self.status_display_index == 1:
                 self.status_function(
-                    f'BIP-21 voted: {round_num(self.snapshot_sql_client.percent_of_stalk_voted())}%')
-            # elif self.status_display_index == 2:
-            #     self.status_function(
-            #         f'Avail: ${round_num(remaining, 0)}')
-            # elif self.status_display_index == 3:
-            #     self.status_function(
-            #         f'Humidity: {round_num(self.barn_raise_client.humidity(), 1)}%')
+                    f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
+            elif self.status_display_index == 2:
+                self.status_function(
+                    f'{round_num(percent_funded*100, 2)}% raised')
 
 
-class SunriseMonitor(Monitor):
-    def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False):
-        super().__init__('Sunrise', message_function,
-                         SUNRISE_CHECK_PERIOD, prod=prod, dry_run=False)
+class SeasonsMonitor(Monitor):
+    def __init__(self, message_function, short_msgs=False, channel_to_wallets=None, prod=False, dry_run=False):
+        super().__init__('Seasons', message_function,
+                         SUNRISE_CHECK_PERIOD, prod=prod, dry_run=dry_run)
         # Toggle shorter messages (must fit into <280 character safely).
         self.short_msgs = short_msgs
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
+        # TODO(funderberker): Reuse this web3 instance for efficiency.
+        self._web3 = eth_chain.get_web3_instance()
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = eth_chain.BeanClient()
         self.beanstalk_client = eth_chain.BeanstalkClient()
         # Most recent season processed. Do not initialize.
         self.current_season_id = None
 
-        # Dict of LP tokens and relevant info.
-        # Init LP values that are not supported by the subgraph.
-        # NOTE(funderberker): Will need to reboot bot on new generalized token to get it to appear.
-        self.token_infos = OrderedDict(
-            self.bean_client.get_price_info()['pool_infos'])
-        # NOTE(funderberker): Manual injection of LUSD pool can be removed when it is added
-        # to price bot.
-        self.token_infos[CURVE_BEAN_LUSD_ADDR] = {'pool': CURVE_BEAN_LUSD_ADDR}
-        self.token_infos.move_to_end(CURVE_BEAN_LUSD_ADDR, last=False)
-        self.token_infos[BEAN_ADDR] = {'pool': BEAN_ADDR}
-        self.token_infos = OrderedDict(
-            reversed(list(self.token_infos.items())))
-        for pool_info in self.token_infos.values():
-            name, symbol, decimals = eth_chain.get_erc20_info(
-                pool_info['pool'])
-            # Use human-defined clean name if set, otherwise fallback to contract defined name.
-            pool_info['name'] = eth_chain.HARDCODE_ADDRESS_TO_NAME.get(
-                pool_info['pool'], name)
-            pool_info['symbol'] = symbol
-            pool_info['decimals'] = decimals
-        self.set_silo_deltas()
-
     def _monitor_method(self):
         while self._thread_active:
             # Wait until the eligible for a sunrise.
-            self._wait_until_expected_sunrise()
+            if not self._dry_run:
+                self._wait_until_expected_sunrise()
+            else:
+                time.sleep(5)
             # Once the sunrise is complete, get the season stats.
             current_season_stats, last_season_stats = self._block_and_get_seasons_stats()
             # A new season has begun.
             if current_season_stats:
-                # Update silo totals once at the beginning of a new season.
-                self.set_silo_deltas()
                 # Report season summary to users.
                 self.message_function(self.season_summary_string(
                     last_season_stats, current_season_stats, short_str=self.short_msgs))
 
-            if self.channel_to_wallets:
-                self.update_all_wallet_watchers()
+            # if self.channel_to_wallets:
+            #     self.update_all_wallet_watchers()
 
             # # For testing.
             # # Note that this will not handle deltas correctly.
@@ -434,9 +424,10 @@ class SunriseMonitor(Monitor):
         while self._thread_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
-            if (self.current_season_id != current_season_stats['id'] and
-                    int(current_season_stats['timestamp']) > time.time() - SEASON_DURATION / 2):
-                self.current_season_id = current_season_stats['id']
+            if ((self.current_season_id != current_season_stats.season and
+                    int(current_season_stats.timestamp) > time.time() - SEASON_DURATION / 2) or
+                    self._dry_run):
+                self.current_season_id = current_season_stats.season
                 logging.info(
                     f'New season detected with id {self.current_season_id}')
                 return current_season_stats, last_season_stats
@@ -444,65 +435,64 @@ class SunriseMonitor(Monitor):
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
-        new_farmable_beans = float(current_season_stats['newFarmableBeans'])
-        new_harvestable_pods = float(
-            current_season_stats['newHarvestablePods'])
-        newMintedBeans = new_farmable_beans + new_harvestable_pods
-        pod_rate = float(
-            current_season_stats['pods']) / float(current_season_stats['beans']) * 100
-        twap = float(current_season_stats["price"])
-        newSoil = float(self.beanstalk_client.get_season_start_soil())
+        # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
+        reward_beans = current_season_stats.reward_beans
+        pod_rate = current_season_stats.total_pods / current_season_stats.total_beans * 100
+        price = current_season_stats.price
+        delta_b = current_season_stats.delta_b
+        newSoil = current_season_stats.new_soil
+        last_weather = last_season_stats.weather
+        sown_beans = last_season_stats.sown_beans
 
-        last_weather = float(last_season_stats['weather'])
-        newPods = float(last_season_stats['newPods'])
+        # Silo asset balances.
+        silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
 
         # Current state.
-        ret_string = f'⏱ Season {last_season_stats["id"]} is complete!'
-        ret_string += f'\n💵 The TWAP last season was ${round_num(twap, 3)}'
+        ret_string = f'⏱ Season {last_season_stats.season} is complete!'
+        ret_string += f'\n💵 Current price is ${round_num(price, 3)}'
 
         # Full string message.
         if not short_str:
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n🌱 {round_num(newMintedBeans)} Beans minted'
-            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown'
-            ret_string += f'\n🌾 {round_num(newPods)} Pods minted'
+            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
+            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
 
-            # Silo balance stats.
-            ret_string += f'\n\n**Silo**'
-            for pool_info in self.token_infos.values():
-                # Different wording for Beans.
-                if pool_info['pool'] == BEAN_ADDR or pool_info['deposited_delta_bdv'] == 0:
-                    ret_string += SunriseMonitor.silo_balance_change_str(
-                        pool_info['name'], delta_deposits=pool_info['deposited_delta'])
-                else:
-                    ret_string += SunriseMonitor.silo_balance_change_str(
-                        pool_info['name'], delta_bdv=pool_info['deposited_delta_bdv'])
-                # If not a complete season of data, show a warning.
-                if pool_info['delta_seconds'] < 0.95 * SEASON_DURATION:
-                    ret_string += f' (partial data: {round_num(pool_info["delta_seconds"]/60, 0)} minutes)'
+            # # Silo balance stats.
+            # ret_string += f'\n\n**Silo**'
+            # for asset in silo_asset_changes:
+            #     token = self._web3.toChecksumAddress( asset['token'])
+            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                
+            #     # Different wording for Beans, unripe assets, and tokens with unknown value.
+            #     if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
+            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
+            #     # Known BDV.
+            #     else:
+            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
 
             # Field.
             ret_string += f'\n\n**Field**'
             ret_string += f'\n🧮 {round_num(pod_rate)}% Pod Rate'
-            ret_string += f'\n🏞 {round_num(newSoil)} Soil in the Field' if newSoil else f'\nNo soil in the Field'
-            ret_string += f'\n🌤 {current_season_stats["weather"]}% Weather'
+            ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No soil in the Field'
+            ret_string += f'\n🌤 {current_season_stats.weather}% Temperature'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
         else:
-            ret_string += f'\n🌤 The weather is {current_season_stats["weather"]}%'
+            ret_string += f'\n🌤 The Temperature is {current_season_stats.weather}%'
             ret_string += f'\n'
-            ret_string += f'\n🌱 {round_num(newMintedBeans)} Beans minted'
-            delta_silo_bdv = sum([pool_info['deposited_delta_bdv']
-                                 for pool_info in self.token_infos.values()])
-            # Only show delta sum if all deltas are complete sets of season data.
-            if all([time.time() - pool_info['delta_seconds'] >= 0.95 * SEASON_DURATION for pool_info in self.token_infos.values()]):
-                if delta_silo_bdv == 0:
-                    ret_string += f'🗒 No change in Silo BDV'
-                else:
-                    ret_string += f'\n{SunriseMonitor.silo_balance_change_str("Silo assets", delta_bdv=delta_silo_bdv)}'
-            ret_string += f'\n🚜 {round_num(newPods / (1 + last_weather/100))} Beans sown for {round_num(newPods)} Pods'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
+
+            # silo_bdv = 0
+            # for asset in current_season_stats.assets:
+            #     token = self._web3.toChecksumAddress(asset['token'])
+            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+            #     silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
+            # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
         return ret_string
 
 
@@ -535,7 +525,20 @@ class SunriseMonitor(Monitor):
 
 
     @abstractmethod
-    def silo_balance_change_str(name, delta_deposits=None, delta_bdv=None):
+    def silo_balance_str(name, deposits=None, bdv=None):
+        """Return string representing the total deposited amount of a token."""
+        ret_string = f'\n'
+        if deposits is not None:
+            ret_string += f'🏦 {round_num(deposits, 0)} {name} in Silo'
+        elif bdv is not None:
+            ret_string += f'🏦 {round_num(bdv, 0)} BDV worth of {name} in Silo'
+        else:
+            raise ValueError(
+                'Must specify either delta_deposits or bdv (Bean denominated value)')
+        return ret_string
+
+    @abstractmethod
+    def silo_balance_delta_str(name, delta_deposits=None, delta_bdv=None):
         """Return string representing the change in total deposited amount of a token."""
         if delta_deposits is not None:
             delta = delta_deposits
@@ -560,53 +563,8 @@ class SunriseMonitor(Monitor):
                 ret_string += f' in {name}'
         return ret_string
 
-    def set_silo_deltas(self, price_info=None):
-        """Set the silo asset deposit amount changes, relative to previous call of this method."""
-        # Pull LP token infos for current LP pricing and liquidity.
-        price_info = self.bean_client.get_price_info()
-
-        # Generalized pools.
-        for address, pool_info in self.token_infos.items():
-            now = time.time()
-            pool_info['delta_seconds'] = now - \
-                pool_info.get('last_timestamp', now)
-            pool_info['last_timestamp'] = now
-            # Bean and LP not in the price oracle.
-            if address not in price_info['pool_infos']:
-                if address == BEAN_ADDR:
-                    current_deposit_amount = self.beanstalk_client.get_total_deposited_beans()
-                    token_bdv = 1.0  # 1 Bean == 1 Bean
-                else:
-                    current_deposit_amount = self.beanstalk_client.get_total_deposited(
-                        address, pool_info['decimals'])
-                    token_bdv = 0.0  # Unknown value
-            # LP.
-            else:
-                current_token_info = price_info['pool_infos'][address]
-                token_value = self.bean_client.get_lp_token_value(
-                    address, pool_info['decimals'], liquidity_long=current_token_info['liquidity'])
-                token_bdv = token_value / \
-                    eth_chain.token_to_float(
-                        current_token_info['price'], 6)  # Bean / LP
-                # Uni V2 BEAN:ETH.
-                if address == UNI_V2_BEAN_ETH_ADDR:
-                    current_deposit_amount = self.beanstalk_client.get_total_deposited_uni_v2_bean_eth_lp()
-                # Generalized assets.
-                else:
-                    current_deposit_amount = self.beanstalk_client.get_total_deposited(
-                        address, pool_info['decimals'])
-
-            # If this is the first, init last deposit amount == current deposit amount.
-            pool_info['deposited_amount_last'] = pool_info.get(
-                'deposited_amount_last', current_deposit_amount)
-            # Calculate and set deltas.
-            pool_info['deposited_delta'] = current_deposit_amount - \
-                pool_info['deposited_amount_last']
-            pool_info['deposited_delta_bdv'] = pool_info['deposited_delta'] * token_bdv
-            logging.info(
-                f"name: {pool_info['name']} - last deposits: {pool_info['deposited_amount_last']} - current_deposits: {current_deposit_amount} - delta deposits: {pool_info['deposited_delta']}")
-            pool_info['deposited_amount_last'] = current_deposit_amount
-
+#### DEPRECATED. WILL NEED REFRESHER BEFORE USING AGAIN.
+'''
     def update_all_wallet_watchers(self):
         current_season_stats = self.beanstalk_graph_client.current_season_stats()
         bean_price = self.bean_client.avg_bean_price()
@@ -635,12 +593,7 @@ class SunriseMonitor(Monitor):
         account_stats is a map of data about an account from the subgraph.
         """
         deposited_beans = float(account_status["depositedBeans"])
-        lp_eth, lp_beans = lp_eq_values(
-            float(account_status["depositedLP"]),
-            total_lp=float(current_season_stats['lp']),
-            pooled_eth=float(current_season_stats['pooledEth']),
-            pooled_beans=float(current_season_stats['pooledBeans']),
-        )
+        lp_eth, lp_beans = 
 
         ret_string = f'📜 `{address}`\n'
         # wallet_str += f'Circulating Beans: {account_stats[""]}'
@@ -648,8 +601,10 @@ class SunriseMonitor(Monitor):
         ret_string += f'🌿 Deposited LP: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
         ret_string += f'🌾 Pods: {round_num(account_status["pods"])}\n'
         return ret_string
+'''
 
-
+#### DEPRECATED. WILL NEED REFRESHER BEFORE USING AGAIN.
+'''
 class UniswapPoolMonitor(Monitor):
     """Monitor the ETH:BEAN Uniswap V2 pool for events."""
 
@@ -687,14 +642,8 @@ class UniswapPoolMonitor(Monitor):
 
         # Process the txn logs based on the method.
         # Ignore silo conversion events. They will be handled by the beanstalk class.
-        if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
+        if event_in_logs('Convert', event_logs):
             return
-        # No special logic for deposits. If they include a swap we should process it as normal.
-        elif sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()):
-            pass
-        else:
-            # All other txn log sets should include a standard ETH:BEAN swap.
-            pass
 
         # Each txn of interest should only include one ETH:BEAN swap.
         if len(event_logs) > 1:
@@ -764,16 +713,14 @@ class UniswapPoolMonitor(Monitor):
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
-
+'''
 
 class CurvePoolMonitor(Monitor):
-    """Monitor the BEAN:3CRV Curve pool for events."""
+    """Monitor a Curve pool for events."""
 
     def __init__(self, message_function, pool_type, prod=False, dry_run=False):
-        if pool_type is eth_chain.EventClientType.CURVE_3CRV_POOL:
-            name = '3CRV Curve Pool'
-        elif pool_type is eth_chain.EventClientType.CURVE_LUSD_POOL:
-            name = 'LUSD Curve Pool'
+        if pool_type is eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL:
+            name = 'Bean:3CRV Curve Pool'
         else:
             raise ValueError('Curve pool must be set to a supported pool.')
         super().__init__(name, message_function,
@@ -799,19 +746,21 @@ class CurvePoolMonitor(Monitor):
         Assumes that there are no non-Bean:3CRV TokenExchangeUnderlying events in logs.
         Note that Event Log Object is not the same as Event object.
         """
-        if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
-            bean_price = self.bean_client.curve_3crv_bean_price()
-        elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
-            # TODO(funderberker): Use price oracle once this is implemented on chain.
-            # bean_price = self.bean_client.curve_lusd_bean_price()
-            bean_price = self.bean_client.avg_bean_price()
+        # Ignore Silo Convert txns, which will be handled by the Beanstalk monitor.
+        transaction = self._eth_event_client._web3.eth.get_transaction(txn_hash)
+        if sig_compare(transaction['input'][:9], eth_chain.convert_sigs.values()):
+            return
+        
+        if self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL:
+            bean_price = self.bean_client.curve_bean_3crv_bean_price()
+        # No default since each pool must have support manually built in.
         for event_log in event_logs:
             event_str = self.any_event_str(
-                event_log, bean_price)
+                event_log, bean_price, transaction)
             if event_str:
                 self.message_function(event_str)
 
-    def any_event_str(self, event_log, bean_price):
+    def any_event_str(self, event_log, bean_price, transaction):
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         sold_id = event_log.args.get('sold_id')
@@ -820,42 +769,33 @@ class CurvePoolMonitor(Monitor):
         tokens_bought = event_log.args.get('tokens_bought')
         token_amounts = event_log.args.get('token_amounts')
         # Coin is a single ERC20 token, token is the pool token. So Coin can be Bean or 3CRV.
-        # token_amount = event_log.args.get('token_amount')
+        token_amount = event_log.args.get('token_amount')
         coin_amount = event_log.args.get('coin_amount')
 
         if token_amounts is not None:
             bean_lp_amount = eth_chain.bean_to_float(
                 token_amounts[eth_chain.FACTORY_3CRV_INDEX_BEAN])
-            if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
+            if (self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL):
                 token_lp_amount = eth_chain.crv_to_float(
                     token_amounts[eth_chain.FACTORY_3CRV_INDEX_3CRV])
                 token_lp_name = '3CRV'
-            elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
-                token_lp_amount = eth_chain.crv_to_float(
-                    token_amounts[eth_chain.FACTORY_3CRV_INDEX_3CRV])
-                token_lp_name = 'LUSD'
+                token_value = self.bean_client.curve_bean_3crv_token_value()
+            value = bean_lp_amount * bean_price + token_lp_amount * token_value
+        # RemoveLiquidityOne.
         if coin_amount is not None:
-            # NOTE(funderberker): This is not a great way to do this check. Will be easier once
-            # LP $ value in the price oracle. Then can just do everything based on pool token value.
-            if coin_amount > 100000000000000000:
-                if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
-                    coin_lp_amount = eth_chain.crv_to_float(coin_amount)
-                    coin_name = '3CRV'
-                elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
-                    coin_lp_amount = eth_chain.lusd_to_float(coin_amount)
-                    coin_name = 'LUSD'
-            else:
-                coin_lp_amount = eth_chain.bean_to_float(coin_amount)
-                coin_name = 'Bean'
+            if (self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL):
+                token_value = self.bean_client.curve_bean_3crv_token_value()
+                amount = eth_chain.token_to_float(token_amount, eth_chain.CRV_DECIMALS)
+            value = amount * token_value
 
         if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
             # Set the variables of quantity and direction of exchange.
             bean_out = stable_in = bean_in = stable_out = None
-            if bought_id in [eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_BEAN, eth_chain.FACTORY_LUSD_INDEX_BEAN]:
+            if bought_id in [eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_BEAN]:
                 bean_out = eth_chain.bean_to_float(tokens_bought)
                 stable_in = tokens_sold
                 stable_id = sold_id
-            elif sold_id in [eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_BEAN, eth_chain.FACTORY_LUSD_INDEX_BEAN]:
+            elif sold_id in [eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_BEAN]:
                 bean_in = eth_chain.bean_to_float(tokens_sold)
                 stable_out = tokens_bought
                 stable_id = bought_id
@@ -866,14 +806,9 @@ class CurvePoolMonitor(Monitor):
 
             # Set the stable name string and convert value to float.
             if event_log.event == 'TokenExchange':
-                if self.pool_type == eth_chain.EventClientType.CURVE_3CRV_POOL:
-                    stable_name = '3CRV'
-                    stable_in = eth_chain.crv_to_float(stable_in)
-                    stable_out = eth_chain.crv_to_float(stable_out)
-                elif self.pool_type == eth_chain.EventClientType.CURVE_LUSD_POOL:
-                    stable_name = 'LUSD'
-                    stable_in = eth_chain.lusd_to_float(stable_in)
-                    stable_out = eth_chain.lusd_to_float(stable_out)
+                stable_name = '3CRV'
+                stable_in = eth_chain.crv_to_float(stable_in)
+                stable_out = eth_chain.crv_to_float(stable_out)
             elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_DAI:
                 stable_name = 'DAI'
                 stable_in = eth_chain.dai_to_float(stable_in)
@@ -891,15 +826,15 @@ class CurvePoolMonitor(Monitor):
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
                 return ''
 
-            event_str += CurvePoolMonitor.exchange_event_str(event_log, bean_price, stable_name,
-                                                             bean_out=bean_out, bean_in=bean_in,
-                                                             stable_in=stable_in, stable_out=stable_out)
+            event_str += self.exchange_event_str(bean_price, stable_name, transaction,
+                                                 bean_out=bean_out, bean_in=bean_in,
+                                                 stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
-            event_str += f'📥 LP added - {round_num(bean_lp_amount)} Beans and {round_num(token_lp_amount)} {token_lp_name}'
+            event_str += f'📥 LP added - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} (${round_num(value, 0)})'
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
-            event_str += f'📤 LP removed - {round_num(bean_lp_amount)} Beans and {round_num(token_lp_amount, 4)} {token_lp_name}'
+            event_str += f'📤 LP removed - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} (${round_num(value, 0)})'
         elif event_log.event == 'RemoveLiquidityOne':
-            event_str += f'📤 LP removed - {round_num(coin_lp_amount)} {coin_name}'
+            event_str += f'📤 LP removed - ${round_num(value, 0)}'
         else:
             logging.warning(
                 f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
@@ -910,8 +845,7 @@ class CurvePoolMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    @abstractmethod
-    def exchange_event_str(event_log, bean_price, stable_name, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+    def exchange_event_str(self, bean_price, stable_name, transaction, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
         """Generate a standard token exchange string.
 
         Note that we assume all tokens in 3CRV have a value of $1.
@@ -925,15 +859,18 @@ class CurvePoolMonitor(Monitor):
             logging.error('Cannot set two inputs or two outputs of swap.')
             return ''
         if stable_in:
-            event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(stable_in)} {stable_name}'
+            event_str += f'📗 {round_num(bean_out, 0)} Beans bought for {round_num(stable_in, 0)} {stable_name}'
             swap_price = stable_in / bean_out
             swap_value = stable_in
         elif bean_in:
-            event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(stable_out)} {stable_name}'
+            event_str += f'📕 {round_num(bean_in, 0)} Beans sold for {round_num(stable_out, 0)} {stable_name}'
+            # If this is a sale of Beans for a fertilizer purchase.
             swap_price = stable_out / bean_in
             swap_value = stable_out
-        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value, 0)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
+        if sig_compare(transaction['input'][:9], eth_chain.buy_fert_sigs.values()):
+            event_str += f'\n_(🚛 Fertilizer purchase)_'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
 
@@ -947,9 +884,8 @@ class BeanstalkMonitor(Monitor):
         self._web3 = eth_chain.get_web3_instance()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BEANSTALK)
-        self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = eth_chain.BeanClient()
-        self.uniswap_client = eth_chain.UniswapClient()
+        self.beanstalk_client = eth_chain.BeanstalkClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -966,132 +902,124 @@ class BeanstalkMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
-        # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction = self._web3.eth.get_transaction(
-            txn_hash)
-        txn_method_sig_prefix = transaction['input'][:9]
+        # Prune *plant* deposit logs. They are uninteresting clutter.
+        # Prune *pick* deposit logs. They are uninteresting clutter.
+        # For each event log remove a corresponding AddDeposit log.
+        # event_logs_to_remove = []
+        # for earn_event_log in get_logs_by_names(['Plant'], event_logs):
+        for earn_event_log in get_logs_by_names(['Plant', 'Pick'], event_logs):
+            for deposit_event_log in get_logs_by_names('AddDeposit', event_logs):
+                if (deposit_event_log.args.get('token') == \
+                    (earn_event_log.args.get('token') or BEAN_ADDR) and
+                    deposit_event_log.args.get('amount') == \
+                    (earn_event_log.args.get('beans') or earn_event_log.args.get('amount'))):
+                    # event_logs_to_remove.append(deposit_event_log)
+                    # Remove event log from event logs
+                    event_logs.remove(deposit_event_log)
+                    # At most allow 1 match.
+                    logging.info(f'Ignoring a {earn_event_log.event} AddDeposit event')
+                    break
 
-        # Prune embedded bean deposit logs. They are uninteresting clutter.
-        last_bean_deposit = None
-        bean_deposit_logs = []
-        for event_log in event_logs:
-            # Parse through BeanDeposit logs, keeping track of which is last.
-            if event_log.event == 'BeanDeposit':
-                if last_bean_deposit is None or event_log.logIndex > last_bean_deposit.logIndex:
-                    last_bean_deposit = event_log
-                bean_deposit_logs.append(event_log)
-        # Remove all bean_deposit logs from the log list.
-        for event_log in bean_deposit_logs:
-            # Remove this log from the list.
-            event_logs.remove(event_log)
+        # for event_log in event_logs_to_remove:
+        #     event_logs.remove(event_log)
 
-        # NOTE(funderberker): Can this logic that uses the txn method be pushed down lower with
-        # use of the txn receipt?
-        # Process some txn logs as groups, based on the contract function signature.
-        # Compile all events within a silo conversion to a single action.
-        if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs.values()):
-            logging.info(f'Silo conversion txn seen ({txn_hash.hex()}).')
-            # If this is a conversion into beans, include last bean deposit log.
-            if sig_compare(txn_method_sig_prefix, eth_chain.silo_conversion_sigs['convertDepositedLP']):
-                event_logs.append(last_bean_deposit)
+        # Process conversion logs as a batch.
+        if event_in_logs('Convert', event_logs):
             self.message_function(self.silo_conversion_str(
-                event_logs, self.beanstalk_graph_client))
-            return
-        # If this is a direct bean deposit, do not ignore the last bean deposit event.
-        # If if this a claim+deposit txn and there is a harvest event, do not ignore the last bean
-        # deposit, which represents the harvest redeposit. This ~assumes~ the harvest deposit is
-        # always the last one, which has been true so far but idk if that is a guarantee.
-        elif (sig_compare(txn_method_sig_prefix, eth_chain.bean_deposit_sigs.values()) or
-              (any(event_log.event == 'Harvest' for event_log in event_logs) and
-              sig_compare(txn_method_sig_prefix, eth_chain.claim_deposit_beans_sigs.values()))):
-            logging.info(
-                f'Direct bean deposit or harvest+deposit txn seen ({txn_hash.hex()}).')
-            # Include last bean deposit log for this type of txn.
-            event_logs.append(last_bean_deposit)
-
+                event_logs))
         # Handle txn logs individually using default strings.
-        for event_log in event_logs:
-            event_str = self.any_event_str(event_log,
-                                           self.beanstalk_graph_client)
-            self.message_function(event_str)
+        else:
+            for event_log in event_logs:
+                event_str = self.single_event_str(event_log)
+                if event_str:
+                    self.message_function(event_str)
 
-    def any_event_str(self, event_log, beanstalk_graph_client):
-        event_str = ''
-
-        # Pull args from the event log. Not all will be populated.
-        token_address = event_log.args.get('token')
-        eth_price = self.uniswap_client.current_eth_price()
-        bean_price = self.bean_client.avg_bean_price()
-        lp_amount = eth_chain.lp_to_float(event_log.args.get('lp'))
-        if lp_amount:
-            lp_eth, lp_beans = lp_eq_values(
-                lp_amount, beanstalk_graph_client=beanstalk_graph_client)
-            token_address = UNI_V2_BEAN_ETH_ADDR
-            lp_value = lp_eth * eth_price + lp_beans * bean_price
-        beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
-        if beans_amount:
-            beans_value = beans_amount * bean_price
-            token_address = BEAN_ADDR
-        pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
-        token_amount_long = event_log.args.get('amount')
-        token_amounts_long = event_log.args.get('amounts')
-        bdv = eth_chain.bean_to_float(event_log.args.get('bdv'))
-        bdv_value = bdv * bean_price
-
-        # Ignore these events. They are uninteresting clutter.
-        if event_log.event in ['BeanRemove', 'LPRemove', 'RemoveSeason', 'RemoveSeasons']:
+    def single_event_str(self, event_log):
+        """Create a string representing a single event log.
+        
+        Events that are from a convert call should not be passed into this function as they
+        should be processed in batch.
+        """
+        # Ignore deposits and withdrawals of unripe assets. Not interesting.
+        if (event_log.event in ['AddDeposit', 'RemoveWithdrawal', 'RemoveWithdrawals']
+           and event_log.args.get('token').startswith(UNRIPE_TOKEN_PREFIX)):
             return ''
 
-        # # LP Events.
-        # # NOTE(funderberker): These events will be deprecated eventually in favor of generalized
-        # # Deposit and Withdraw.
-        # elif event_log.event in ['LPDeposit', 'LPWithdraw']:
-        #     if event_log.event == 'LPDeposit':
-        #         event_str += f'📥 Uniswap LP Deposit'
-        #     elif event_log.event == 'LPWithdraw':
-        #         event_str += f'📭 Uniswap LP Withdrawal'
-        #     event_str += f' - {round_num(lp_beans)} Beans and {round_num(lp_eth,4)} ETH (${round_num(lp_value)})'
-        #     event_str += f'\n{value_to_emojis(lp_value)}'
+        event_str = ''
+        bean_price = self.bean_client.avg_bean_price()
+
+        # Ignore these events. They are uninteresting clutter.
+        if event_log.event in ['RemoveWithdrawal', 'RemoveWithdrawals', 'RemoveDeposit', 'RemoveDeposits', 'Plant', 'Pick']:
+            return ''
 
         # Deposit & Withdraw events.
-        # NOTE(funderberker): Bean and LP specific events will be deprecated eventually in favor of
-        # generalized Deposit and Withdraw.
-        elif event_log.event in ['Deposit', 'Withdraw', 'BeanDeposit', 'BeanWithdraw', 'LPDeposit', 'LPWithdraw']:
+        elif event_log.event in ['AddDeposit', 'AddWithdrawal']:
+            # Pull args from the event log.
+            token_address = event_log.args.get('token')
+            token_amount_long = event_log.args.get('amount') # AddDeposit, AddWithdrawal
+            bdv = eth_chain.bean_to_float(event_log.args.get('bdv'))
+            
             token_name, token_symbol, decimals = eth_chain.get_erc20_info(
                 token_address, web3=self._web3)
-            # If this event is a BeanDeposit or BeanWithdraw.
-            if beans_amount:
-                amount = beans_amount
-                value = beans_value
-            elif lp_amount:
-                amount = lp_amount
-                value = lp_value
+            amount = eth_chain.token_to_float(
+                token_amount_long, decimals)
+                
+            if bdv:
+                value = bdv * bean_price
+            elif token_address == BEAN_ADDR:
+                value = amount * bean_price
+            # Value is not known for withdrawals, so it must be calculated here.
             else:
-                amount = eth_chain.token_to_float(
-                    token_amount_long or sum(token_amounts_long), decimals)
-                if bdv_value:
-                    value = bdv_value
-                # Value is not known for generalized withdrawals, so it must be calculated here.
+                token_value = self.bean_client.get_lp_token_value(token_address, decimals)
+                if token_value is not None:
+                    value = amount * token_value
                 else:
-                    value = amount * \
-                        self.bean_client.get_lp_token_value(
-                            token_address, decimals)
+                    value = None
 
-            if event_log.event in ['Deposit', 'BeanDeposit', 'LPDeposit']:
+            if event_log.event in ['AddDeposit']:
                 event_str += f'📥 Silo Deposit'
-            elif event_log.event in ['Withdraw', 'BeanWithdraw', 'LPWithdraw']:
+            elif event_log.event in ['AddWithdrawal']:
                 event_str += f'📭 Silo Withdrawal'
-            event_str += f' - {round_num_auto(amount)} {token_symbol}'
-            event_str += f' (${round_num(value)})'
-            event_str += f'\n{value_to_emojis(value)}'
+            event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
+            if value:
+                event_str += f' (${round_num(value, 0)})'
+                event_str += f'\n{value_to_emojis(value)}'
+        
         # Sow event.
-        elif event_log.event == 'Sow':
-            event_str += f'🚜 {round_num(beans_amount)} Beans sown for ' \
-                f'{round_num(pods_amount)} Pods (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
-        elif event_log.event == 'Harvest':
-            event_str += f'👩‍🌾 {round_num(beans_amount)} Pods harvested for Beans (${round_num(beans_value)})'
-            event_str += f'\n{value_to_emojis(beans_value)}'
+        elif event_log.event in ['Sow', 'Harvest']:
+            # Pull args from the event log.
+            beans_amount = eth_chain.bean_to_float(event_log.args.get('beans'))
+            beans_value = beans_amount * bean_price
+            pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
+
+            if event_log.event == 'Sow':
+                event_str += f'🚜 {round_num(beans_amount, 0)} Beans sown for ' \
+                    f'{round_num(pods_amount, 0)} Pods (${round_num(beans_value, 0)})'
+                event_str += f'\n{value_to_emojis(beans_value)}'
+            elif event_log.event == 'Harvest':
+                event_str += f'👩‍🌾 {round_num(beans_amount, 0)} Pods harvested for Beans (${round_num(beans_value, 0)})'
+                event_str += f'\n{value_to_emojis(beans_value)}'
+        
+        # Chop event.
+        elif event_log.event in ['Chop']:
+            token = event_log.args.get('token')
+            underlying = self.beanstalk_client.get_underlying_token(token)
+            _, chopped_symbol, chopped_decimals = eth_chain.get_erc20_info(token, self._web3)
+            chopped_amount = eth_chain.token_to_float(event_log.args.get('amount'), chopped_decimals)
+            _, underlying_symbol, underlying_decimals = eth_chain.get_erc20_info(underlying, self._web3)
+            underlying_amount = eth_chain.token_to_float(event_log.args.get('underlying'), underlying_decimals)
+            if underlying == BEAN_ADDR:
+                underlying_token_value = bean_price
+            # If underlying assets are Bean-based LP represented in price aggregator.
+            # If not in aggregator, will return none and not display value.
+            else:
+                underlying_token_value = self.bean_client.get_lp_token_value(underlying, underlying_decimals)
+            event_str += f'⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0)} {underlying_symbol}'
+            if underlying_token_value is not None:
+                underlying_value = underlying_amount * underlying_token_value
+                event_str += f' (${round_num(underlying_value, 0)})'
+
+        # Unknown event type.
         else:
             logging.warning(
                 f'Unexpected event log from Beanstalk contract ({event_log}). Ignoring.')
@@ -1102,51 +1030,33 @@ class BeanstalkMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    def silo_conversion_str(self, event_logs, beanstalk_graph_client):
+    def silo_conversion_str(self, event_logs):
         """Create a human-readable string representing a silo position conversion.
 
         Assumes that there are no non-Bean swaps contained in the event logs.
         Assumes event_logs is not empty.
-        Assumes embedded beanDeposits have been removed from logs.
+        Assumes embedded AddDeposit logs have been removed from logs.
         Uses events from Beanstalk contract.
         """
-        beans_converted = lp_converted = None
         bean_price = self.bean_client.avg_bean_price()
-        # Find the relevant logs (Swap + Mint/Burn).
+        # Find the relevant logs, should contain one RemoveDeposit and one AddDeposit.
         for event_log in event_logs:
-            # One Swap event will always be present.
-            # But we cannot parse the Swap event because it is only seen by the pool monitor.
-            # if event_log.event == 'Swap':
+            if event_log.event in ['RemoveDeposit', 'RemoveDeposits']:
+                remove_token_name, remove_token_symbol, remove_decimals = eth_chain.get_erc20_info(
+                    event_log.args.get('token'), web3=self._web3)
+                remove_float = eth_chain.token_to_float(
+                    event_log.args.get('amount'), remove_decimals)
+            elif event_log.event == 'AddDeposit':
+                add_token_name, add_token_symbol, add_decimals = eth_chain.get_erc20_info(
+                    event_log.args.get('token'), web3=self._web3)
+                add_float = eth_chain.token_to_float(
+                    event_log.args.get('amount'), add_decimals)
+                bdv_float = eth_chain.bean_to_float(event_log.args.get('bdv'))
+                value = bdv_float * bean_price
 
-            # One of the below two events will always be present.
-            if event_log.event == 'BeanRemove':
-                beans_converted = eth_chain.bean_to_float(
-                    event_log.args.get('beans'))
-            elif event_log.event == 'LPRemove':
-                lp_converted = eth_chain.lp_to_float(event_log.args.get('lp'))
-                lp_converted_eth, lp_converted_beans = lp_eq_values(
-                    lp_converted, beanstalk_graph_client=beanstalk_graph_client)
-
-            # One of the below two events will always be present.
-            elif event_log.event == 'BeanDeposit':
-                beans_deposited = eth_chain.bean_to_float(
-                    event_log.args.get('beans'))
-                value = beans_deposited * bean_price
-            elif event_log.event == 'LPDeposit':
-                lp_deposited = eth_chain.lp_to_float(event_log.args.get('lp'))
-                lp_deposited_eth, lp_deposited_beans = lp_eq_values(
-                    lp_deposited, beanstalk_graph_client=beanstalk_graph_client)
-                value = lp_deposited_beans * 2 * bean_price
-
-            # elif event_log.event == 'Burn':
-            # elif event_log.event == 'Mint':
-
-        # If converting to LP.
-        if beans_converted:
-            event_str = f'🔃 {round_num(beans_converted)} siloed Beans converted to {round_num(lp_deposited_eth,4)} ETH & {round_num(lp_deposited_beans)} Beans of LP (${round_num(value)})'
-        # If converting to Beans.
-        elif lp_converted:
-            event_str = f'🔄 {round_num(lp_converted_eth,4)} ETH and {round_num(lp_converted_beans)} Beans of siloed LP converted to {round_num(beans_deposited)} siloed Beans (${round_num(value)})'
+        event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
+                    f'converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
+                    f'({round_num(bdv_float, 0)} BDV)'
 
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(value)}'
@@ -1168,6 +1078,7 @@ class MarketMonitor(Monitor):
         self.bean_client = eth_chain.BeanClient(self._web3)
         self.bean_contract = eth_chain.get_bean_contract(self._web3)
         self.beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
+        # self.uniswap_client = eth_chain.UniswapClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1240,7 +1151,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods relisted'
             else:
                 event_str += f'✏ Pods listed'
-            event_str += f' - {amount_str} Pods queued at {start_place_in_line_str} listed @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
             order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
@@ -1249,22 +1160,43 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods reordered'
             else:
                 event_str += f'🖌 Pods ordered'
-            event_str += f' - {amount_str} Pods queued before {order_max_place_in_line_str} ordered @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} in Line @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
+            event_str += f'💰 Pods Exchanged - '
             # Pull the Bean Transfer log to find cost.
             if event_log.event == 'PodListingFilled':
                 transfer_logs = self.bean_contract.events['Transfer']().processReceipt(
                     transaction_receipt, errors=eth_chain.DISCARD)
                 logging.info(f'Transfer log(s):\n{transfer_logs}')
-                allocation_logs = self.beanstalk_contract.events['BeanAllocation']().processReceipt(
-                    transaction_receipt, errors=eth_chain.DISCARD)
-                logging.info(f'BeanAllocation log(s):\n{allocation_logs}')
                 # There should be exactly one transfer log of Beans.
                 beans_paid = 0
-                for log in allocation_logs:
-                    # Assumes all beans Allocated are spent on the Fill.
-                    beans_paid += eth_chain.bean_to_float(
-                        log.args.get('beans'))
+                # NOTE(funderberker): Unclear if we need to account for balance changes or if we 
+                #   can entirely rely on transfers. Using balance changes creates a significant
+                #   problem of determining value or arbitrary assets.
+                # balance_change_logs = self.beanstalk_contract.events['InternalBalanceChanged']().processReceipt(
+                #     transaction_receipt, errors=eth_chain.DISCARD)
+                # logging.info(f'InternalBalanceChanged log(s):\n{balance_change_logs}')
+                # for log in balance_change_logs:
+                #     # Determine asset value.
+                #     token = log.args.get('token')
+                #     amount = int(log.args.get('delta'))
+                #     if amount >= 0:
+                #         continue
+                #     if token == BEAN_ADDR:
+                #         token_bdv = 1.0
+                #         decimals = eth_chain.BEAN_DECIMALS
+                #     elif token == WRAPPED_ETH:
+                #         token_bdv = self.uniswap_client.current_eth_price()
+                #         decimals = eth_chain.ETH_DECIMALS
+                #     else:
+                #         try:
+                #             token_bdv = self.bean_client.get_lp_token_value(token)
+                #         except KeyError:
+                #             token_bdv = 1.0
+                #         _, _, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                #     # Assumes all bean balance deltas are spent on the Fill.
+                #     beans_paid += abs(eth_chain.token_to_float(
+                #         log.args.get('delta'), decimals))
                 for log in transfer_logs:
                     if log.address == BEAN_ADDR:
                         beans_paid += eth_chain.bean_to_float(
@@ -1275,6 +1207,9 @@ class MarketMonitor(Monitor):
                               f'({transaction_receipt.transactionHash.hex()}). Exiting...'
                     logging.error(err_str)
                     raise ValueError(err_str)
+                event_str += f'{amount_str} Pods listed at ' \
+                            f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
+                            f'Beans/Pod (${round_num(bean_price * beans_paid)})'
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
                 # NOTE(funderberker): This is a lot of duplicate logic from EthEventsClient.get_new_logs()
@@ -1305,9 +1240,9 @@ class MarketMonitor(Monitor):
                 logging.info(decoded_log_entry)
                 price_per_pod = decoded_log_entry.args.pricePerPod
                 beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
-            event_str += f'💰 Pods Exchanged - {amount_str} Pods queued at ' \
-                         f'{start_place_in_line_str} purchased @ {round_num(beans_paid/amount, 3)} ' \
-                         f'Beans/Pod (${round_num(bean_price * beans_paid)})'
+                event_str += f'{amount_str} Pods ordered at ' \
+                            f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
+                            f'Beans/Pod (${round_num(bean_price * beans_paid)})'
             event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
@@ -1332,7 +1267,6 @@ class BarnRaiseMonitor(Monitor):
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
-        self.steps_complete = self.barn_raise_client.steps_complete()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1353,7 +1287,7 @@ class BarnRaiseMonitor(Monitor):
                     from_block = eth_chain.safe_get_block(self._web3, current_block.number - self.SUMMARY_BLOCK_RANGE)
                     time_range = current_block.timestamp - from_block.timestamp
                     all_events_in_time_range = []
-                    for event_logs in self._eth_event_client.get_log_range(from_block = from_block.number, to_block=current_block.number).values():
+                    for event_logs in self._eth_event_client.get_log_range(from_block=from_block.number, to_block=current_block.number).values():
                         all_events_in_time_range.extend(event_logs)
                     # Do not report a summary if nothing happened.
                     if len(all_events_in_time_range) == 0:
@@ -1368,7 +1302,7 @@ class BarnRaiseMonitor(Monitor):
                         total_raised += usdc_amount
                     msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
                     remaining = self.barn_raise_client.remaining()
-                    msg_str += f'\n🌱 ${round_num(BARN_RAISE_USDC_TARGET - remaining, 0)} ({round_num((BARN_RAISE_USDC_TARGET - remaining)/BARN_RAISE_USDC_TARGET*100, 2)}%) raised in total'
+                    msg_str += f'\n🌱 {round_num(remaining, 0)} of Fertilizer remaining'
                     msg_str += f'\n'
                     for i in range(3):
                         try:
@@ -1401,8 +1335,8 @@ class BarnRaiseMonitor(Monitor):
             usdc_amount = sum([int(value) for value in event_log.args.values])
         
         if usdc_amount is not None:
-            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC'
-            event_str += f' (${round_num(BARN_RAISE_USDC_TARGET - self.barn_raise_client.remaining(), 0)} raised total)'
+            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
+            # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
             # Empty line that does not get stripped.
@@ -1447,14 +1381,21 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
             ).decode('ascii').strip())
 
         self.user_id = self.user.id
-        self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
+        # self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
+        # Guild IDs for all servers this bot is in.
+        self.current_guilds = []
+        for guild in self.guilds:
+            self.current_guilds.append(guild)
+            logging.info(f'Guild found: {guild.id}')
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def _update_naming(self):
         if self.nickname:
             # Note(funderberker): Is this rate limited?
-            await self.beanstalk_guild.me.edit(nick=self.nickname)
-            logging.info(f'Bot nickname changed to {self.nickname}')
+            for guild in self.current_guilds:
+                logging.info(f'Attempting to set nickname in guild with id {guild.id}')
+                await guild.me.edit(nick=self.nickname)
+                logging.info(f'Bot nickname changed to {self.nickname} in guild with id {guild.id}')
             self.nickname = ''
         if self.status_text:
             await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
@@ -1495,6 +1436,21 @@ class MsgHandler(logging.Handler):
         level = getLevelName(self.level)
         return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
 
+def event_in_logs(name, event_logs):
+    for event_log in event_logs:
+        if event_log.event == name:
+            return True
+    return False
+
+def get_logs_by_names(names, event_logs):
+    if type(names) == str:
+        names = [names]
+    events = []
+    for event_log in event_logs:
+        if event_log.event in names:
+            events.append(event_log)
+    return events
+
 
 def sig_compare(signature, signatures):
     """Compare a signature to one or many signatures and return if there are any matches. 
@@ -1502,45 +1458,12 @@ def sig_compare(signature, signatures):
     Comparison is made based on 10 character prefix.
     """
     if type(signatures) is str:
-        return signature[:9] == signatures[:9]
+        signatures = [signatures]
 
     for sig in signatures:
         if signature[:9] == sig[:9]:
             return True
     return False
-
-
-def lp_properties(beanstalk_graph_client):
-    current_season_stats = beanstalk_graph_client.current_season_stats()
-    pooled_eth = float(current_season_stats['pooledEth'])
-    pooled_beans = float(current_season_stats['pooledBeans'])
-    total_lp = float(current_season_stats['lp'])
-    return pooled_eth, pooled_beans, total_lp
-
-
-def lp_eq_values(lp, total_lp=None, pooled_eth=None, pooled_beans=None, beanstalk_graph_client=None):
-    """Return the amount of ETH and beans equivalent to an amount of LP.
-
-    Args:
-        total_lp: current amount of lp in pool.
-        pooled_eth: current amount of eth in pool.
-        pooled_beans: current amount of beans in pool.
-        beanstalk_graph_client: a beanstalk graphsql client. If provided latest season stats will
-            be retrieved and used.
-    """
-    if beanstalk_graph_client:
-        pooled_eth, pooled_beans, total_lp = lp_properties(
-            beanstalk_graph_client)
-
-    if None in [total_lp, pooled_eth, pooled_beans]:
-        raise ValueError(
-            'Must provide (total_lp & pooled_eth & pooled_beans) OR beanstalk_graph_client')
-
-    bean_pool_ratio = pooled_beans / total_lp
-    eth_pool_ratio = pooled_eth / total_lp
-    eth_lp = lp * eth_pool_ratio
-    bean_lp = lp * bean_pool_ratio
-    return eth_lp, bean_lp
 
 
 def round_num(number, precision=2):
@@ -1611,7 +1534,7 @@ if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
 
-    sunrise_monitor = SunriseMonitor(print)
+    sunrise_monitor = SeasonsMonitor(print)
     sunrise_monitor.start()
 
     try:

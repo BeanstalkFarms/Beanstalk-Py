@@ -44,14 +44,16 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def __init__(self, prod=False):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
-        self.add_cog(WalletMonitoring(self))
+        # self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
 
+        # NOTE(funderberker): LOCAL TESTING
         # Retrieve bucket.
-        bucket = self.retrieve_or_init_bucket()
+        # bucket = self.retrieve_or_init_bucket()
 
         if prod:
-            self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
+            # NOTE(funderberker): LOCAL TESTING
+            # self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
             self._chat_id_report = DISCORD_CHANNEL_ID_REPORT
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
             self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
@@ -61,7 +63,8 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_barn_raise = DISCORD_CHANNEL_ID_BARN_RAISE
             logging.info('Configured as a production instance.')
         else:
-            self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
+            # NOTE(funderberker): LOCAL TESTING
+            # self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
@@ -73,13 +76,14 @@ class DiscordClient(discord.ext.commands.Bot):
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
         # Sets self.channel_to_wallets.
-        if not self.download_channel_to_wallets():
-            logging.critical('Failed to download wallet data. Exiting...')
-            exit(1)
+        # NOTE(funderberker): LOCAL TESTING
+        self.channel_to_wallets = {}
+        # if not self.download_channel_to_wallets():
+        #     logging.critical('Failed to download wallet data. Exiting...')
+        #     exit(1)
         self.channel_id_to_channel = {}
 
         self.msg_queue = []
-        self.status_text = ''
 
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
@@ -87,42 +91,23 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
+        self.peg_cross_monitor = util.PegCrossMonitor(
+            self.send_msg_peg, prod=prod)
+        self.peg_cross_monitor.start()
 
-        # Because this changes the bot name, prod vs stage is handled differently. This prevents
-        # the publicly visible BeanBot from having its name changed. Prod price_monitor lives in
-        # discord_price_bot.py. This price monitor is only for testing/staging.
-        # if not prod:
-        #     self.price_monitor = util.PricePreviewMonitor(
-        #         self.set_nickname_price, self.set_status)
-        #     self.price_monitor.start()
+        self.sunrise_monitor = util.SeasonsMonitor(
+            self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod, dry_run=False)
+        self.sunrise_monitor.start()
 
-        # self.peg_cross_monitor = util.PegCrossMonitor(
-        #     self.send_msg_peg, prod=prod)
-        # self.peg_cross_monitor.start()
+        self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
+            self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)
+        self.curve_bean_3crv_pool_monitor.start()
 
-        # self.sunrise_monitor = util.SunriseMonitor(
-        #     self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod)
-        # self.sunrise_monitor.start()
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
+        self.beanstalk_monitor.start()
 
-        # self.uniswap_pool_monitor = util.UniswapPoolMonitor(self.send_msg_pool, prod=prod)
-        # self.uniswap_pool_monitor.start()
-
-        # self.curve_3crv_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg_pool, EventClientType.CURVE_3CRV_POOL, prod=prod)
-        # self.curve_3crv_pool_monitor.start()
-
-        # self.curve_lusd_pool_monitor = util.CurvePoolMonitor(
-        #     self.send_msg_pool, EventClientType.CURVE_LUSD_POOL, prod=prod)
-        # self.curve_lusd_pool_monitor.start()
-
-        # self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
-        # self.beanstalk_monitor.start()
-
-        # self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod)
-        # self.market_monitor.start()
-
-        ############################################################################################
+        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
+        self.market_monitor.start()
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
             self.send_msg_barn_raise, report_events=True, report_summaries=False, prod=prod, dry_run=False)
@@ -134,35 +119,15 @@ class DiscordClient(discord.ext.commands.Bot):
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
 
-        # Ignore exceptions of this type and retry. Note that no logs will be generated.
-        self.set_presence.add_exception_type(discord.errors.DiscordServerError)
-        # Start the price display task in the background.
-        self.set_presence.start()
 
     def stop(self):
-        self.upload_channel_to_wallets()
-        ########## DISABLE STANDARD BOTS DURING BARN RAISE #########################################
-        # if not prod:
-        #     self.price_monitor.stop()
-        # self.peg_cross_monitor.stop()
-        # self.sunrise_monitor.stop()
-        # self.uniswap_pool_monitor.stop()
-        # self.curve_3crv_pool_monitor.stop()
-        # self.curve_lusd_pool_monitor.stop()
-        # self.beanstalk_monitor.stop()
-        # self.market_monitor.stop()
-        ############################################################################################
+        # self.upload_channel_to_wallets()
+        self.peg_cross_monitor.stop()
+        self.sunrise_monitor.stop()
+        self.curve_bean_3crv_pool_monitor.stop()
+        self.beanstalk_monitor.stop()
+        self.market_monitor.stop()
         self.barn_raise_monitor.stop()
-
-    # NOTE(funderberker): This bot does not have permissions to change its nickname. This will
-    # silently do nothing.
-    def set_nickname_price(self, text):
-        """Set bot server nickname price."""
-        self.nickname = f'(stage) BEAN: {text}'
-
-    def set_status(self, text):
-        """Set bot custom status text."""
-        self.status_text = text
 
     def send_msg_report(self, text):
         """Send a message through the Discord bot in the error reporting channel."""
@@ -225,19 +190,6 @@ class DiscordClient(discord.ext.commands.Bot):
         except AttributeError as e:
             logging.error('Failed to send DM')
             logging.exception(e)
-
-    @tasks.loop(seconds=0.1, reconnect=True)
-    async def set_presence(self):
-        if self.status_text:
-            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
-                                                                 name=self.status_text))
-            logging.info(f'Bot status changed to {self.status_text}')
-            self.status_text = ''
-
-    @set_presence.before_loop
-    async def before_set_presence_loop(self):
-        """Wait until the bot logs in."""
-        await self.wait_until_ready()
 
     @tasks.loop(seconds=0.1, reconnect=True)
     async def send_queued_messages(self):
