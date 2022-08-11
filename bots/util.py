@@ -448,10 +448,10 @@ class SeasonsMonitor(Monitor):
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
         ret_string += f'\n💵 Current price is ${round_num(price, 4)}'
-        ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
 
         # Full string message.
         if not short_str:
+            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
@@ -485,9 +485,9 @@ class SeasonsMonitor(Monitor):
 
         # Short string version (for Twitter).
         else:
-            ret_string += f'\n🌤 The Temperature is {current_season_stats.weather}%'
             ret_string += f'\n'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
+            # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
 
             # silo_bdv = 0
             # for asset in current_season_stats.assets:
@@ -496,6 +496,7 @@ class SeasonsMonitor(Monitor):
             #     silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
             # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
+            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
         return ret_string
 
 
