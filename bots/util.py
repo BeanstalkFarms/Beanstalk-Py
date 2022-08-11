@@ -481,7 +481,7 @@ class SeasonsMonitor(Monitor):
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
-            ret_string += f'\n🧱 {round_num(percent_recap, 0)}% recapitalized'
+            ret_string += f'\n{percent_to_moon_emoji(percent_recap/100)} {round_num(percent_recap, 0)}% recapitalized'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
@@ -1513,6 +1513,21 @@ def value_to_emojis(value):
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
+def percent_to_moon_emoji(percent):
+    """Convert a float percent (e.g. .34) to a gradient moon emoji."""
+    percent = float(percent)
+    if percent < 0:
+        return ''
+    elif percent < .20:
+        return '🌑'
+    elif percent < .40:
+        return '🌘'
+    elif percent < .70:
+        return '🌗'
+    elif percent < 0.99999999: # safety for rounding/float imperfections
+        return '🌖'
+    else:
+        return '🌕'
 
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
