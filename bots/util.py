@@ -487,12 +487,12 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
 
-            silo_bdv = 0
-            for asset in current_season_stats.assets:
-                token = self._web3.toChecksumAddress(asset['token'])
-                token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
-                silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
-            ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
+            # silo_bdv = 0
+            # for asset in current_season_stats.assets:
+            #     token = self._web3.toChecksumAddress(asset['token'])
+            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+            #     silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
+            # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
         return ret_string
 

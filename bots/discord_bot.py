@@ -121,7 +121,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
 
     def stop(self):
-        self.upload_channel_to_wallets()
+        # self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
