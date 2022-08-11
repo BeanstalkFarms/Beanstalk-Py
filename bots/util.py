@@ -443,6 +443,7 @@ class SeasonsMonitor(Monitor):
 
         # Silo asset balances.
         silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
+        percent_recap = self.beanstalk_graph_client.get_recap_funded_percent()
         fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
         # Current state.
@@ -476,12 +477,12 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
             ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No soil in the Field'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
-            ret_string += '\n_ _'  # Empty line that does not get stripped.
 
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
-            ret_string += f'\n🧱 {round_num(fertilizer_bought, 0)}% recapitalized'
+            ret_string += f'\n🧱 {round_num(percent_recap, 0)}% recapitalized'
+            ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
         else:
