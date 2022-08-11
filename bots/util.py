@@ -442,9 +442,9 @@ class SeasonsMonitor(Monitor):
         sown_beans = last_season_stats.sown_beans
 
         # Silo asset balances.
-        silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
-        percent_recap = self.beanstalk_graph_client.get_recap_funded_percent()
+        # silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
         fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
+        percent_recap = self.beanstalk_client.get_recap_funded_percent()
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
