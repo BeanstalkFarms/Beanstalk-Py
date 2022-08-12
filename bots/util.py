@@ -480,7 +480,7 @@ class SeasonsMonitor(Monitor):
 
             # Barn.
             ret_string += f'\n\n**Barn**'
-            ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
+            ret_string += f'\n🪴 {round_num(fertilizer_bought, 0)} Fertilizer sold'
             ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% raised'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
@@ -488,7 +488,7 @@ class SeasonsMonitor(Monitor):
         else:
             ret_string += f'\n'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
-            # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
+            # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'
 
             # silo_bdv = 0
             # for asset in current_season_stats.assets:
@@ -1320,7 +1320,7 @@ class BarnRaiseMonitor(Monitor):
                         total_raised += usdc_amount
                     msg_str = f'🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns'
                     remaining = self.barn_raise_client.remaining()
-                    msg_str += f'\n🌱 {round_num(remaining, 0)} of Fertilizer remaining'
+                    msg_str += f'\n🪴 {round_num(remaining, 0)} Fertilizer remaining'
                     msg_str += f'\n'
                     for i in range(3):
                         try:
