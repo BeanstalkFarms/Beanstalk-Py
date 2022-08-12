@@ -115,7 +115,7 @@ class BeanSqlClient(object):
 
     def last_cross(self):
         """Returns a dict containing timestamp and direction of most recent peg cross."""
-        return self.get_last_crosses()[0]
+        return self.get_last_crosses(n=1)[0]
 
     def get_last_crosses(self, n=1):
         """Retrieve the last n peg crosses, including timestamp and cross direction.
@@ -148,6 +148,29 @@ class BeanstalkSqlClient(object):
         transport = AIOHTTPTransport(url=BEANSTALK_GRAPH_ENDPOINT)
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
+
+    def get_pod_listing(self, id):
+        """Get a single pod listing based on id.
+
+        id is "{lister_address}-{listing_index}"
+        """
+        query_str = f"""
+            query {{
+                podListing(id: "{id}") {{
+                    id
+                    status
+                    pricePerPod
+                }}
+            }}
+        """
+        # Create gql query and execute.
+        try:
+            return execute(self._client, query_str)['podListing']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            os._exit(os.EX_UNAVAILABLE)
 
     def get_fertilizer_bought(self):
         query_str = """
@@ -422,17 +445,12 @@ if __name__ == '__main__':
 
     bean_sql_client = BeanSqlClient()
     print(f'Last peg cross: {bean_sql_client.last_cross()}')
-    print(
-        f'Total Supply (USD): {bean_sql_client.get_bean_field("totalSupplyUSD")}')
+    print(f'Last peg crosses: {bean_sql_client.get_last_crosses(4)}')
     print(bean_sql_client.get_bean_fields(['id', 'totalCrosses']))
 
     beanstalk_client = BeanstalkSqlClient()
     print(
         f'\nCurrent and previous Season Stats:\n{beanstalk_client.seasons_stats()}')
-    print(
-        f'\nPrevious Season Start Price:\n{beanstalk_client.last_completed_season_stat(PRICE_FIELD)}')
-    print(
-        f'\nCurrent Season Start Price:\n{beanstalk_client.current_season_stat(PRICE_FIELD)}')
 
     snapshot_sql_client = SnapshotSqlClient()
     print(f'Voted: {snapshot_sql_client.percent_of_stalk_voted()}%')

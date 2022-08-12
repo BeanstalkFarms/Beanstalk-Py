@@ -1095,6 +1095,7 @@ class MarketMonitor(Monitor):
         self.bean_client = eth_chain.BeanClient(self._web3)
         self.bean_contract = eth_chain.get_bean_contract(self._web3)
         self.beanstalk_contract = eth_chain.get_beanstalk_contract(self._web3)
+        self.beanstalk_graph_client = BeanstalkSqlClient()
         # self.uniswap_client = eth_chain.UniswapClient()
 
     def _monitor_method(self):
@@ -1187,6 +1188,15 @@ class MarketMonitor(Monitor):
                 logging.info(f'Transfer log(s):\n{transfer_logs}')
                 # There should be exactly one transfer log of Beans.
                 beans_paid = 0
+                listing_graph_id = event_log.args.get('from').lower() + '-' + str(event_log.args.get('index'))
+                try:
+                    price_per_pod = eth_chain.bean_to_float(self.beanstalk_graph_client.get_pod_listing(listing_graph_id)['pricePerPod'])
+                    beans_paid = eth_chain.bean_to_float(event_log.args.get('amount')) * price_per_pod
+                except Exception as e:
+                    logging.error(f'Failed to get pod listing from subgraph for txn {transaction_receipt.transactionHash.hex()}. Proceeding without price info...', exc_info=True)
+                    price_per_pod = None
+                    beans_paid = None
+
                 # NOTE(funderberker): Unclear if we need to account for balance changes or if we 
                 #   can entirely rely on transfers. Using balance changes creates a significant
                 #   problem of determining value or arbitrary assets.
@@ -1214,19 +1224,20 @@ class MarketMonitor(Monitor):
                 #     # Assumes all bean balance deltas are spent on the Fill.
                 #     beans_paid += abs(eth_chain.token_to_float(
                 #         log.args.get('delta'), decimals))
-                for log in transfer_logs:
-                    if log.address == BEAN_ADDR:
-                        beans_paid += eth_chain.bean_to_float(
-                            log.args.get('value'))
-                        break
-                if not beans_paid:
-                    err_str = f'Unable to determine Beans paid in market fill txn ' \
-                              f'({transaction_receipt.transactionHash.hex()}). Exiting...'
-                    logging.error(err_str)
-                    raise ValueError(err_str)
-                event_str += f'{amount_str} Pods listed at ' \
-                            f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
-                            f'Beans/Pod (${round_num(bean_price * beans_paid)})'
+                # for log in transfer_logs:
+                #     if log.address == BEAN_ADDR:
+                #         beans_paid += eth_chain.bean_to_float(
+                #             log.args.get('value'))
+                #         break
+                # if not price_per_pod:
+                #     err_str = f'Unable to determine Beans paid in market fill txn ' \
+                #               f'({transaction_receipt.transactionHash.hex()}). Exiting...'
+                #     logging.error(err_str)
+                #     raise ValueError(err_str)
+                event_str += f'{amount_str} Pods listed at {start_place_in_line_str} in Line Filled'
+                if price_per_pod:
+                    event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * beans_paid)})'
+                    event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
                 # NOTE(funderberker): This is a lot of duplicate logic from EthEventsClient.get_new_logs()
@@ -1260,7 +1271,7 @@ class MarketMonitor(Monitor):
                 event_str += f'{amount_str} Pods ordered at ' \
                             f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
                             f'Beans/Pod (${round_num(bean_price * beans_paid)})'
-            event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
+                event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
         # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
         # terms of amount/cost/etc. We could parse all previous creation events to find matching
         # index, but it is not clear that it is worth it.
