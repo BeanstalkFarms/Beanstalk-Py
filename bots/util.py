@@ -481,7 +481,7 @@ class SeasonsMonitor(Monitor):
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} of Fertilizer sold'
-            ret_string += f'\n{percent_to_moon_emoji(percent_recap/100)} {round_num(percent_recap, 0)}% recapitalized'
+            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% raised'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
