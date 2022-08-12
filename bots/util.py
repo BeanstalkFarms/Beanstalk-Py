@@ -1284,6 +1284,7 @@ class BarnRaiseMonitor(Monitor):
         self.barn_raise_client = eth_chain.BarnRaiseClient()
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
+        self.beanstalk_graph_client = BeanstalkSqlClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1344,6 +1345,7 @@ class BarnRaiseMonitor(Monitor):
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
         usdc_amount = None
+        total_bought = fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
         # Mint single.
         if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
             usdc_amount = int(event_log.args.value)
@@ -1353,6 +1355,7 @@ class BarnRaiseMonitor(Monitor):
         
         if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
+            event_str += f' - total sold: {round_num(total_bought, 0)}'
             # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
