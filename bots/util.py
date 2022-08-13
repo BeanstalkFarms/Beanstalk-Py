@@ -357,7 +357,7 @@ class BarnRaisePreviewMonitor(Monitor):
                     f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
             elif self.status_display_index == 1:
                 self.status_function(
-                    f'{round_num(percent_funded*100, 2)}% raised')
+                    f'{round_num(percent_funded*100, 2)}% Fertilizer Sold')
 
 
 class NFTPreviewMonitor(Monitor):
@@ -510,7 +510,7 @@ class SeasonsMonitor(Monitor):
 
         # Full string message.
         if not short_str:
-            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted DeltaB'
+            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
@@ -539,7 +539,7 @@ class SeasonsMonitor(Monitor):
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n🪴 {round_num(fertilizer_bought, 0)} Fertilizer sold'
-            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% raised'
+            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% Fertilizer Sold'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
@@ -1226,7 +1226,7 @@ class MarketMonitor(Monitor):
             if listing_cancelled_log:
                 event_str += f'♻ Pods relisted'
             else:
-                event_str += f'✏ Pods listed'
+                event_str += f'✏ Pods Listed'
             event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
@@ -1235,7 +1235,7 @@ class MarketMonitor(Monitor):
             if order_cancelled_log:
                 event_str += f'♻ Pods reordered'
             else:
-                event_str += f'🖌 Pods ordered'
+                event_str += f'🖌 Pods Ordered'
             event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} in Line @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             event_str += f'💰 Pods Exchanged - '
@@ -1424,7 +1424,7 @@ class BarnRaiseMonitor(Monitor):
         
         if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
-            event_str += f' - total sold: {round_num(total_bought, 0)}'
+            event_str += f' - Total sold: {round_num(total_bought, 0)}'
             # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
