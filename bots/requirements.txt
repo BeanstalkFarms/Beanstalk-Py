@@ -3,3 +3,4 @@ discord.py>=1.7
 google.cloud.storage>=1.0
 google.api_core
 tweepy
+opensea-api

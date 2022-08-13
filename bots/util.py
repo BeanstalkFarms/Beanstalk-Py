@@ -5,6 +5,7 @@ import discord
 from discord.ext import tasks, commands
 from enum import Enum, IntEnum
 import logging
+from opensea import OpenseaAPI
 import os
 import subprocess
 import sys
@@ -39,8 +40,8 @@ SEASON_DURATION = 3600  # seconds
 # Ethereum block (~13.5 seconds).
 # How long to wait between peg checks.
 PEG_CHECK_PERIOD = 12  # seconds
-# How long to wait between price updates.
-PRICE_CHECK_PERIOD = 12  # seconds
+# How long to wait between discord preview bot updates.
+PREVIEW_CHECK_PERIOD = 12  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 12  # seconds
 # Rate at which to check chain for new Uniswap V2 pool interactions.
@@ -55,6 +56,10 @@ ONE_HUNDRED_MEGABYTES = 100**6
 RESET_MONITOR_DELAY_INIT = 5  # seconds
 # Timestamp for start of Barn Raise.
 BARN_RAISE_START_TIME = 1652112000 # seconds
+
+GENESIS_SLUG="beanft-genesis"
+WINTER_SLUG="beanft-collection"
+# BARN_RAISE_SLUG=""
 
 
 class PegCrossType(Enum):
@@ -257,15 +262,15 @@ class PricePreviewMonitor(Monitor):
 
     def __init__(self, name_function, status_function):
         super().__init__('Price', status_function,
-                         PRICE_CHECK_PERIOD, prod=True, dry_run=False)
+                         PREVIEW_CHECK_PERIOD, prod=True, dry_run=False)
         self.STATUS_DISPLAYS_COUNT = 4
         self.HOURS = 24
-        self.bean_client = eth_chain.BeanClient()
-        self.beanstalk_graph_client = BeanstalkSqlClient()
         self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
+        self.bean_client = eth_chain.BeanClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
 
     def _monitor_method(self):
         # Delay startup to protect against crash loops.
@@ -275,7 +280,7 @@ class PricePreviewMonitor(Monitor):
             if not time.time() > min_update_time:
                 time.sleep(1)
                 continue
-            min_update_time = time.time() + PRICE_CHECK_PERIOD
+            min_update_time = time.time() + PREVIEW_CHECK_PERIOD
 
             price_info = self.bean_client.get_price_info()
             bean_price = self.bean_client.avg_bean_price(price_info=price_info)
@@ -317,14 +322,14 @@ class BarnRaisePreviewMonitor(Monitor):
 
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', status_function,
-                         PRICE_CHECK_PERIOD, prod=True, dry_run=False)
+                         PREVIEW_CHECK_PERIOD, prod=True, dry_run=False)
         self.STATUS_DISPLAYS_COUNT = 2
-        self.beanstalk_client = eth_chain.BeanstalkClient()
-        self.beanstalk_graph_client = BeanstalkSqlClient()
         self.last_name = ''
         self.status_display_index = 0
         self.name_function = name_function
         self.status_function = status_function
+        self.beanstalk_client = eth_chain.BeanstalkClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
         # self.snapshot_sql_client = SnapshotSqlClient()
 
     def _monitor_method(self):
@@ -335,7 +340,7 @@ class BarnRaisePreviewMonitor(Monitor):
             if not time.time() > min_update_time:
                 time.sleep(1)
                 continue
-            min_update_time = time.time() + PRICE_CHECK_PERIOD
+            min_update_time = time.time() + PREVIEW_CHECK_PERIOD
             percent_funded = self.beanstalk_client.get_recap_funded_percent()
             fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
@@ -353,6 +358,59 @@ class BarnRaisePreviewMonitor(Monitor):
             elif self.status_display_index == 1:
                 self.status_function(
                     f'{round_num(percent_funded*100, 2)}% raised')
+
+
+class NFTPreviewMonitor(Monitor):
+    """Monitor data that offers a view into BeaNFT collections."""
+
+    def __init__(self, name_function, status_function):
+        super().__init__('NFT', status_function,
+                         PREVIEW_CHECK_PERIOD, prod=True, dry_run=False)
+        self.STATUS_DISPLAYS_COUNT = 2
+        self.status_display_index = 0
+        self.name_function = name_function
+        self.status_function = status_function
+        self.opensea_api = OpenseaAPI()
+
+    def _monitor_method(self):
+        # Delay startup to protect against crash loops.
+        min_update_time = time.time() + 1
+        while self._thread_active:
+            # Attempt to check as quickly as the graph allows, but no faster than set period.
+            if not time.time() > min_update_time:
+                time.sleep(1)
+                continue
+            min_update_time = time.time() + PREVIEW_CHECK_PERIOD
+
+            # Rotate data and update status.
+            name_str = ''
+            status_str = ''
+            self.status_display_index = (
+                self.status_display_index + 1) % self.STATUS_DISPLAYS_COUNT
+
+            # Set collection slug and name.
+            if self.status_display_index == 0:
+                slug = GENESIS_SLUG
+                name = 'Genesis BeaNFT'
+            elif self.status_display_index == 1:
+                slug = WINTER_SLUG
+                name = 'Winter BeaNFT'
+            # elif self.status_display_index == 2:
+            #     slug = BARN_RAISE_SLUG
+            #     name = 'Barn Raise BeaNFT'
+            else:
+                logging.exception('Invalid status index for NFT Preview Bot.')
+                continue
+
+            # Set bot name and status.
+            # Floor price preview.
+            if self.status_display_index in [0, 1, 2]:
+                collection_stats = self.opensea_api.collection_stats(collection_slug=slug)['stats']
+                name_str = f'Floor: {collection_stats["floor_price"]}Ξ'
+                status_str = f'{name}'
+                
+            self.name_function(name_str)
+            self.status_function(status_str)
 
 
 class SeasonsMonitor(Monitor):
