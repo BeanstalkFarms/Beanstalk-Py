@@ -1437,8 +1437,6 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
     def __init__(self, monitor, prod=False):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
-        # There is only production for this bot.
-        logging.info('Configured as a production instance.')
 
         self.nickname = ''
         self.status_text = ''

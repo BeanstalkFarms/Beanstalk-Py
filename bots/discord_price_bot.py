@@ -20,6 +20,7 @@ if __name__ == '__main__':
     try:
         token = os.environ["DISCORD_PRICE_BOT_TOKEN_PROD"]
         prod = True
+    logging.info('Configured as a production instance.')
     except KeyError:
         # Note this is the shared discord staging bot.
         token = os.environ["DISCORD_BOT_TOKEN"]
