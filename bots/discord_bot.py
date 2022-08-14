@@ -56,7 +56,7 @@ class DiscordClient(discord.ext.commands.Bot):
             # self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
             self._chat_id_report = DISCORD_CHANNEL_ID_REPORT
             self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
-            self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
+            self._chat_ids_seasons = [DISCORD_CHANNEL_ID_SEASONS]
             self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
             self._chat_id_market = DISCORD_CHANNEL_ID_MARKET
@@ -67,7 +67,7 @@ class DiscordClient(discord.ext.commands.Bot):
             # self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_ids_seasons = [DISCORD_CHANNEL_ID_TEST_BOT]
             self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_market = DISCORD_CHANNEL_ID_TEST_BOT
@@ -160,8 +160,7 @@ class DiscordClient(discord.ext.commands.Bot):
     async def on_ready(self):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_peg = self.get_channel(self._chat_id_peg)
-        self._channel_seasons = self.get_channel(
-            self._chat_id_seasons)
+        self._channels_seasons = [self.get_channel(chat_id) for chat_id in self._chat_ids_seasons]
         self._channel_pool = self.get_channel(self._chat_id_pool)
         self._channel_beanstalk = self.get_channel(self._chat_id_beanstalk)
         self._channel_market = self.get_channel(self._chat_id_market)
@@ -172,7 +171,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self.channel_id_to_channel[channel_id] = await self.fetch_channel(channel_id)
 
         logging.info(
-            f'Discord channels are {self._channel_report}, {self._channel_peg}, {self._channel_seasons}, '
+            f'Discord channels are {self._channel_report}, {self._channel_peg}, {self._channels_seasons}, '
             f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}, {self._channel_barn_raise}')
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(
@@ -204,6 +203,24 @@ class DiscordClient(discord.ext.commands.Bot):
         The Discord.py lib allows us to ignore an exception and restart, or die on the exception. 
         We want to log it _and_ not die.
         """
+
+        async def send(channels, msg):
+            """Send message to multiple channels and log failures gracefully.
+            
+            Returns false if ALL messages failed. If only some fail, they will be lost.
+            """
+            results = []
+            for channel in channels:
+                try:
+                    await channel.send(msg)
+                    results.append(True)
+                except Exception as e:
+                    logging.error(f'Failed to send message to Discord server channel ({channel}).'\
+                                f'\n{e}', exc_info=True)
+                    results.append(False)
+            # False only if ALL failed.
+            return any(results)
+
         try:
             for channel, msg in self.msg_queue:
                 if len(msg) > 2000:
@@ -219,7 +236,11 @@ class DiscordClient(discord.ext.commands.Bot):
                 elif channel is Channel.PEG:
                     await self._channel_peg.send(msg)
                 elif channel is Channel.SEASONS:
-                    await self._channel_seasons.send(msg)
+                    results = [await send(ch, msg) for ch in self._channels_seasons]
+                    # If all failed.
+                    if any(results):
+                        logging.warning(f'Retrying failed discord message sends...')
+                        continue
                 elif channel is Channel.POOL:
                     await self._channel_pool.send(msg)
                 elif channel is Channel.BEANSTALK:
@@ -238,7 +259,7 @@ class DiscordClient(discord.ext.commands.Bot):
         except Exception as e:
             logging.warning(e, exc_info=True)
             logging.warning(
-                'Failed to send message to Discord server. Will retry.')
+                'Failed to send message to Discord server channel. Will retry.')
             return
 
     @send_queued_messages.before_loop
