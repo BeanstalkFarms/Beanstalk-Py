@@ -49,7 +49,7 @@ class TelegramBot(object):
         self.market_monitor.start()
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
-            self.send_msg, report_events=True, report_summaries=True, prod=prod, dry_run=False)
+            self.send_msg, report_events=True, report_summaries=False, prod=prod, dry_run=False)
         self.barn_raise_monitor.start()
 
     def send_msg(self, msg):
