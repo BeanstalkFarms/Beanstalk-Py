@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sys
 import time
 
 from gql import Client, gql
@@ -139,7 +140,7 @@ class BeanSqlClient(object):
             logging.exception(e)
             logging.error(
                 'Killing all processes due to inability to access Bean subgraph...')
-            os._exit(os.EX_UNAVAILABLE)
+            sys.exit(0)
 
 
 class BeanstalkSqlClient(object):
@@ -170,7 +171,7 @@ class BeanstalkSqlClient(object):
             logging.exception(e)
             logging.error(
                 'Killing all processes due to inability to access Beanstalk subgraph...')
-            os._exit(os.EX_UNAVAILABLE)
+            sys.exit(0)
 
     def get_fertilizer_bought(self):
         query_str = """
@@ -187,7 +188,7 @@ class BeanstalkSqlClient(object):
             logging.exception(e)
             logging.error(
                 'Killing all processes due to inability to access Beanstalk subgraph...')
-            os._exit(os.EX_UNAVAILABLE)
+            sys.exit(0)
 
     def silo_assets_seasonal_change(self):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
@@ -273,7 +274,7 @@ class BeanstalkSqlClient(object):
             logging.exception(e)
             logging.error(
                 'Killing all processes due to inability to access Beanstalk subgraph...')
-            os._exit(os.EX_UNAVAILABLE)
+            sys.exit(0)
 
         # Return list of SeasnStat class instances
         return [SeasonStats(result, i) for i in range(num_seasons)]
@@ -322,7 +323,7 @@ class BeanstalkSqlClient(object):
             logging.exception(e)
             logging.error(
                 'Killing all processes due to inability to access Beanstalk subgraph...')
-            os._exit(os.EX_UNAVAILABLE)
+            sys.exit(0)
 
     def wallet_stats(self, account_id):
         return self.wallets_stats([account_id])[0]
@@ -349,7 +350,7 @@ class BeanstalkSqlClient(object):
             logging.exception(e)
             logging.error(
                 'Killing all processes due to inability to access Beanstalk subgraph...')
-            os._exit(os.EX_UNAVAILABLE)
+            sys.exit(0)
 '''
 
 class SeasonStats():
