@@ -792,6 +792,7 @@ class CurvePoolMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(
             self.pool_type)
         self.bean_client = eth_chain.BeanClient()
+        self.three_pool_client = eth_chain.CurveClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -873,24 +874,28 @@ class CurvePoolMonitor(Monitor):
                 stable_name = '3CRV'
                 stable_in = eth_chain.crv_to_float(stable_in)
                 stable_out = eth_chain.crv_to_float(stable_out)
+                stable_price = self.three_pool_client.get_3crv_price()
             elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_DAI:
                 stable_name = 'DAI'
                 stable_in = eth_chain.dai_to_float(stable_in)
                 stable_out = eth_chain.dai_to_float(stable_out)
+                stable_price = 1.0
             elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_USDC:
                 stable_name = 'USDC'
                 stable_in = eth_chain.usdc_to_float(stable_in)
                 stable_out = eth_chain.usdc_to_float(stable_out)
+                stable_price = 1.0
             elif stable_id == eth_chain.FACTORY_3CRV_UNDERLYING_INDEX_USDT:
                 stable_name = 'USDT'
                 stable_in = eth_chain.usdt_to_float(stable_in)
                 stable_out = eth_chain.usdt_to_float(stable_out)
+                stable_price = 1.0
             else:
                 logging.error(
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
                 return ''
 
-            event_str += self.exchange_event_str(bean_price, stable_name, transaction,
+            event_str += self.exchange_event_str(bean_price, stable_name, stable_price,
                                                  bean_out=bean_out, bean_in=bean_in,
                                                  stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
@@ -918,7 +923,7 @@ class CurvePoolMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    def exchange_event_str(self, bean_price, stable_name, transaction, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+    def exchange_event_str(self, bean_price, stable_name, stable_price, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
         """Generate a standard token exchange string.
 
         Note that we assume all tokens in 3CRV have a value of $1.
@@ -934,12 +939,12 @@ class CurvePoolMonitor(Monitor):
         if stable_in:
             event_str += f'📗 {round_num(bean_out, 0)} Beans bought for {round_num(stable_in, 0)} {stable_name}'
             swap_price = stable_in / bean_out
-            swap_value = stable_in
+            swap_value = stable_in * stable_price
         elif bean_in:
             event_str += f'📕 {round_num(bean_in, 0)} Beans sold for {round_num(stable_out, 0)} {stable_name}'
             # If this is a sale of Beans for a fertilizer purchase.
             swap_price = stable_out / bean_in
-            swap_value = stable_out
+            swap_value = stable_out * stable_price
         event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value, 0)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
         # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.

@@ -254,6 +254,11 @@ def get_bean_3crv_pool_contract(web3):
     return web3.eth.contract(
         address=CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
 
+def get_curve_3pool_contract(web3):
+    """Get a web.eth.contract object for a curve 3pool contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=POOL_3POOL_ADDR, abi=curve_pool_abi)
+
 def get_bean_contract(web3):
     """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
     return web3.eth.contract(
@@ -474,6 +479,15 @@ class UniswapClient(ChainClient):
                      f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
         return eth_price, bean_price
 
+class CurveClient(ChainClient):
+    """Client for interacting with standard curve pools."""
+
+    def __init__(self, web3=None):
+        super().__init__(web3)
+        self.contract = get_curve_3pool_contract(self._web3)
+
+    def get_3crv_price(self):
+        return crv_to_float(call_contract_function_with_retry(self.contract.functions.get_virtual_price()))
 
 class BarnRaiseClient(ChainClient):
     """Common functionality related to the Barn Raise Fertilizer contract."""
@@ -942,24 +956,27 @@ def get_test_entries():
         # # ConvertDepositedLP.
         # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xbdbf40bb84a198fdd3c294dd43ad52054bbff98bed392f2394070cc2edfe8fc2'), 'blockNumber': 13862755, 'data': '0x0000000000000000000000000000000000000000000000000000000000000c380000000000000000000000000000000000000000000000000000adc44c0a5dab00000000000000000000000000000000000000000000000000000017ef49b268',
         #               'logIndex': 52, 'removed': False, 'topics': [HexBytes('0x444cac6c85446e08741f799b6ed7d005bf53b5226b369e0bc0640bf3db9a1e5d'), HexBytes('0x0000000000000000000000009c88cd7743fbb32d07ed6dd064ac71c6c4e70753')], 'transactionHash': HexBytes('0xfc392ee8cd988a0838864620a1eec9c8e7fd6a49e9c611cac5852b7dbaed4ac5'), 'transactionIndex': 44}),
-        # # Curve pool: TokenExchangeUnderlying BEAN->DAI.
-        # AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'blockHash': HexBytes('0x5a54cd6da8bfb0ed994162eefe5ce1f49568c40194aeb62eae6c7ec5fe154ac4'), 'blockNumber': 14058145, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038878cd2000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000002ecb6e36d49d9092984',
-        #               'logIndex': 9, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x7b7cec2b1c72053945390818320ba08e8b2c2d8fb2fd24319c19519db4b2629e'), 'transactionIndex': 0}),
-        # # Curve pool: TokenExchangeUnderlying BEAN->USDC.
-        # AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'blockHash': HexBytes('0xdce039037dac5caade192e8f583289b146aa15526c23eacc6b27ed4e69e6c300'), 'blockNumber': 14058200, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000048c0b871d0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000041bbe9aa8',
-        #               'logIndex': 77, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x2076ddf03449a024290c4123ad69bde5fb2629770ea76577fb59574b359859ba'), 'transactionIndex': 8}),
-        # # Curve pool: Remove liquidity in non-bean coin.
-        # AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x000000000000000000000000000000000000000000003a2e714ea0844129111200000000000000000000000000000000000000000000393423c91b8458cb294000000000000000000000000000000000000000000004a0f04d93a402ea31d168', 'blockNumber': 14393420, 'transactionHash': HexBytes(
-        #               '0xdf5c3e1d4ad834c868ee41073dbe356f56b2b95d356b6552bcf38ff70ec1ffa1'), 'transactionIndex': 111, 'blockHash': HexBytes('0xb590ea15f1e8066815fc39dbcae30d3baf55a4df3197e114c1be17cc36ef182e'), 'logIndex': 92, 'removed': False}),
-        # # Curve pool: Remove liquidity in Bean coin.
-        # AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x0000000000000000000000000000000000000000000000ee19ae3974b26427b30000000000000000000000000000000000000000000000000000000106f2ef690000000000000000000000000000000000000000000293b5a14349ddb9b923b5', 'blockNumber': 14322919, 'transactionHash': HexBytes(
-        #               '0x0683e44f53206ce2930a55e4fa0449d66feb109c2baa044b2430f8c08fdd8d85'), 'transactionIndex': 97, 'blockHash': HexBytes('0x863666ed9b57444b031265a8b5cb42c66d903a46e4e4b56d12855b820607af7f'), 'logIndex': 199, 'removed': False}),
-        # # Curve pool: Remove liquidity in non-bean coin (transplanted to LUSD pool from 3CRV pool).
-        # AttributeDict({'address': '0xD652c40fBb3f06d6B58Cb9aa9CFF063eE63d465D', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x000000000000000000000000000000000000000000003a2e714ea0844129111200000000000000000000000000000000000000000000393423c91b8458cb294000000000000000000000000000000000000000000004a0f04d93a402ea31d168', 'blockNumber': 14393420, 'transactionHash': HexBytes(
-        #               '0xdf5c3e1d4ad834c868ee41073dbe356f56b2b95d356b6552bcf38ff70ec1ffa1'), 'transactionIndex': 111, 'blockHash': HexBytes('0xb590ea15f1e8066815fc39dbcae30d3baf55a4df3197e114c1be17cc36ef182e'), 'logIndex': 92, 'removed': False}),
-        # # Curve pool: Remove liquidity in Bean coin (transplanted to LUSD pool from 3CRV pool).
-        # AttributeDict({'address': '0xD652c40fBb3f06d6B58Cb9aa9CFF063eE63d465D', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x0000000000000000000000000000000000000000000000ee19ae3974b26427b30000000000000000000000000000000000000000000000000000000106f2ef690000000000000000000000000000000000000000000293b5a14349ddb9b923b5', 'blockNumber': 14322919, 'transactionHash': HexBytes(
-        #               '0x0683e44f53206ce2930a55e4fa0449d66feb109c2baa044b2430f8c08fdd8d85'), 'transactionIndex': 97, 'blockHash': HexBytes('0x863666ed9b57444b031265a8b5cb42c66d903a46e4e4b56d12855b820607af7f'), 'logIndex': 199, 'removed': False}),
+        # Curve pool: TokenExchangeUnderlying BEAN->DAI.
+        AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'blockHash': HexBytes('0x5a54cd6da8bfb0ed994162eefe5ce1f49568c40194aeb62eae6c7ec5fe154ac4'), 'blockNumber': 14058145, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038878cd2000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000002ecb6e36d49d9092984',
+                      'logIndex': 9, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x7b7cec2b1c72053945390818320ba08e8b2c2d8fb2fd24319c19519db4b2629e'), 'transactionIndex': 0}),
+        # Curve pool: TokenExchangeUnderlying BEAN->USDC.
+        AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'blockHash': HexBytes('0xdce039037dac5caade192e8f583289b146aa15526c23eacc6b27ed4e69e6c300'), 'blockNumber': 14058200, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000048c0b871d0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000041bbe9aa8',
+                      'logIndex': 77, 'removed': False, 'topics': [HexBytes('0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b'), HexBytes('0x0000000000000000000000000000000000007f150bd6f54c40a34d7c3d5e9f56')], 'transactionHash': HexBytes('0x2076ddf03449a024290c4123ad69bde5fb2629770ea76577fb59574b359859ba'), 'transactionIndex': 8}),
+        # Curve pool: Remove liquidity in non-bean coin.
+        AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x000000000000000000000000000000000000000000003a2e714ea0844129111200000000000000000000000000000000000000000000393423c91b8458cb294000000000000000000000000000000000000000000004a0f04d93a402ea31d168', 'blockNumber': 14393420, 'transactionHash': HexBytes(
+                      '0xdf5c3e1d4ad834c868ee41073dbe356f56b2b95d356b6552bcf38ff70ec1ffa1'), 'transactionIndex': 111, 'blockHash': HexBytes('0xb590ea15f1e8066815fc39dbcae30d3baf55a4df3197e114c1be17cc36ef182e'), 'logIndex': 92, 'removed': False}),
+        # Curve pool: Remove liquidity in Bean coin.
+        AttributeDict({'address': '0x3a70DfA7d2262988064A2D051dd47521E43c9BdD', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x0000000000000000000000000000000000000000000000ee19ae3974b26427b30000000000000000000000000000000000000000000000000000000106f2ef690000000000000000000000000000000000000000000293b5a14349ddb9b923b5', 'blockNumber': 14322919, 'transactionHash': HexBytes(
+                      '0x0683e44f53206ce2930a55e4fa0449d66feb109c2baa044b2430f8c08fdd8d85'), 'transactionIndex': 97, 'blockHash': HexBytes('0x863666ed9b57444b031265a8b5cb42c66d903a46e4e4b56d12855b820607af7f'), 'logIndex': 199, 'removed': False}),
+        # Curve pool: Remove liquidity in non-bean coin (transplanted to LUSD pool from 3CRV pool).
+        AttributeDict({'address': '0xD652c40fBb3f06d6B58Cb9aa9CFF063eE63d465D', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x000000000000000000000000000000000000000000003a2e714ea0844129111200000000000000000000000000000000000000000000393423c91b8458cb294000000000000000000000000000000000000000000004a0f04d93a402ea31d168', 'blockNumber': 14393420, 'transactionHash': HexBytes(
+                      '0xdf5c3e1d4ad834c868ee41073dbe356f56b2b95d356b6552bcf38ff70ec1ffa1'), 'transactionIndex': 111, 'blockHash': HexBytes('0xb590ea15f1e8066815fc39dbcae30d3baf55a4df3197e114c1be17cc36ef182e'), 'logIndex': 92, 'removed': False}),
+        # Curve pool: Remove liquidity in Bean coin (transplanted to LUSD pool from 3CRV pool).
+        AttributeDict({'address': '0xD652c40fBb3f06d6B58Cb9aa9CFF063eE63d465D', 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000a79828df1850e8a3a3064576f380d90aecdd3359')], 'data': '0x0000000000000000000000000000000000000000000000ee19ae3974b26427b30000000000000000000000000000000000000000000000000000000106f2ef690000000000000000000000000000000000000000000293b5a14349ddb9b923b5', 'blockNumber': 14322919, 'transactionHash': HexBytes(
+                      '0x0683e44f53206ce2930a55e4fa0449d66feb109c2baa044b2430f8c08fdd8d85'), 'transactionIndex': 97, 'blockHash': HexBytes('0x863666ed9b57444b031265a8b5cb42c66d903a46e4e4b56d12855b820607af7f'), 'logIndex': 199, 'removed': False}),
+        # Curve pool: Sell Beans for 3CRV.
+        AttributeDict({'address': '0xc9C32cd16Bf7eFB85Ff14e0c8603cc90F6F2eE49', 'blockHash': HexBytes('0xc991b5df93e6ceb05d56561cd328f9b38f0b5fae1929c44abbe5093e7d641874'), 'blockNumber': 15344285, 'data': '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fa4151a000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000dea6eed2a43b1a618',
+                      'logIndex': 397, 'removed': False, 'topics': [HexBytes('0x8b3e96f2b889fa771c53c981b40daf005f63f637f1869f707052d15a3dd97140'), HexBytes('0x00000000000000000000000081c46feca27b31f3adc2b91ee4be9717d1cd3dd7')], 'transactionHash': HexBytes('0x0c7d7ccade419d01a7596bc8bf998eaf29d91317df37f19f3fe56ba965457ed7'), 'transactionIndex': 209}),
         # # Farmer's market: Pods ordered.
         # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xfaef7c069fe09ea1bd4f6cdfbd1550ebb7bd2986e2759c4e8d6a9db6a16e19e4'), 'blockNumber': 14163350, 'data': '0x0087d1b16afbd5fbcb2b99f57ad11fa160135b88e203781b2142cbc1823219810000000000000000000000000000000000000000000000000000000b2d05e000000000000000000000000000000000000000000000000000000000000003d09000000000000000000000000000000000000000000000000000000da475abf000',
         #               'logIndex': 175, 'removed': False, 'topics': [HexBytes('0x9d0f352519bb87be0593a36adf8feb8ee677ef1b9932894db339a3537ca2df8b'), HexBytes('0x000000000000000000000000eafc0e4acf147e53398a4c9ae5f15950332cce06')], 'transactionHash': HexBytes('0x153a103e21cce2f7847325c2c3ca47dafb20a83ba8e18f1e549298edab7cf629'), 'transactionIndex': 81}),
@@ -1046,5 +1063,7 @@ if __name__ == '__main__':
     # monitor_uni_v2_pair_events()
     # monitor_beanstalk_events()
     # monitor_curve_pool_events()
-    bean_client = BeanClient()
-    bean_client.avg_bean_price()
+    # bean_client = BeanClient()
+    # bean_client.avg_bean_price()
+    curve_client = CurveClient()
+    print(curve_client.get_3crv_price())
