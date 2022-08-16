@@ -41,7 +41,7 @@ SEASON_DURATION = 3600  # seconds
 # How long to wait between peg checks.
 PEG_CHECK_PERIOD = 12  # seconds
 # How long to wait between discord preview bot updates.
-PREVIEW_CHECK_PERIOD = 12  # seconds
+PREVIEW_CHECK_PERIOD = 5  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = 12  # seconds
 # Rate at which to check chain for new Uniswap V2 pool interactions.
