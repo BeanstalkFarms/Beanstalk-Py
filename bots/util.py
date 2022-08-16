@@ -499,10 +499,18 @@ class SeasonsMonitor(Monitor):
         last_weather = last_season_stats.weather
         sown_beans = last_season_stats.sown_beans
 
-        # Silo asset balances.
-        # silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
         fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
         percent_recap = self.beanstalk_client.get_recap_funded_percent()
+
+        # Silo asset balances.
+        # silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
+        silo_bdv = 0
+        for asset in current_season_stats.assets:
+            # If not an unripe asset.
+            if not asset['token'].startswith(UNRIPE_TOKEN_PREFIX.lower()):
+                silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
+        # Unripe asset underlying value == $ of fert bought.
+        silo_bdv += fertilizer_bought / price
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
@@ -518,7 +526,8 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
 
             # # Silo balance stats.
-            # ret_string += f'\n\n**Silo**'
+            ret_string += f'\n\n**Silo**'
+            ret_string += f'\n🏦 {round_num(silo_bdv, 0)} BDV of assets in Silo'
             # for asset in silo_asset_changes:
             #     token = self._web3.toChecksumAddress( asset['token'])
             #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
