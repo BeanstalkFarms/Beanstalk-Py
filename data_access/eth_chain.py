@@ -156,7 +156,7 @@ add_event_to_dict('Pick(address,address,uint256)',
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
 MARKET_SIGNATURES_LIST = []
-add_event_to_dict('PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,bool)',
+add_event_to_dict('PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,uint8)',
                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 add_event_to_dict('PodListingFilled(address,address,uint256,uint256,uint256)',
                   MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
