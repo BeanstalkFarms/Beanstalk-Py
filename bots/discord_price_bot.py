@@ -26,11 +26,11 @@ if __name__ == '__main__':
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    discord_price_bot = util.DiscordSidebarClient(util.PricePreviewMonitor)
+    client = util.DiscordSidebarClient(util.PricePreviewMonitor)
 
     try:
-        discord_price_bot.run(token)
+        client.run(token)
     except (KeyboardInterrupt, SystemExit):
         pass
     # Note that discord bot cannot send shutting down messages in its channel, due to lib impl.
-    discord_price_bot.stop()
+    client.stop()

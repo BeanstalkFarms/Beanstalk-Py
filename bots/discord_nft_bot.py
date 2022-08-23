@@ -28,11 +28,11 @@ if __name__ == '__main__':
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    discord_nft_bot = util.DiscordSidebarClient(util.NFTPreviewMonitor)
+    client = util.DiscordSidebarClient(util.NFTPreviewMonitor)
 
     try:
-        discord_nft_bot.run(token)
+        client.run(token)
     except (KeyboardInterrupt, SystemExit):
         pass
     # Note that discord bot cannot send shutting down messages in its channel, due to lib impl.
-    discord_nft_bot.stop()
+    client.stop()

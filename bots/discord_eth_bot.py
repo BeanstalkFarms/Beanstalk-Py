@@ -1,3 +1,5 @@
+"""Bot for the Discord sidebar that displays interesting status info about Eth Mainnet."""
+
 import logging
 import logging.handlers
 import os
@@ -5,11 +7,12 @@ import signal
 
 from bots import util
 
+
 if __name__ == '__main__':
-    logging.basicConfig(format=f'Discord Barn Raise Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
+    logging.basicConfig(format=f'Discord Eth Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
-                                "discord_barn_raise_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES/5),
+                                "discord_eth_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES/5),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
@@ -17,7 +20,7 @@ if __name__ == '__main__':
 
     # Automatically detect if this is a production environment.
     try:
-        token = os.environ["DISCORD_BARN_RAISE_BOT_TOKEN_PROD"]
+        token = os.environ["DISCORD_ETH_BOT_TOKEN_PROD"]
         prod = True
         logging.info('Configured as a production instance.')
     except KeyError:
@@ -25,7 +28,7 @@ if __name__ == '__main__':
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    client = util.DiscordSidebarClient(util.BarnRaisePreviewMonitor)
+    client = util.DiscordSidebarClient(util.EthPreviewMonitor)
 
     try:
         client.run(token)
