@@ -16,8 +16,7 @@ import websockets
 from web3 import eth
 
 from constants.addresses import *
-from data_access.graphs import (
-    SnapshotSqlClient, BeanSqlClient, BeanstalkSqlClient, LAST_PEG_CROSS_FIELD, PRICE_FIELD)
+from data_access.graphs import BeanSqlClient, BeanstalkSqlClient
 from data_access import eth_chain
 
 
