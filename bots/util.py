@@ -1213,6 +1213,7 @@ class BarnRaiseMonitor(Monitor):
         self._eth_event_client = eth_chain.EthEventsClient(
             eth_chain.EventClientType.BARN_RAISE)
         self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.last_total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1227,7 +1228,6 @@ class BarnRaiseMonitor(Monitor):
             # If reporting summaries and a 6 hour block has passed.
             if self.report_summaries:
                 current_block = eth_chain.safe_get_block(self._web3, 'latest')
-                # # if (time.time() - self.barn_raise_client.barn_raise_start) % (self.SUMMARY_HOUR_RANGE*3600) < BARN_RAISE_CHECK_RATE + 0.5:
                 if (current_block.number - 14915799) % self.SUMMARY_BLOCK_RANGE == 0:
                 # if True:
                     from_block = eth_chain.safe_get_block(self._web3, current_block.number - self.SUMMARY_BLOCK_RANGE)
@@ -1273,7 +1273,6 @@ class BarnRaiseMonitor(Monitor):
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
         usdc_amount = None
-        total_bought = fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
         # Mint single.
         if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
             usdc_amount = int(event_log.args.value)
@@ -1283,15 +1282,21 @@ class BarnRaiseMonitor(Monitor):
         
         if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
-            event_str += f' - Total sold: {round_num(total_bought, 0)}'
+            total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
+            
+            # The subgraph is slower to update, so may need to calculate total bought here.
+            if total_bought <= self.last_total_bought + 1:
+                self.last_total_bought = total_bought + usdc_amount
+            else:
+                self.last_total_bought = total_bought
+
+            event_str += f' - Total sold: {round_num(self.last_total_bought, 0)}'
             # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
             event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
             # Empty line that does not get stripped.
             event_str += '\n_ _'
             self.message_function(event_str)
-
-
 
 
 class DiscordSidebarClient(discord.ext.commands.Bot):
