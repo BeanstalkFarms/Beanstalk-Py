@@ -1411,21 +1411,21 @@ class PricePreviewMonitor(PreviewMonitor):
                 self.last_name = name_str
 
             # Rotate data and update status.
-            if self.status_display_index in [0, 1, 2]:
+            if self.display_index in [0, 1, 2]:
                 seasons = self.beanstalk_graph_client.seasons_stats(
                     self.HOURS, seasons=True, siloHourlySnapshots=False, fieldHourlySnapshots=False)
                 prices = [season.price for season in seasons]
                 rewards = [season.reward_beans for season in seasons]
-                if self.status_display_index == 0:
+                if self.display_index == 0:
                     self.status_function(
                         f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
-                if self.status_display_index == 1:
+                if self.display_index == 1:
                     self.status_function(
                         f'{round_num(sum(rewards) / self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
-                if self.status_display_index == 2:
+                if self.display_index == 2:
                     self.status_function(
                         f'{round_num(sum(rewards), 0)} Minted - {self.HOURS}hr')
-            elif self.status_display_index == 3:
+            elif self.display_index == 3:
                 status_str = ''
                 if delta_b > 0:
                     status_str += '+'
@@ -1459,10 +1459,10 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
                 self.last_name = name_str
 
             # Rotate data and update status.
-            if self.status_display_index == 0:
+            if self.display_index == 0:
                 self.status_function(
                     f'Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%')
-            elif self.status_display_index == 1:
+            elif self.display_index == 1:
                 self.status_function(
                     f'{round_num(percent_funded*100, 2)}% Fertilizer Sold')
 
@@ -1483,13 +1483,13 @@ class NFTPreviewMonitor(PreviewMonitor):
             status_str = ''
 
             # Set collection slug and name.
-            if self.status_display_index == 0:
+            if self.display_index == 0:
                 slug = GENESIS_SLUG
                 name = 'Genesis BeaNFT'
-            elif self.status_display_index == 1:
+            elif self.display_index == 1:
                 slug = WINTER_SLUG
                 name = 'Winter BeaNFT'
-            # elif self.status_display_index == 2:
+            # elif self.display_index == 2:
             #     slug = BARN_RAISE_SLUG
             #     name = 'Barn Raise BeaNFT'
             else:
@@ -1498,7 +1498,7 @@ class NFTPreviewMonitor(PreviewMonitor):
 
             # Set bot name and status.
             # Floor price preview.
-            if self.status_display_index in [0, 1, 2]:
+            if self.display_index in [0, 1, 2]:
                 collection_stats = self.opensea_api.collection_stats(collection_slug=slug)['stats']
                 name_str = f'Floor: {collection_stats["floor_price"]}Ξ'
                 status_str = f'{name}'
