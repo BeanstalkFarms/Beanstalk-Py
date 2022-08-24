@@ -1301,6 +1301,10 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
         self.nickname = ''
         self.status_text = ''
+
+        # Try to avoid hitting Discord API rate limit when all bots starting together.
+        time.sleep(1.1)
+
         self.monitor = monitor(self.set_nickname, self.set_status) # subclass of util.Monitor
         self.monitor.start()
 
@@ -1360,7 +1364,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 class PreviewMonitor(Monitor):
     """Base class for Discord Sidebar monitors. Do not use directly."""
     def __init__(self, name, name_function, status_function, display_count=0, check_period=PREVIEW_CHECK_PERIOD):
-        super().__init__(name, status_function, check_period, prod=True)
+        super().__init__(name, lambda s : None, check_period, prod=True)
         self.name = name
         self.display_count = display_count
         self.name_function = name_function
