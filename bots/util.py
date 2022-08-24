@@ -37,20 +37,21 @@ TIMESTAMP_KEY = 'timestamp'
 ID_KEY = 'id'
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
-# For all check periods there is a built in assumption that we will update at least once per
-# Ethereum block (~13.5 seconds).
-# How long to wait between peg checks.
-PEG_CHECK_PERIOD = 12  # seconds
 # How long to wait between discord preview bot updates.
 PREVIEW_CHECK_PERIOD = 5  # seconds
+# For all check periods there is a built in assumption that we will update at least once per
+# Ethereum block (~13.5 seconds).
+APPROX_BLOCK_TIME = 12 # seconds
+# How long to wait between peg checks.
+PEG_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
-SUNRISE_CHECK_PERIOD = 12  # seconds
+SUNRISE_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
 # Rate at which to check chain for new Uniswap V2 pool interactions.
-POOL_CHECK_RATE = 12  # seconds
+POOL_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
 # Rate at which to check for events on the Beanstalk contract.
-BEANSTALK_CHECK_RATE = 12  # seconds
-# How long to wait between checks for new bids and sows.
-BARN_RAISE_CHECK_RATE = 6  # seconds
+BEANSTALK_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
+# How long to wait between checks for fert purchases.
+BARN_RAISE_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
 # Bytes in 50 megabytes.
 ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
@@ -1358,13 +1359,13 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
 class PreviewMonitor(Monitor):
     """Base class for Discord Sidebar monitors. Do not use directly."""
-    def __init__(self, name, name_function, status_function, display_count):
-        super().__init__(name, status_function, PREVIEW_CHECK_PERIOD, prod=True)
+    def __init__(self, name, name_function, status_function, display_count=0, check_period=PREVIEW_CHECK_PERIOD):
+        super().__init__(name, status_function, check_period, prod=True)
         self.name = name
         self.display_count = display_count
         self.name_function = name_function
         self.status_function = status_function
-        self.check_period = PREVIEW_CHECK_PERIOD
+        self.check_period = check_period
         self.display_index = 0
         # Delay startup to protect against crash loops.
         self.min_update_time = time.time() + 1
@@ -1461,7 +1462,6 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
                 self.status_function(
                     f'{round_num(percent_funded*100, 2)}% Fertilizer Sold')
 
-
 class NFTPreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into BeaNFT collections."""
 
@@ -1506,16 +1506,15 @@ class EthPreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into Eth mainnet."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('ETH', name_function, status_function, 1)
+        super().__init__('ETH', name_function, status_function, check_period=APPROX_BLOCK_TIME)
 
     def _monitor_method(self):
         while self._thread_active:
             self.wait_for_next_cycle()
             gas_base_fee = get_gas_base_fee()
             eth_price = get_token_price(ETHEREUM_CG_ID)
-            self.name_function(f'⛽ {round_num(gas_base_fee, 1)} Gwei')
+            self.name_function(f'{round_num(gas_base_fee, 1)} Gwei')
             self.status_function(f'ETH: ${round_num(eth_price)}')
-
 
 
 class MsgHandler(logging.Handler):

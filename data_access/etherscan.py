@@ -5,7 +5,6 @@ from data_access.util import get_with_retries
 ETHERSCAN_API_KEY = os.environ["ETHERSCAN_TOKEN"]
 ETHERSCAN_API_URL = 'https://api.etherscan.io/api?module={module}&action={action}&{payload}&apikey={key}'
 
-
 def get_gas_base_fee():
     """Returns the base fee of the next block as a float. Retrieved from etherscan API."""
     request_url = ETHERSCAN_API_URL.format(
