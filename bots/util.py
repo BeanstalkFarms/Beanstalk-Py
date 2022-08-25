@@ -359,16 +359,22 @@ class SeasonsMonitor(Monitor):
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
-        ret_string += f'\n💵 Current price is ${round_num(price, 4)}'
+        ret_string += f'\n💵 Current price is ${round_num(price, 6)}'
 
         # Full string message.
         if not short_str:
             ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
-            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown'
-            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans Minted'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans Sown'
+
+            # Field.
+            ret_string += f'\n\n**Field**'
+            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods Minted'
+            ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No Soil in the Field'
+            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
+            ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
             # # Silo balance stats.
             ret_string += f'\n\n**Silo**'
@@ -384,22 +390,16 @@ class SeasonsMonitor(Monitor):
             #     else:
             #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
 
-            # Field.
-            ret_string += f'\n\n**Field**'
-            ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
-            ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No soil in the Field'
-            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
-
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n🪴 {round_num(fertilizer_bought, 0)} Fertilizer sold'
-            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% Fertilizer Sold'
+            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% Fertilizer sold'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
         else:
             ret_string += f'\n'
-            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans Minted'
             # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'
 
             # silo_bdv = 0
@@ -408,8 +408,9 @@ class SeasonsMonitor(Monitor):
             #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
             #     silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
             # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
-            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
+            ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
         return ret_string
 
 
@@ -926,11 +927,11 @@ class BeanstalkMonitor(Monitor):
             pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
 
             if event_log.event == 'Sow':
-                event_str += f'🚜 {round_num(beans_amount, 0)} Beans sown for ' \
+                event_str += f'🚜 {round_num(beans_amount, 0)} Beans Sown for ' \
                     f'{round_num(pods_amount, 0)} Pods (${round_num(beans_value, 0)})'
                 event_str += f'\n{value_to_emojis(beans_value)}'
             elif event_log.event == 'Harvest':
-                event_str += f'👩‍🌾 {round_num(beans_amount, 0)} Pods harvested for Beans (${round_num(beans_value, 0)})'
+                event_str += f'👩‍🌾 {round_num(beans_amount, 0)} Pods Harvested for Beans (${round_num(beans_value, 0)})'
                 event_str += f'\n{value_to_emojis(beans_value)}'
         
         # Chop event.
