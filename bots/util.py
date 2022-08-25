@@ -1411,7 +1411,7 @@ class PricePreviewMonitor(PreviewMonitor):
             price_info = self.bean_client.get_price_info()
             bean_price = self.bean_client.avg_bean_price(price_info=price_info)
             delta_b = self.bean_client.total_delta_b(price_info=price_info)
-            name_str = f'BEAN: ${round_num(bean_price, 4)}'
+            name_str = f'BEAN: ${round_num(bean_price, 6)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
@@ -1424,7 +1424,7 @@ class PricePreviewMonitor(PreviewMonitor):
                 rewards = [season.reward_beans for season in seasons]
                 if self.display_index == 0:
                     self.status_function(
-                        f'${round_num(sum(prices) / self.HOURS, 4)} Avg Price - {self.HOURS}hr')
+                        f'${round_num(sum(prices) / self.HOURS, 6)} Avg Price - {self.HOURS}hr')
                 if self.display_index == 1:
                     self.status_function(
                         f'{round_num(sum(rewards) / self.HOURS, 0)} Avg Minted - {self.HOURS}hr')
