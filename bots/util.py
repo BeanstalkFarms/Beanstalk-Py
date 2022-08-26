@@ -990,7 +990,7 @@ class BeanstalkMonitor(Monitor):
                 value = bdv_float * bean_price
 
         event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
-                    f'converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
+                    f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
                     f'({round_num(bdv_float, 0)} BDV)'
 
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
@@ -1084,7 +1084,7 @@ class MarketMonitor(Monitor):
             listing_cancelled_log = self.beanstalk_contract.events['PodListingCancelled'](
             ).processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
             if listing_cancelled_log:
-                event_str += f'♻ Pods relisted'
+                event_str += f'♻ Pods re-Listed'
             else:
                 event_str += f'✏ Pods Listed'
             event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
@@ -1093,7 +1093,7 @@ class MarketMonitor(Monitor):
             order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
             ).processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
             if order_cancelled_log:
-                event_str += f'♻ Pods reordered'
+                event_str += f'♻ Pods re-Ordered'
             else:
                 event_str += f'🖌 Pods Ordered'
             event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} in Line @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
@@ -1152,7 +1152,7 @@ class MarketMonitor(Monitor):
                 #               f'({transaction_receipt.transactionHash.hex()}). Exiting...'
                 #     logging.error(err_str)
                 #     raise ValueError(err_str)
-                event_str += f'{amount_str} Pods listed at {start_place_in_line_str} in Line Filled'
+                event_str += f'{amount_str} Pods Listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
                     event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * beans_paid)})'
                     event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
@@ -1186,7 +1186,7 @@ class MarketMonitor(Monitor):
                 logging.info(decoded_log_entry)
                 price_per_pod = decoded_log_entry.args.pricePerPod
                 beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
-                event_str += f'{amount_str} Pods ordered at ' \
+                event_str += f'{amount_str} Pods Ordered at ' \
                             f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
                             f'Beans/Pod (${round_num(bean_price * beans_paid)})'
                 event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'

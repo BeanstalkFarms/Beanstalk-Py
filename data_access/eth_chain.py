@@ -308,7 +308,10 @@ class BeanstalkClient(ChainClient):
         self.contract = get_beanstalk_contract(self._web3)
         self.replant_season = 6074
         self.base_humidity = 2500 / 10
+        self.final_humidity = 200 / 10
         self.humidity_step_size = 0.5 # %
+        # Number of seasons to min humidity.
+        self.max_steps = (self.base_humidity - self.final_humidity) / self.humidity_step_size
 
     def get_season(self):
         """Get current season."""
@@ -364,6 +367,8 @@ class BeanstalkClient(ChainClient):
         current_season = self.get_season()
         if current_season <= self.replant_season:
             return self.base_humidity
+        elif current_season > self.replant_season + self.max_steps:
+            return self.final_humidity
         return self.base_humidity - (current_season - self.replant_season) * self.humidity_step_size
 
 class BeanClient(ChainClient):
