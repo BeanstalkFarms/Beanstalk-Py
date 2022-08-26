@@ -277,10 +277,7 @@ class SeasonsMonitor(Monitor):
     def _monitor_method(self):
         while self._thread_active:
             # Wait until the eligible for a sunrise.
-            if not self._dry_run:
-                self._wait_until_expected_sunrise()
-            else:
-                time.sleep(5)
+            self._wait_until_expected_sunrise()
             # Once the sunrise is complete, get the season stats.
             current_season_stats, last_season_stats = self._block_and_get_seasons_stats()
             # A new season has begun.
@@ -304,6 +301,10 @@ class SeasonsMonitor(Monitor):
         Assumes sunrise timing cycle beings with Unix Epoch (1/1/1970 00:00:00 UTC).
         This is not exact since we do not bother with syncing local and graph time.
         """
+        if self._dry_run:
+            time.sleep(5)
+            return
+        
         seconds_until_next_sunrise = SEASON_DURATION - time.time() % SEASON_DURATION
         sunrise_ready_timestamp = time.time() + seconds_until_next_sunrise
         loop_count = 0
