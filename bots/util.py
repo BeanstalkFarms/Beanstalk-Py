@@ -1283,7 +1283,7 @@ class BarnRaiseMonitor(Monitor):
             usdc_amount = sum([int(value) for value in event_log.args.values])
         
         if usdc_amount is not None:
-            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.humidity(), 1)}% Humidity'
+            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity'
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
             
             # The subgraph is slower to update, so may need to calculate total bought here.

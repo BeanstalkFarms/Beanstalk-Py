@@ -503,29 +503,21 @@ class BarnRaiseClient(ChainClient):
         # self.token_contract = get_fertilizer_token_contract(self._web3)
         # Set immutable variables.
         self.barn_raise_start = 1654516800 # seconds, epoch
-        self.unpause_start = 1660564800 # seconds, epoch # August 15 2022, 12pm  # TODO(funderberker): This is arbitrary, update when restart time is known.
-        # self.replant_season = call_contract_function_with_retry(self.contract.functions.REPLANT_SEASON()) # int (6074); unpause season
-        # self.end_decrease_season = call_contract_function_with_retry(self.contract.functions.END_DECREASE_SEASON()) # int (REPLANT_SEASON + 461)
-        # self.base_humidity = call_contract_function_with_retry(self.contract.functions.RESTART_HUMIDITY()) / 10 # float % (250.0)
+        self.unpause_start = 1660564800 # seconds, epoch # August 15 2022, 12pm
         self.replant_season = 6074
-        self.end_decrease_season = self.replant_season + 461
         # self.pre_sale_humidity = 5000 / 10
         self.base_humidity = 2500 / 10
         self.step_size = 0.5 # %
         self.step_duration = 3600 # seconds
-        self.min_humidity = 20.0 # %
         if beanstalk_client is not None:
             self.beanstalk_client = beanstalk_client
         else:
             self.beanstalk_client = BeanstalkClient()
 
-    def humidity(self):
+    def get_humidity(self):
         """Calculate and return current humidity."""
         # If unpause has not yet occurred, return 0.
-        current_season = self.beanstalk_client.get_season()
-        if current_season <= self.replant_season:
-            return self.base_humidity
-        return self.base_humidity - (current_season - self.replant_season) * self.step_size
+        return self.beanstalk_client.get_humidity()
 
     def weather_at_step(self, step_number):
         """Return the weather at a given step."""
