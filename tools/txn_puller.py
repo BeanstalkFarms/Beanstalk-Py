@@ -122,11 +122,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Pull transaction information.')
     parser.add_argument('txn_hash', type=str, help='the transaction hash')
-    parser.add_argument('-p', '--abi_path', type=str, help='path to contract abi',
+    parser.add_argument('-p', '--abi_path', type=str,
+                        help='path to contract abi (default: beanstalk)',
                         default=os.path.join(
                             os.path.dirname(__file__), '../constants/abi/beanstalk_abi.json'))
+    parser.add_argument('-k', '--key', type=str,
+                        help='alchemy key (default pulls env var ALCHEMY_ETH_API_KEY)',
+                        default=os.environ['ALCHEMY_ETH_API_KEY'])
     args = parser.parse_args()
 
+    URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + args.key
     web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
 
     # Get receipt from chain.

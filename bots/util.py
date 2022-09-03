@@ -839,8 +839,7 @@ class BeanstalkMonitor(Monitor):
         """
         # Prune *plant* deposit logs. They are uninteresting clutter.
         # Prune *pick* deposit logs. They are uninteresting clutter.
-        # For each event log remove a corresponding AddDeposit log.
-        # event_logs_to_remove = []
+        # For each earn (plant/pick) event log remove a corresponding AddDeposit log.
         # for earn_event_log in get_logs_by_names(['Plant'], event_logs):
         for earn_event_log in get_logs_by_names(['Plant', 'Pick'], event_logs):
             for deposit_event_log in get_logs_by_names('AddDeposit', event_logs):
@@ -848,15 +847,11 @@ class BeanstalkMonitor(Monitor):
                     (earn_event_log.args.get('token') or BEAN_ADDR) and
                     deposit_event_log.args.get('amount') == \
                     (earn_event_log.args.get('beans') or earn_event_log.args.get('amount'))):
-                    # event_logs_to_remove.append(deposit_event_log)
                     # Remove event log from event logs
                     event_logs.remove(deposit_event_log)
                     # At most allow 1 match.
                     logging.info(f'Ignoring a {earn_event_log.event} AddDeposit event')
                     break
-
-        # for event_log in event_logs_to_remove:
-        #     event_logs.remove(event_log)
 
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
