@@ -1099,7 +1099,7 @@ class MarketMonitor(Monitor):
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
                 amount_str = round_num(eth_chain.bean_to_float(int(pod_order['amount']) - int(pod_order['filledAmount']), 0))
                 max_place_str = round_num(pod_order['maxPlaceInLine'], 0)
-                price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod'], 0))
+                price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod']), 0)
                 event_str += f'❌ Pod Order cancelled'
                 event_str += f' - {amount_str} Pods Ordered before {max_place_str} in Line @ {price_per_pod_str} Beans/Pod'
         # If a new listing or relisting.
@@ -1147,7 +1147,7 @@ class MarketMonitor(Monitor):
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
-                price_per_pod = eth_chain.bean_to_float(pod_order['pricePerPod'], 0)
+                price_per_pod = eth_chain.bean_to_float(pod_order['pricePerPod'])
                 beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
                 event_str += f'{amount_str} Pods ordered at ' \
                             f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \

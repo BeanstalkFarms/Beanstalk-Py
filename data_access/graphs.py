@@ -146,6 +146,9 @@ class BeanstalkSqlClient(object):
         
         id is arbitrary?
         """
+        # Market order subgraph IDs are strings that must begin with 0x.
+        if not id.startswith('0x'):
+            id = '0x' + id
         query_str = f"""
             query {{
                 podOrder(id: "{id}") {{
