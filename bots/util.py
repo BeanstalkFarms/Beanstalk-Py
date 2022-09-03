@@ -1057,6 +1057,12 @@ class MarketMonitor(Monitor):
 
         # Index of the plot (place in line of first pod of the plot).
         plot_index = eth_chain.pods_to_float(event_log.args.get('index'))
+        # ID of the order.
+        order_id = event_log.args.get('id')
+        if order_id: 
+            # order_id = order_id.decode('utf8')
+            # order_id = self._web3.keccak(text=order_id).hex()
+            order_id = order_id.hex()
         # Index of earliest pod to list, relative to start of plot.
         relative_start_index = eth_chain.pods_to_float(
             event_log.args.get('start'))
@@ -1078,8 +1084,27 @@ class MarketMonitor(Monitor):
         start_place_in_line_str = round_num(start_place_in_line, 0)
         order_max_place_in_line_str = round_num(order_max_place_in_line, 0)
 
-        if event_log.event == 'PodListingCreated':
-            # Check if this was a relist.
+        # If this was a pure cancel (not relist or reorder).
+        if ((event_log.event == 'PodListingCancelled' and self.beanstalk_contract.events['PodListingCreated']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)) or
+            (event_log.event == 'PodOrderCancelled' and self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD))):
+            if event_log.event == 'PodOrderCancelled':
+                listing_graph_id = event_log.args.get('account').lower() + '-' + str(event_log.args.get('index'))
+                pod_listing = self.beanstalk_graph_client.get_pod_listing(listing_graph_id)
+                start_place_in_line_str = round_num(pod_listing['index'] + pod_listing['start'] - pods_harvested, 0)
+                price_per_pod_str = round_num(eth_chain.bean_to_float(pod_listing['pricePerPod']), 3)
+                amount_str = round_num(eth_chain.bean_to_float(int(pod_listing['totalAmount']) - int(pod_listing['filledAmount'])), 0)
+                event_str += f'❌ Pod Listing cancelled'
+                event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
+            else:
+                pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
+                amount_str = round_num(eth_chain.bean_to_float(int(pod_order['amount']) - int(pod_order['filledAmount']), 0))
+                max_place_str = round_num(pod_order['maxPlaceInLine'], 0)
+                price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod'], 0))
+                event_str += f'❌ Pod Order cancelled'
+                event_str += f' - {amount_str} Pods Ordered before {max_place_str} in Line @ {price_per_pod_str} Beans/Pod'
+        # If a new listing or relisting.
+        elif event_log.event == 'PodListingCreated':
+            # Check if this was a relist, if so send relist message.
             listing_cancelled_log = self.beanstalk_contract.events['PodListingCancelled'](
             ).processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
             if listing_cancelled_log:
@@ -1087,6 +1112,7 @@ class MarketMonitor(Monitor):
             else:
                 event_str += f'✏ Pods Listed'
             event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+        # If a new order or reorder.
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
             order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
@@ -1096,6 +1122,7 @@ class MarketMonitor(Monitor):
             else:
                 event_str += f'🖌 Pods Ordered'
             event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} in Line @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+        # If a fill.
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             event_str += f'💰 Pods Exchanged - '
             # Pull the Bean Transfer log to find cost.
@@ -1113,87 +1140,19 @@ class MarketMonitor(Monitor):
                     logging.error(f'Failed to get pod listing from subgraph for txn {transaction_receipt.transactionHash.hex()}. Proceeding without price info...', exc_info=True)
                     price_per_pod = None
                     beans_paid = None
-
-                # NOTE(funderberker): Unclear if we need to account for balance changes or if we 
-                #   can entirely rely on transfers. Using balance changes creates a significant
-                #   problem of determining value or arbitrary assets.
-                # balance_change_logs = self.beanstalk_contract.events['InternalBalanceChanged']().processReceipt(
-                #     transaction_receipt, errors=eth_chain.DISCARD)
-                # logging.info(f'InternalBalanceChanged log(s):\n{balance_change_logs}')
-                # for log in balance_change_logs:
-                #     # Determine asset value.
-                #     token = log.args.get('token')
-                #     amount = int(log.args.get('delta'))
-                #     if amount >= 0:
-                #         continue
-                #     if token == BEAN_ADDR:
-                #         token_bdv = 1.0
-                #         decimals = eth_chain.BEAN_DECIMALS
-                #     elif token == WRAPPED_ETH:
-                #         token_bdv = self.uniswap_client.current_eth_price()
-                #         decimals = eth_chain.ETH_DECIMALS
-                #     else:
-                #         try:
-                #             token_bdv = self.bean_client.get_lp_token_value(token)
-                #         except KeyError:
-                #             token_bdv = 1.0
-                #         _, _, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
-                #     # Assumes all bean balance deltas are spent on the Fill.
-                #     beans_paid += abs(eth_chain.token_to_float(
-                #         log.args.get('delta'), decimals))
-                # for log in transfer_logs:
-                #     if log.address == BEAN_ADDR:
-                #         beans_paid += eth_chain.bean_to_float(
-                #             log.args.get('value'))
-                #         break
-                # if not price_per_pod:
-                #     err_str = f'Unable to determine Beans paid in market fill txn ' \
-                #               f'({transaction_receipt.transactionHash.hex()}). Exiting...'
-                #     logging.error(err_str)
-                #     raise ValueError(err_str)
                 event_str += f'{amount_str} Pods listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
                     event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * beans_paid)})'
                     event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
-                # NOTE(funderberker): This is a lot of duplicate logic from EthEventsClient.get_new_logs()
-                # that I simply do not have the bandwidth right now to refactor in a way that can be
-                # used in both places.
-                beanstalk_contract = eth_chain.get_beanstalk_contract(
-                    self._web3)
-                event_filter = beanstalk_contract.events.PodOrderCreated.createFilter(
-                    # Feb 1, 2022 (before marketplace implementation).
-                    fromBlock=14120000,
-                    toBlock=int(transaction_receipt.blockNumber),
-                    argument_filters={'id': event_log.args.get('id')}
-                )
-                log_entries = event_filter.get_all_entries()
-                if len(log_entries) == 0:
-                    logging.error('No PodOrderCreated event found. Exiting...')
-                    raise ValueError(
-                        f'Failed to locate PodOrderCreated event with id={event_log.args.get("id").hex()}.')
-                # Typically there will only be a single PodOrderCreated per id, but if the order was
-                # re-ordered then we use the latest order for pricing. Contract behavior here may
-                # change in the future, but using the latest order with id will always be ok.
-                log_entry = log_entries[-1]
-                txn_hash = log_entry['transactionHash']
-                transaction_receipt = eth_chain.get_txn_receipt_or_wait(
-                    self._web3, txn_hash)
-                decoded_log_entry = beanstalk_contract.events['PodOrderCreated']().processReceipt(
-                    transaction_receipt, errors=eth_chain.DISCARD)[0]
-                logging.info(decoded_log_entry)
-                price_per_pod = decoded_log_entry.args.pricePerPod
+                pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
+                price_per_pod = eth_chain.bean_to_float(pod_order['pricePerPod'], 0)
                 beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
                 event_str += f'{amount_str} Pods ordered at ' \
-                            f'{start_place_in_line_str} in Line Filled @ {round_num(beans_paid/amount, 3)} ' \
+                            f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \
                             f'Beans/Pod (${round_num(bean_price * beans_paid)})'
                 event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
-        # NOTE(funderberker): There is no way to meaningfully identify what has been cancelled, in
-        # terms of amount/cost/etc. We could parse all previous creation events to find matching
-        # index, but it is not clear that it is worth it.
-        # elif event_log.event == 'PodListingCancelled':
-        # elif event_log.event == 'PodOrderCancelled':
         return event_str
 
 

@@ -125,12 +125,41 @@ class BeanstalkSqlClient(object):
                     id
                     status
                     pricePerPod
+                    totalAmount
+                    filledAmount
+                    index
+                    start
                 }}
             }}
         """
         # Create gql query and execute.
         try:
             return execute(self._client, query_str)['podListing']
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            sys.exit(0)
+
+    def get_pod_order(self, id):
+        """Get a single pod order based on id.
+        
+        id is arbitrary?
+        """
+        query_str = f"""
+            query {{
+                podOrder(id: "{id}") {{
+                    maxPlaceInLine
+                    id
+                    pricePerPod
+                    amount
+                    filledAmount
+                }}
+            }}
+        """
+        # Create gql query and execute.
+        try:
+            return execute(self._client, query_str)['podOrder']
         except GraphAccessException as e:
             logging.exception(e)
             logging.error(
