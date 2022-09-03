@@ -34,7 +34,6 @@ from web3 import Web3, WebsocketProvider
 from web3.exceptions import TransactionNotFound
 from web3.logs import DISCARD
 
-NEW_LINE = '\n'
 URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + os.environ['ALCHEMY_ETH_API_KEY']
 
 logging.basicConfig(level=logging.INFO)
