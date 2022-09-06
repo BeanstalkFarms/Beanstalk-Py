@@ -123,8 +123,11 @@ class Monitor():
         retry_time = 0
         while self._thread_active:
             if time.time() < retry_time:
-                time.sleep(0.5)
+                logging.info(f'Waiting {retry_time - time.time()} more seconds before restarting '
+                             f' monitor on {self.name} thread.')
+                time.sleep(1)
                 continue
+            logging.info(f'Starting monitor on {self.name} thread.')
             try:
                 self._monitor_method()
             # Websocket disconnects are expected occasionally.
@@ -138,9 +141,9 @@ class Monitor():
                     f'Asyncio timeout error:\n{e}\n**restarting the monitor**')
                 logging.warning(e, exc_info=True)
             except Exception as e:
-                logging.exception(e)
                 logging.error(f'Unhandled exception in the {self.name} thread.'
-                              f'\nLogging and **restarting the monitor**.')
+                              f'\n**restarting the monitor**.')
+                logging.exception(e)
             # Reset the restart delay after a stretch of successful running.
             if time.time() > retry_time + 3600:
                 self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
