@@ -352,14 +352,9 @@ class SeasonsMonitor(Monitor):
         percent_recap = self.beanstalk_client.get_recap_funded_percent()
 
         # Silo asset balances.
-        # silo_asset_changes = self.beanstalk_graph_client.silo_assets_seasonal_change()
-        silo_bdv = 0
-        for asset in current_season_stats.assets:
-            # If not an unripe asset.
-            if not asset['token'].startswith(UNRIPE_TOKEN_PREFIX.lower()):
-                silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
-        # Unripe asset underlying value == $ of fert bought.
-        silo_bdv += fertilizer_bought / price
+        current_silo_bdv = current_season_stats.total_deposited_bdv
+        silo_assets_changes = self.beanstalk_graph_client.silo_assets_seasonal_changes(
+            current_season_stats.assets, last_season_stats.assets)
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
@@ -370,19 +365,40 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans Minted'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans Sown'
 
             # Field.
             ret_string += f'\n\n**Field**'
-            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods Minted'
-            ret_string += f'\n🏞 {round_num(newSoil, 0)} Soil in the Field' if newSoil else f'\n🏞 No Soil in the Field'
+            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
+            ret_string += f'\n🏞 '
+            if newSoil == 0: ret_string += f'No'
+            elif newSoil < 1: ret_string += f'<1'
+            else: ret_string += f'{round_num(newSoil, 0)}'
+            ret_string += f' Soil in the Field'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
             # # Silo balance stats.
             ret_string += f'\n\n**Silo**'
-            ret_string += f'\n🏦 {round_num(silo_bdv, 0)} BDV of assets in Silo'
+            ret_string += f'\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo'
+            for asset_changes in silo_assets_changes:
+                ret_string += f'\n'
+                token_name, token_symbol, decimals = eth_chain.get_erc20_info(
+                    asset_changes.token, web3=self._web3)
+                delta_asset = eth_chain.token_to_float(
+                    asset_changes.delta_asset, decimals)
+                current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
+                if delta_asset < 0:
+                    ret_string += f'📉 {round_num(abs(delta_asset), 0)} {token_symbol} decrease'
+                elif delta_asset == 0:
+                    ret_string += f'🗒 No change in {token_symbol}'
+                else:
+                    ret_string += f'📈 {round_num(delta_asset, 0)} {token_symbol} increase'
+                # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv), 0)} BDV in Silo)'
+                # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo BDV)'
+                ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%)'
+
             # for asset in silo_asset_changes:
             #     token = self._web3.toChecksumAddress( asset['token'])
             #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
@@ -397,7 +413,7 @@ class SeasonsMonitor(Monitor):
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n🪴 {round_num(fertilizer_bought, 0)} Fertilizer sold'
-            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% Fertilizer sold'
+            ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(percent_recap*100, 2)}% recapitalized'
             ret_string += '\n_ _'  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).

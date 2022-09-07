@@ -814,15 +814,20 @@ def get_erc20_total_supply(addr, decimals, web3=None):
     return token_to_float(call_contract_function_with_retry(
         contract.functions.totalSupply()), decimals)
 
+# Global cache for erc20 info that is static.
+erc20_info_cache = {}
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""
-    if not web3:
-        web3 = get_web3_instance()
-    contract = get_erc20_contract(web3, address=addr)
-    name = call_contract_function_with_retry(contract.functions.name())
-    symbol = call_contract_function_with_retry(contract.functions.symbol())
-    decimals = call_contract_function_with_retry(contract.functions.decimals())
-    return name, symbol, decimals
+    if addr not in erc20_info_cache:
+        logging.info(f'Querying chain for erc20 token info of {addr}.')
+        if not web3:
+            web3 = get_web3_instance()
+        contract = get_erc20_contract(web3, address=addr)
+        name = call_contract_function_with_retry(contract.functions.name())
+        symbol = call_contract_function_with_retry(contract.functions.symbol())
+        decimals = call_contract_function_with_retry(contract.functions.decimals())
+        erc20_info_cache[addr] = (name, symbol, decimals)
+    return erc20_info_cache[addr]
 
 
 def is_valid_wallet_address(address):

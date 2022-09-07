@@ -154,7 +154,7 @@ class BeanstalkSqlClient(object):
                 'Killing all processes due to inability to access Beanstalk subgraph...')
             sys.exit(0)
 
-    def silo_assets_seasonal_change(self):
+    def silo_assets_seasonal_changes(self, current_silo_assets=None, previous_silo_assets=None):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
         
         Note that season snapshots are created at the beginning of each season and updated throughout season.
@@ -162,18 +162,14 @@ class BeanstalkSqlClient(object):
         Returns:
             Map of asset deltas with keys [token, delta_amount, delta_bdv].
         """
-        current_silo_assets, previous_silo_assets = [season_stats.assets for season_stats in self.seasons_stats()]
-        
-        assets_deltas = []
-        for i in range(len(current_silo_assets)):
-            asset_current = current_silo_assets[i]
-            asset_previous = previous_silo_assets[i]
-            asset_deltas = {}
-            asset_deltas['token'] = asset_current['token']
-            asset_deltas['delta_amount'] = int(asset_current['totalDepositedAmount']) - int(asset_previous['totalDepositedAmount'])
-            asset_deltas['delta_bdv'] = int(asset_current['totalDepositedBDV']) - int(asset_previous['totalDepositedBDV'])
-            assets_deltas.append(asset_deltas)
-        return assets_deltas
+        if current_silo_assets is None or previous_silo_assets is None:
+            current_silo_assets, previous_silo_assets = [season_stats.assets for season_stats in self.seasons_stats(
+                seasons=False, siloHourlySnapshots=True, fieldHourlySnapshots=False)]
+
+        assets_changes = []
+        for i in range(len(previous_silo_assets)):
+            assets_changes.append(AssetChanges(previous_silo_assets[i], current_silo_assets[i]))
+        return assets_changes
 
     def seasons_stats(self, num_seasons=2, seasons=True, siloHourlySnapshots=True, fieldHourlySnapshots=True):
         """Get a standard set of data corresponding to current season.
@@ -203,8 +199,10 @@ class BeanstalkSqlClient(object):
                 ){{
                     season
                     hourlyBeanMints #newFarmableBeans
+                    totalDepositedBDV
                     silo {{
-                        assets(first: 100, orderBy: token) {{
+                        assets(first: 100, orderBy: totalDepositedBDV, orderDirection: desc,
+                               where: {{totalDepositedAmount_gt: "0"}}) {{
                             token
                             totalDepositedAmount
                             totalDepositedBDV
@@ -337,6 +335,7 @@ class SeasonStats():
             self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans']) # silo rewards + fert rewards + pods harvestable
         if 'siloHourlySnapshots' in graph_seasons_response:
             self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
+            self.total_deposited_bdv = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['totalDepositedBDV'])
             self.assets = graph_seasons_response['siloHourlySnapshots'][season_index]['silo']['assets'] # Beans minted this season # newFarmableBeans
         if 'fieldHourlySnapshots' in graph_seasons_response:
             self.weather = float(graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'])
@@ -344,6 +343,18 @@ class SeasonStats():
             self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['totalPods'])  # pods
             self.new_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newSoil'])
             self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['sownBeans'])
+
+class AssetChanges():
+    """Class representing change in state of an asset across seasons."""
+    def __init__(self, init_season_asset, final_season_asset):
+        self.init_season_asset = init_season_asset
+        self.final_season_asset = final_season_asset
+        self.token = init_season_asset['token']
+        self.delta_asset = int(
+            final_season_asset['totalDepositedAmount']) - int(init_season_asset['totalDepositedAmount'])
+        self.delta_bdv = int(
+            final_season_asset['totalDepositedBDV']) - int(init_season_asset['totalDepositedBDV'])
+        
 
 class GraphAccessException(Exception):
     """Failed to access the graph."""
