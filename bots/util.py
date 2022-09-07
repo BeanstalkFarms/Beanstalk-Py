@@ -390,11 +390,11 @@ class SeasonsMonitor(Monitor):
                     asset_changes.delta_asset, decimals)
                 current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
                 if delta_asset < 0:
-                    ret_string += f'📉 {round_num(abs(delta_asset), 0)} {token_symbol} decrease'
+                    ret_string += f'📉 {round_num_auto(abs(delta_asset), 0)} {token_symbol} decrease'
                 elif delta_asset == 0:
-                    ret_string += f'🗒 No change in {token_symbol}'
+                    ret_string += f'📊 No change in {token_symbol}'
                 else:
-                    ret_string += f'📈 {round_num(delta_asset, 0)} {token_symbol} increase'
+                    ret_string += f'📈 {round_num_auto(delta_asset, 0)} {token_symbol} increase'
                 # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv), 0)} BDV in Silo)'
                 # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo BDV)'
                 ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%)'
