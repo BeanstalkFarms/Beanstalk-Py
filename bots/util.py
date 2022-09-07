@@ -365,8 +365,8 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
-            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
-            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans Sown'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown'
 
             # Silo balance stats.
             ret_string += f'\n\n**Silo**'
@@ -390,12 +390,11 @@ class SeasonsMonitor(Monitor):
 
             # Field.
             ret_string += f'\n\n**Field**'
-            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
+            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods minted'
             ret_string += f'\n🏞 '
             if newSoil == 0: ret_string += f'No'
-            elif newSoil < 1: ret_string += f'<1'
-            else: ret_string += f'{round_num(newSoil, 0)}'
-            ret_string += f' Soil in the Field'
+            else: ret_string += f'{round_num(newSoil, 0, avoid_zero=True)}'
+            ret_string += f' Soil in Field'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
@@ -408,7 +407,7 @@ class SeasonsMonitor(Monitor):
         # Short string version (for Twitter).
         else:
             ret_string += f'\n'
-            ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans Minted'
+            ret_string += f'\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted'
             # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'
 
             # silo_bdv = 0
@@ -417,7 +416,7 @@ class SeasonsMonitor(Monitor):
             #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
             #     silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
             # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
-            ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0)} Pods'
+            ret_string += f'\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
         return ret_string
@@ -1587,8 +1586,10 @@ def sig_compare(signature, signatures):
     return False
 
 
-def round_num(number, precision=2):
+def round_num(number, precision=2, avoid_zero=False):
     """Round a string or float to requested precision and return as a string."""
+    if avoid_zero and number > 0 and number < 1:
+        return '<1'
     return f'{float(number):,.{precision}f}'
 
 
