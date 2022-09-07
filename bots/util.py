@@ -368,18 +368,7 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🌱 {round_num(reward_beans, 0)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0)} Beans Sown'
 
-            # Field.
-            ret_string += f'\n\n**Field**'
-            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
-            ret_string += f'\n🏞 '
-            if newSoil == 0: ret_string += f'No'
-            elif newSoil < 1: ret_string += f'<1'
-            else: ret_string += f'{round_num(newSoil, 0)}'
-            ret_string += f' Soil in the Field'
-            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
-            ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
-
-            # # Silo balance stats.
+            # Silo balance stats.
             ret_string += f'\n\n**Silo**'
             ret_string += f'\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo'
             for asset_changes in silo_assets_changes:
@@ -399,16 +388,16 @@ class SeasonsMonitor(Monitor):
                 # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo BDV)'
                 ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%)'
 
-            # for asset in silo_asset_changes:
-            #     token = self._web3.toChecksumAddress( asset['token'])
-            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
-                
-            #     # Different wording for Beans, unripe assets, and tokens with unknown value.
-            #     if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
-            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
-            #     # Known BDV.
-            #     else:
-            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
+            # Field.
+            ret_string += f'\n\n**Field**'
+            ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0)} Pods minted'
+            ret_string += f'\n🏞 '
+            if newSoil == 0: ret_string += f'No'
+            elif newSoil < 1: ret_string += f'<1'
+            else: ret_string += f'{round_num(newSoil, 0)}'
+            ret_string += f' Soil in the Field'
+            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
+            ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
             # Barn.
             ret_string += f'\n\n**Barn**'
