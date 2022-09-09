@@ -1630,7 +1630,6 @@ def percent_to_moon_emoji(percent):
 
 
 holiday_schedule = [
-    (1662681600, 1662768000, '🎁'), # TEST
     (1662768000, 1662854400, '🏮') # Mid Autumn Festival
 ]
 
