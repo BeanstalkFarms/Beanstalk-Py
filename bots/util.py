@@ -381,8 +381,8 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
             # # Silo balance stats.
-            ret_string += f'\n\n**Silo**'
-            ret_string += f'\n🏦 {round_num(silo_bdv, 0)} BDV of assets in Silo'
+            # ret_string += f'\n\n**Silo**'
+            # ret_string += f'\n🏦 {round_num(silo_bdv, 0)} BDV of assets in Silo'
             # for asset in silo_asset_changes:
             #     token = self._web3.toChecksumAddress( asset['token'])
             #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
