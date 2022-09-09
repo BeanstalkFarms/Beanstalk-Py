@@ -1628,19 +1628,16 @@ def percent_to_moon_emoji(percent):
     else:
         return '🌕'
 
-
+PDT_OFFSET = 7 * 60 * 60
 holiday_schedule = [
-    (1662768000, 1662854400, '🏮') # Mid Autumn Festival
+    (1662768000, 1662854400 + PDT_OFFSET, '🏮') # Mid Autumn Festival, UTC+9 9:00 - UTC-7 24:00
 ]
 
 def holiday_emoji():
     """Returns an emoji with appropriate festive spirit."""
-    # Give wide berth to catch all timezones.
-    start_offset = 7 * 60 # US West cost
-    end_offset = 9 * 60 # East Asia
     utc_now = time.time()
     for start_time, end_time, emoji in holiday_schedule:
-        if start_time - start_offset < utc_now and utc_now < end_time + end_offset:
+        if start_time < utc_now and utc_now < end_time:
             return emoji
     return ''
 
