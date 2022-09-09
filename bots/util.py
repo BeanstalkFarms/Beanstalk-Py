@@ -855,6 +855,16 @@ class BeanstalkMonitor(Monitor):
                     # At most allow 1 match.
                     logging.info(f'Ignoring a {earn_event_log.event} AddDeposit event')
                     break
+        # Prune *transfer* deposit logs. They are uninteresting clutter.
+        for remove_event_log in get_logs_by_names(['RemoveDeposit'], event_logs):
+            for deposit_event_log in get_logs_by_names('AddDeposit', event_logs):
+                if (deposit_event_log.args.get('token') == \
+                    (remove_event_log.args.get('token')) and
+                    deposit_event_log.args.get('amount') == \
+                    (remove_event_log.args.get('amount'))):
+                    # Remove event log from event logs
+                    event_logs.remove(deposit_event_log)
+                    logging.info(f'Ignoring a Transfer action AddDeposit RemoveDeposit pair')
 
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):

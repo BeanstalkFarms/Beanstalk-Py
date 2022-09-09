@@ -105,7 +105,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)
         self.curve_bean_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod)
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod, dry_run=False)
         self.beanstalk_monitor.start()
 
         self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
