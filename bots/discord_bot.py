@@ -46,6 +46,8 @@ class DiscordClient(discord.ext.commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
         # self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
+        self.nickname = ''
+        self._update_naming.start()
 
         # NOTE(funderberker): LOCAL TESTING
         # Retrieve bucket.
@@ -174,11 +176,35 @@ class DiscordClient(discord.ext.commands.Bot):
         logging.info(
             f'Discord channels are {self._channel_report}, {self._channel_peg}, {self._channel_seasons}, '
             f'{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}, {self._channel_barn_raise}')
+
+        # Guild IDs for all servers this bot is in.
+        self.current_guilds = []
+        for guild in self.guilds:
+            self.current_guilds.append(guild)
+            logging.info(f'Guild found: {guild.id}')
+
         # Log the commit of this run.
         logging.info('Git commit is ' + subprocess.check_output(
             ['git', 'rev-parse', '--short', 'HEAD'],
             cwd=os.path.dirname(os.path.realpath(__file__))
         ).decode('ascii').strip())
+
+
+    @tasks.loop(seconds=10, reconnect=True)
+    async def _update_naming(self):
+        emoji_accent = util.holiday_emoji()
+        next_name = emoji_accent + 'BeanBot' + emoji_accent
+        if self.nickname != next_name:
+            for guild in self.current_guilds:
+                logging.info(f'Attempting to set nickname in guild with id {guild.id}')
+                await guild.me.edit(nick=next_name)
+                logging.info(f'Bot nickname changed to {next_name} in guild with id {guild.id}')
+            self.nickname = next_name
+
+    @_update_naming.before_loop
+    async def before__update_naming_loop(self):
+        """Wait until the bot logs in."""
+        await self.wait_until_ready()
 
     async def send_dm(self, channel_id, text):
         logging.warning(channel_id)

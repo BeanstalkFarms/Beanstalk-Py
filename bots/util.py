@@ -1324,7 +1324,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
     def set_nickname(self, text):
         """Set bot server nickname."""
-        self.nickname = text
+        self.nickname = holiday_emoji() + text
 
     def set_status(self, text):
         """Set bot custom status text."""
@@ -1361,7 +1361,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
             self.status_text = ''
 
     @_update_naming.before_loop
-    async def before__update_nickname_loop(self):
+    async def before__update_naming_loop(self):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
 
@@ -1627,6 +1627,24 @@ def percent_to_moon_emoji(percent):
         return '🌖'
     else:
         return '🌕'
+
+
+holiday_schedule = [
+    (1662681600, 1662768000, '🎁'), # TEST
+    (1662768000, 1662854400, '🏮') # Mid Autumn Festival
+]
+
+def holiday_emoji():
+    """Returns an emoji with appropriate festive spirit."""
+    # Give wide berth to catch all timezones.
+    start_offset = 7 * 60 # US West cost
+    end_offset = 9 * 60 # East Asia
+    utc_now = time.time()
+    for start_time, end_time, emoji in holiday_schedule:
+        if start_time - start_offset < utc_now and utc_now < end_time + end_offset:
+            return emoji
+    return ''
+
 
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
