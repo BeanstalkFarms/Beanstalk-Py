@@ -959,11 +959,11 @@ class BeanstalkMonitor(Monitor):
             pods_amount = eth_chain.bean_to_float(event_log.args.get('pods'))
 
             if event_log.event == 'Sow':
-                event_str += f'🚜 {round_num(beans_amount, 0)} Beans Sown for ' \
-                    f'{round_num(pods_amount, 0)} Pods (${round_num(beans_value, 0)})'
+                event_str += f'🚜 {round_num(beans_amount, 0, avoid_zero=True)} Beans Sown for ' \
+                    f'{round_num(pods_amount, 0, avoid_zero=True)} Pods (${round_num(beans_value, 0)})'
                 event_str += f'\n{value_to_emojis(beans_value)}'
             elif event_log.event == 'Harvest':
-                event_str += f'👩‍🌾 {round_num(beans_amount, 0)} Pods Harvested for Beans (${round_num(beans_value, 0)})'
+                event_str += f'👩‍🌾 {round_num(beans_amount, 0, avoid_zero=True)} Pods Harvested for Beans (${round_num(beans_value, 0)})'
                 event_str += f'\n{value_to_emojis(beans_value)}'
         
         # Chop event.
@@ -980,7 +980,7 @@ class BeanstalkMonitor(Monitor):
             # If not in aggregator, will return none and not display value.
             else:
                 underlying_token_value = self.bean_client.get_lp_token_value(underlying, underlying_decimals)
-            event_str += f'⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0)} {underlying_symbol}'
+            event_str += f'⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}'
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
                 event_str += f' (${round_num(underlying_value, 0)})'
