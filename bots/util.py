@@ -398,6 +398,20 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
+            # # Silo balance stats.
+            # ret_string += f'\n\n**Silo**'
+            # ret_string += f'\n🏦 {round_num(silo_bdv, 0)} BDV of assets in Silo'
+            # for asset in silo_asset_changes:
+            #     token = self._web3.toChecksumAddress( asset['token'])
+            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
+                
+            #     # Different wording for Beans, unripe assets, and tokens with unknown value.
+            #     if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
+            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
+            #     # Known BDV.
+            #     else:
+            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
+
             # Barn.
             ret_string += f'\n\n**Barn**'
             ret_string += f'\n{percent_to_moon_emoji(percent_recap)} {round_num(fertilizer_bought, 0)} Fertilizer sold ({round_num(percent_recap*100, 2)}%)'
@@ -858,6 +872,16 @@ class BeanstalkMonitor(Monitor):
                     # At most allow 1 match.
                     logging.info(f'Ignoring a {earn_event_log.event} AddDeposit event')
                     break
+        # Prune *transfer* deposit logs. They are uninteresting clutter.
+        for remove_event_log in get_logs_by_names(['RemoveDeposit'], event_logs):
+            for deposit_event_log in get_logs_by_names('AddDeposit', event_logs):
+                if (deposit_event_log.args.get('token') == \
+                    (remove_event_log.args.get('token')) and
+                    deposit_event_log.args.get('amount') == \
+                    (remove_event_log.args.get('amount'))):
+                    # Remove event log from event logs
+                    event_logs.remove(deposit_event_log)
+                    logging.info(f'Ignoring a Transfer action AddDeposit RemoveDeposit pair')
 
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
@@ -1282,7 +1306,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
     def set_nickname(self, text):
         """Set bot server nickname."""
-        self.nickname = text
+        self.nickname = holiday_emoji() + text
 
     def set_status(self, text):
         """Set bot custom status text."""
@@ -1319,7 +1343,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
             self.status_text = ''
 
     @_update_naming.before_loop
-    async def before__update_nickname_loop(self):
+    async def before__update_naming_loop(self):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
 
@@ -1587,6 +1611,20 @@ def percent_to_moon_emoji(percent):
         return '🌖'
     else:
         return '🌕'
+
+PDT_OFFSET = 7 * 60 * 60
+holiday_schedule = [
+    (1662768000, 1662854400 + PDT_OFFSET, '🏮') # Mid Autumn Festival, UTC+9 9:00 - UTC-7 24:00
+]
+
+def holiday_emoji():
+    """Returns an emoji with appropriate festive spirit."""
+    utc_now = time.time()
+    for start_time, end_time, emoji in holiday_schedule:
+        if start_time < utc_now and utc_now < end_time:
+            return emoji
+    return ''
+
 
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
