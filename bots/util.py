@@ -1134,7 +1134,7 @@ class MarketMonitor(Monitor):
                 max_place_str = round_num(eth_chain.pods_to_float(pod_order['maxPlaceInLine']), 0)
                 price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod']), 3)
                 event_str += f'❌ Pod Order cancelled'
-                event_str += f' - {amount_str} Pods Ordered before {max_place_str} in Line @ {price_per_pod_str} Beans/Pod'
+                event_str += f' - {amount_str} Pods Ordered before {max_place_str} @ {price_per_pod_str} Beans/Pod'
         # If a new listing or relisting.
         elif event_log.event == 'PodListingCreated':
             # Check if this was a relist, if so send relist message.
@@ -1150,7 +1150,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods re-Ordered'
             else:
                 event_str += f'🖌 Pods Ordered'
-            event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} in Line @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
+            event_str += f' - {amount_str} Pods Ordered before {order_max_place_in_line_str} @ {price_per_pod_str} Beans/Pod (${round_num(amount * bean_price * price_per_pod)})'
         # If a fill.
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             event_str += f'💰 Pods Exchanged - '
