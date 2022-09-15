@@ -368,25 +368,31 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown'
 
-            # Silo balance stats.
-            ret_string += f'\n\n**Silo**'
-            ret_string += f'\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo'
-            for asset_changes in silo_assets_changes:
-                ret_string += f'\n'
-                token_name, token_symbol, decimals = eth_chain.get_erc20_info(
-                    asset_changes.token, web3=self._web3)
-                delta_asset = eth_chain.token_to_float(
-                    asset_changes.delta_asset, decimals)
-                current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
-                if delta_asset < 0:
-                    ret_string += f'📉 {round_num_auto(abs(delta_asset), 0)} {token_symbol} decrease'
-                elif delta_asset == 0:
-                    ret_string += f'📊 No change in {token_symbol}'
-                else:
-                    ret_string += f'📈 {round_num_auto(delta_asset, 0)} {token_symbol} increase'
-                # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv), 0)} BDV in Silo)'
-                # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo BDV)'
-                ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%)'
+            # # Silo balance stats.
+            # ret_string += f'\n\n**Silo**'
+            # ret_string += f'\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo'
+            # for asset_changes in silo_assets_changes:
+            #     silo_asset_str = ''
+            #     # ret_string += f'\n'
+            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(
+            #         asset_changes.token, web3=self._web3)
+            #     delta_asset = eth_chain.token_to_float(
+            #         asset_changes.delta_asset, decimals)
+            #     current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
+            #     std_len_perc_str = '{:<6}'.format(f'{round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%')
+            #     silo_asset_str += f'{std_len_perc_str}{token_symbol}'
+            #     if delta_asset < 0:
+            #         silo_asset_str = f'\n📉 ' + silo_asset_str
+            #         silo_asset_str += f' - {round_num_auto(abs(delta_asset), 0)} decrease'
+            #     elif delta_asset == 0:
+            #         silo_asset_str = f'\n📃 ' + silo_asset_str
+            #         silo_asset_str += f' - no change'
+            #     else:
+            #         silo_asset_str = f'\n📈 ' + silo_asset_str
+            #         silo_asset_str += f' - {round_num_auto(delta_asset, 0)} increase'
+            #     ret_string += silo_asset_str
+            #     # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv), 0)} BDV in Silo)'
+            #     # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo BDV)'
 
             # Field.
             ret_string += f'\n\n**Field**'
