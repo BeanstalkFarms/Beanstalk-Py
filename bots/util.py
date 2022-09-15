@@ -1085,29 +1085,27 @@ class MarketMonitor(Monitor):
         order_max_place_in_line_str = round_num(order_max_place_in_line, 0)
 
         # If this was a pure cancel (not relist or reorder).
-        if ((event_log.event == 'PodListingCancelled' and self.beanstalk_contract.events['PodListingCreated']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)) or
-            (event_log.event == 'PodOrderCancelled' and self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD))):
-            if event_log.event == 'PodOrderCancelled':
+        if ((event_log.event == 'PodListingCancelled' and not self.beanstalk_contract.events['PodListingCreated']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)) or
+            (event_log.event == 'PodOrderCancelled' and not self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD))):
+            if event_log.event == 'PodListingCancelled':
                 listing_graph_id = event_log.args.get('account').lower() + '-' + str(event_log.args.get('index'))
                 pod_listing = self.beanstalk_graph_client.get_pod_listing(listing_graph_id)
-                start_place_in_line_str = round_num(pod_listing['index'] + pod_listing['start'] - pods_harvested, 0)
+                start_place_in_line_str = round_num(eth_chain.pods_to_float(pod_listing['index']) + eth_chain.pods_to_float(pod_listing['start']) - pods_harvested, 0)
                 price_per_pod_str = round_num(eth_chain.bean_to_float(pod_listing['pricePerPod']), 3)
                 amount_str = round_num(eth_chain.bean_to_float(int(pod_listing['totalAmount']) - int(pod_listing['filledAmount'])), 0)
                 event_str += f'❌ Pod Listing cancelled'
                 event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
             else:
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
-                amount_str = round_num(eth_chain.bean_to_float(int(pod_order['amount']) - int(pod_order['filledAmount']), 0))
-                max_place_str = round_num(pod_order['maxPlaceInLine'], 0)
-                price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod']), 0)
+                amount_str = round_num(eth_chain.pods_to_float(int(pod_order['amount']) - int(pod_order['filledAmount'])), 0)
+                max_place_str = round_num(eth_chain.pods_to_float(pod_order['maxPlaceInLine']), 0)
+                price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod']), 3)
                 event_str += f'❌ Pod Order cancelled'
                 event_str += f' - {amount_str} Pods Ordered before {max_place_str} in Line @ {price_per_pod_str} Beans/Pod'
         # If a new listing or relisting.
         elif event_log.event == 'PodListingCreated':
             # Check if this was a relist, if so send relist message.
-            listing_cancelled_log = self.beanstalk_contract.events['PodListingCancelled'](
-            ).processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
-            if listing_cancelled_log:
+            if self.beanstalk_contract.events['PodListingCancelled']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD):
                 event_str += f'♻ Pods relisted'
             else:
                 event_str += f'✏ Pods Listed'
@@ -1115,9 +1113,7 @@ class MarketMonitor(Monitor):
         # If a new order or reorder.
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
-            order_cancelled_log = self.beanstalk_contract.events['PodOrderCancelled'](
-            ).processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
-            if order_cancelled_log:
+            if self.beanstalk_contract.events['PodOrderCancelled']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD):
                 event_str += f'♻ Pods reordered'
             else:
                 event_str += f'🖌 Pods Ordered'
