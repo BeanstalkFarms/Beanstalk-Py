@@ -1070,6 +1070,9 @@ class MarketMonitor(Monitor):
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
             event_str = self.farmers_market_str(event_log, transaction_receipt)
+            # Ignore second+ events for a single multi-event transaction.
+            if not event_str:
+                continue
             event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
             # Empty line that does not get stripped.
             event_str += '\n_ _'
@@ -1126,14 +1129,14 @@ class MarketMonitor(Monitor):
                 start_place_in_line_str = round_num(eth_chain.pods_to_float(pod_listing['index']) + eth_chain.pods_to_float(pod_listing['start']) - pods_harvested, 0)
                 price_per_pod_str = round_num(eth_chain.bean_to_float(pod_listing['pricePerPod']), 3)
                 amount_str = round_num(eth_chain.bean_to_float(int(pod_listing['totalAmount']) - int(pod_listing['filledAmount'])), 0)
-                event_str += f'❌ Pod Listing cancelled'
+                event_str += f'❌ Pod Listing Cancelled'
                 event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
             else:
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
                 amount_str = round_num(eth_chain.pods_to_float(int(pod_order['amount']) - int(pod_order['filledAmount'])), 0)
                 max_place_str = round_num(eth_chain.pods_to_float(pod_order['maxPlaceInLine']), 0)
                 price_per_pod_str = round_num(eth_chain.bean_to_float(pod_order['pricePerPod']), 3)
-                event_str += f'❌ Pod Order cancelled'
+                event_str += f'❌ Pod Order Cancelled'
                 event_str += f' - {amount_str} Pods Ordered before {max_place_str} @ {price_per_pod_str} Beans/Pod'
         # If a new listing or relisting.
         elif event_log.event == 'PodListingCreated':
