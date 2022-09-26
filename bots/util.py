@@ -879,12 +879,12 @@ class BeanstalkMonitor(Monitor):
                     logging.info(f'Ignoring a {earn_event_log.event} AddDeposit event')
                     break
         # Prune *transfer* deposit logs. They are uninteresting clutter.
-        for remove_event_log in get_logs_by_names(['RemoveDeposit'], event_logs):
+        # Note that this assumes that a transfer event never includes a novel deposit.
+        for remove_event_log in get_logs_by_names(['RemoveDeposit'], event_logs) + get_logs_by_names(['RemoveDeposits'], event_logs):
             for deposit_event_log in get_logs_by_names('AddDeposit', event_logs):
-                if (deposit_event_log.args.get('token') == \
-                    (remove_event_log.args.get('token')) and
-                    deposit_event_log.args.get('amount') == \
-                    (remove_event_log.args.get('amount'))):
+                if (deposit_event_log.args.get('token') == remove_event_log.args.get('token')):
+                    # and deposit_event_log.args.get('amount') == \
+                    # (remove_event_log.args.get('amount'))):
                     # Remove event log from event logs
                     event_logs.remove(deposit_event_log)
                     logging.info(f'Ignoring a Transfer action AddDeposit RemoveDeposit pair')
