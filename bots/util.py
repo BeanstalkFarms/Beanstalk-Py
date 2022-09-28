@@ -1172,7 +1172,7 @@ class MarketMonitor(Monitor):
                     logging.error(f'Failed to get pod listing from subgraph for txn {transaction_receipt.transactionHash.hex()}. Proceeding without price info...', exc_info=True)
                     price_per_pod = None
                     beans_paid = None
-                event_str += f'{amount_str} Pods listed at {start_place_in_line_str} in Line Filled'
+                event_str += f'{amount_str} Pods Listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
                     event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * beans_paid)})'
                     event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
@@ -1180,7 +1180,7 @@ class MarketMonitor(Monitor):
                 # Get price from original order creation.
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
                 price_per_pod = eth_chain.bean_to_float(pod_order['pricePerPod'])
-                beans_paid = eth_chain.bean_to_float(price_per_pod) * amount
+                beans_paid = price_per_pod * amount
                 event_str += f'{amount_str} Pods Ordered at ' \
                             f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \
                             f'Beans/Pod (${round_num(bean_price * beans_paid)})'
