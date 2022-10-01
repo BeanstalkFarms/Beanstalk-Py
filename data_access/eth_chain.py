@@ -74,10 +74,18 @@ NEWLINE_CHAR = '\n'
 # Index of values in tuples returned from web3 contract calls.
 STARTSOIL_INDEX = 0
 
+# Incomplete of Beanstalk Terming of Tokens for human use.
+TOKEN_SYMBOL_MAP = {
+    BEAN_ADDR.lower() : 'BEAN',
+    CURVE_BEAN_3CRV_ADDR.lower() : 'BEAN:3CRV',
+    UNRIPE_ADDR.lower() : 'urBEAN',
+    UNRIPE_3CRV_ADDR.lower() : 'urBEAN:3CRV'
+}
+
+
 # NOTE(funderberker): Pretty lame that we cannot automatically parse these from the ABI files.
 #   Technically it seems very straight forward, but it is not implemented in the web3 lib and
 #   parsing it manually is not any better than just writing it out here.
-
 
 def add_event_to_dict(signature, sig_dict, sig_list):
     """Add both signature_hash and event_name to the bidirectional dict.
@@ -454,6 +462,7 @@ class BeanClient(ChainClient):
         """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
 
+# NOTE(funderberker): Deprecated. No longer in use, has not been updated post Replant.
 class UniswapClient(ChainClient):
     def __init__(self, web3=None):
         super().__init__(web3)
@@ -818,13 +827,16 @@ def get_erc20_total_supply(addr, decimals, web3=None):
 erc20_info_cache = {}
 def get_erc20_info(addr, web3=None):
     """Get the name, symbol, and decimals of an ERC-20 token."""
+    addr = addr.lower()
     if addr not in erc20_info_cache:
         logging.info(f'Querying chain for erc20 token info of {addr}.')
         if not web3:
             web3 = get_web3_instance()
+        # addr = web3.toChecksumAddress(addr)
         contract = get_erc20_contract(web3, address=addr)
         name = call_contract_function_with_retry(contract.functions.name())
-        symbol = call_contract_function_with_retry(contract.functions.symbol())
+        # Use custom in-house Beanstalk Symbol name, if set, otherwise default to on-chain symbol.
+        symbol = TOKEN_SYMBOL_MAP.get(addr) or call_contract_function_with_retry(contract.functions.symbol())
         decimals = call_contract_function_with_retry(contract.functions.decimals())
         erc20_info_cache[addr] = (name, symbol, decimals)
     return erc20_info_cache[addr]

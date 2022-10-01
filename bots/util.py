@@ -354,7 +354,9 @@ class SeasonsMonitor(Monitor):
         # Silo asset balances.
         current_silo_bdv = current_season_stats.total_deposited_bdv
         silo_assets_changes = self.beanstalk_graph_client.silo_assets_seasonal_changes(
-            current_season_stats.assets, last_season_stats.assets)
+            current_season_stats.pre_assets, last_season_stats.pre_assets)
+        logging.info([a.final_season_asset for a in silo_assets_changes])
+        silo_assets_changes.sort(key=lambda a: int(a.final_season_asset['totalDepositedBDV']), reverse=True)
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
@@ -368,31 +370,51 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted'
             ret_string += f'\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown'
 
-            # # Silo balance stats.
-            # ret_string += f'\n\n**Silo**'
-            # ret_string += f'\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo'
-            # for asset_changes in silo_assets_changes:
-            #     silo_asset_str = ''
-            #     # ret_string += f'\n'
-            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(
-            #         asset_changes.token, web3=self._web3)
-            #     delta_asset = eth_chain.token_to_float(
-            #         asset_changes.delta_asset, decimals)
-            #     current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
-            #     std_len_perc_str = '{:<6}'.format(f'{round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%')
-            #     silo_asset_str += f'{std_len_perc_str}{token_symbol}'
-            #     if delta_asset < 0:
-            #         silo_asset_str = f'\n📉 ' + silo_asset_str
-            #         silo_asset_str += f' - {round_num_auto(abs(delta_asset), 0)} decrease'
-            #     elif delta_asset == 0:
-            #         silo_asset_str = f'\n📃 ' + silo_asset_str
-            #         silo_asset_str += f' - no change'
-            #     else:
-            #         silo_asset_str = f'\n📈 ' + silo_asset_str
-            #         silo_asset_str += f' - {round_num_auto(delta_asset, 0)} increase'
-            #     ret_string += silo_asset_str
-            #     # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv), 0)} BDV in Silo)'
-            #     # ret_string += f' ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo BDV)'
+            # Silo balance stats.
+            ret_string += f'\n\n**Silo**'
+            ret_string += f'\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo'
+            asset_rank = 0
+            for asset_changes in silo_assets_changes:
+                asset_rank += 1
+                # silo_asset_str = ''
+                ret_string += f'\n'
+                token_name, token_symbol, decimals = eth_chain.get_erc20_info(
+                    asset_changes.token, web3=self._web3)
+                delta_asset = eth_chain.token_to_float(
+                    asset_changes.delta_asset, decimals)
+                # Asset BDV at final season end, deduced from subgraph data.
+                asset_bdv = eth_chain.bean_to_float(asset_changes.final_season_asset['totalDepositedBDV']) / eth_chain.token_to_float(asset_changes.final_season_asset['totalDepositedAmount'], decimals)
+                # asset_bdv = eth_chain.bean_to_float(asset_changes.final_season_bdv)
+                current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
+
+
+                ### VERSION 1
+                if delta_asset < 0:
+                    ret_string += f'📉 {round_num(abs(delta_asset * asset_bdv), 0)} BDV Withdrawn'
+                elif delta_asset == 0:
+                    ret_string += f'🧾 No change'
+                else:
+                    ret_string += f'📈 {round_num(abs(delta_asset * asset_bdv), 0)} BDV Deposited'
+                ret_string += f' -  {token_symbol}  ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
+
+                ### VERSION 2
+                # if delta_asset < 0:
+                #     ret_string += f'📉 {round_num(abs(delta_asset * asset_bdv), 0)} BDV of {token_symbol} Removed '
+                # elif delta_asset == 0:
+                #     ret_string += f'📄 {token_symbol}'
+                # else:
+                #     ret_string += f'📈 {round_num(abs(delta_asset * asset_bdv), 0)} BDV of {token_symbol} Added '
+                # ret_string += f'  ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
+
+                ### VERSION 3
+                # # std_len_perc_str = '{:<5}'.format(f'{round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}%') # doesnt really work because discord doesnt use fixed width character set
+                # ret_string += f'{number_to_emoji(asset_rank)} {round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% {token_symbol}'
+                # if delta_asset < 0:
+                #     ret_string += f'  ({round_num(abs(delta_asset * asset_bdv), 0)} BDV Removed)'
+                # elif delta_asset == 0:
+                #     ret_string += f''
+                # else:
+                #     ret_string += f'  ({round_num(abs(delta_asset * asset_bdv), 0)} BDV Added)'
 
             # Field.
             ret_string += f'\n\n**Field**'
@@ -403,20 +425,6 @@ class SeasonsMonitor(Monitor):
             ret_string += f' Soil in Field'
             ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
-
-            # # Silo balance stats.
-            # ret_string += f'\n\n**Silo**'
-            # ret_string += f'\n🏦 {round_num(silo_bdv, 0)} BDV of assets in Silo'
-            # for asset in silo_asset_changes:
-            #     token = self._web3.toChecksumAddress( asset['token'])
-            #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
-                
-            #     # Different wording for Beans, unripe assets, and tokens with unknown value.
-            #     if token == BEAN_ADDR or token.startswith(UNRIPE_TOKEN_PREFIX):
-            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_deposits=eth_chain.token_to_float(asset['delta_amount'], decimals))
-            #     # Known BDV.
-            #     else:
-            #         ret_string += SeasonsMonitor.silo_balance_delta_str(token_symbol, delta_bdv=eth_chain.bean_to_float(asset['delta_bdv']))
 
             # Barn.
             ret_string += f'\n\n**Barn**'
@@ -430,7 +438,7 @@ class SeasonsMonitor(Monitor):
             # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'
 
             # silo_bdv = 0
-            # for asset in current_season_stats.assets:
+            # for asset in current_season_stats.pre_assets:
             #     token = self._web3.toChecksumAddress(asset['token'])
             #     token_name, token_symbol, decimals = eth_chain.get_erc20_info(token, web3=self._web3)
             #     silo_bdv += eth_chain.bean_to_float(asset['totalDepositedBDV'])
@@ -480,32 +488,6 @@ class SeasonsMonitor(Monitor):
         else:
             raise ValueError(
                 'Must specify either delta_deposits or bdv (Bean denominated value)')
-        return ret_string
-
-    @abstractmethod
-    def silo_balance_delta_str(name, delta_deposits=None, delta_bdv=None):
-        """Return string representing the change in total deposited amount of a token."""
-        if delta_deposits is not None:
-            delta = delta_deposits
-        elif delta_bdv is not None:
-            delta = delta_bdv
-        else:
-            raise ValueError(
-                'Must specify either delta_deposits or bdv (Bean denominated value)')
-        ret_string = f'\n'
-        if abs(delta) < 1.0:
-            ret_string += f'🗒 No change in {name}'
-        else:
-            ret_string += f'📉' if delta < 0 else f'📈'
-            # Use with the token directly or its Bean value equivalent.
-            if delta_deposits:
-                ret_string += f' {round_num(abs(delta), 0)}'
-                ret_string += f' decrease' if delta < 0 else f' increase'
-                ret_string += f' in {name}'
-            else:
-                ret_string += f' {round_num(abs(delta), 0)} BDV'
-                ret_string += f' decrease' if delta < 0 else f' increase'
-                ret_string += f' in {name}'
         return ret_string
 
 #### DEPRECATED. WILL NEED REFRESHER BEFORE USING AGAIN.

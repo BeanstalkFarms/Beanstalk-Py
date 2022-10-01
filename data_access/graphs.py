@@ -24,6 +24,18 @@ PRICE_FIELD = 'price'
 TIMESTAMP_FIELD = 'timestamp'
 LAST_PEG_CROSS_FIELD = 'lastCross'
 
+# Somewhat arbitrary prediction of number of assets that have to be pulled to be sure that all
+# assets of interest across 1 most recent season are retrieved. This is a function of number of 
+# assets. User will need to consider potential early leading seasons from withdrawals, and 
+# bypassing ongoing season season. So should be
+# at least current # of assets * 3 (with 1 season withdraw delay). This is used to
+# pull down graph data that is not properly grouped by season due to implementation issues with
+# subgraph. Will probably need to be increased someday. Would be better to find it
+# programmatically, but regularly checking the subgraph creates an inefficiency and I am tired
+# of compensating for subgraph implementation problems here. 
+# SeeBeanstalkSqlClient.get_num_silo_assets().
+MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
+
 # Newline character to get around limits of f-strings.
 NEWLINE_CHAR = '\n'
 
@@ -31,10 +43,12 @@ SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
 
 # BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
 #     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
-BEAN_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/bean'
+# BEAN_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/bean'
+BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
 # BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
 #     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
-BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
+# BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
+BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
 
 
 class BeanSqlClient(object):
@@ -188,6 +202,8 @@ class BeanstalkSqlClient(object):
 
     def silo_assets_seasonal_changes(self, current_silo_assets=None, previous_silo_assets=None):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
+
+        parameters are same shape as SeasonStats.pre_assets - lists of dicts.
         
         Note that season snapshots are created at the beginning of each season and updated throughout season.
 
@@ -195,12 +211,18 @@ class BeanstalkSqlClient(object):
             Map of asset deltas with keys [token, delta_amount, delta_bdv].
         """
         if current_silo_assets is None or previous_silo_assets is None:
-            current_silo_assets, previous_silo_assets = [season_stats.assets for season_stats in self.seasons_stats(
+            current_silo_assets, previous_silo_assets = [season_stats.pre_assets for season_stats in self.seasons_stats(
                 seasons=False, siloHourlySnapshots=True, fieldHourlySnapshots=False)]
+        
+        # If there are a different number of assets between seasons, do not associate, just accept it is edge case and display less data.
+        if len(current_silo_assets) != len(previous_silo_assets):
+            logging.warning('Number of assets in this season changed. Was a new asset added?')
+            return []
 
         assets_changes = []
         for i in range(len(previous_silo_assets)):
             assets_changes.append(AssetChanges(previous_silo_assets[i], current_silo_assets[i]))
+        logging.info(f'assets_changes: {assets_changes}')
         return assets_changes
 
     def seasons_stats(self, num_seasons=2, seasons=True, siloHourlySnapshots=True, fieldHourlySnapshots=True):
@@ -232,13 +254,20 @@ class BeanstalkSqlClient(object):
                     season
                     hourlyBeanMints #newFarmableBeans
                     totalDepositedBDV
-                    silo {{
-                        assets(first: 100, orderBy: totalDepositedBDV, orderDirection: desc,
-                               where: {{totalDepositedAmount_gt: "0"}}) {{
-                            token
-                            totalDepositedAmount
-                            totalDepositedBDV
-                        }}
+                }}
+                siloAssetHourlySnapshots(
+                    orderBy: season
+                    orderDirection: desc
+                    first: {(num_seasons + 2) * MAX_ASSET_SNAPSHOTS_PER_SEASON}
+                    where: {{totalDepositedAmount_gt: "0",
+                             siloAsset_: {{silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
+                           }}
+                ) {{
+                    totalDepositedAmount
+                    totalDepositedBDV
+                    season
+                    siloAsset {{
+                        token
                     }}
                 }}
             """
@@ -270,8 +299,39 @@ class BeanstalkSqlClient(object):
                 'Killing all processes due to inability to access Beanstalk subgraph...')
             sys.exit(0)
 
-        # Return list of SeasnStat class instances
+        # Return list of SeasonStats class instances
         return [SeasonStats(result, i) for i in range(num_seasons)]
+
+
+    def get_num_silo_assets(self):
+        """
+        The Beanstalk graph silo entities contain a lot of irrelevant 'assets'. This function will
+        return the number of assets we are actually interested in, deduced programmatically from 
+        the subgraph.
+
+        NOTE(funderberker): UNTESTED
+        """
+        query_str = """
+            silo(id: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5") {
+                assets(first: 100, where: {totalDepositedAmount_gt: "0"}) {
+                    token
+                    totalDepositedAmount
+                }
+            }
+        """
+
+        # Create gql query and execute.
+        try:
+            result = execute(self._client, query_str)
+        except GraphAccessException as e:
+            logging.exception(e)
+            logging.error(
+                'Killing all processes due to inability to access Beanstalk subgraph...')
+            sys.exit(0)
+
+        # Return number of assets matching filters.
+        return len(result['silo']['assets'])
+    
 
 ### DEPRECATED VIA SUBGRAPH IMPL CHANGES ###
 '''
@@ -352,13 +412,16 @@ class SeasonStats():
 
     Populated from subgraph data.
     """
-    def __init__(self, graph_seasons_response, season_index=0):
+    def __init__(self, graph_seasons_response, season_index=0, season=None):
         """Create a SeasonStats object directly from the response of a graphql request.
 
         If the response contains multiple seasons use the season_index to pull desired season.
         """
+        season_index = int(season_index)
+        if season is None and 'seasons' not in graph_seasons_response:
+            raise ValueError('Must specify season or include season data to create SeasonStats object.')
+        self.season = season or graph_seasons_response['seasons'][season_index]['season']
         if 'seasons' in graph_seasons_response:
-            self.season = graph_seasons_response['seasons'][season_index]['season']
             self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
             self.price = float(graph_seasons_response['seasons'][season_index]['price'])
             self.delta_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['deltaBeans']) # deltaB at beginning of season
@@ -368,7 +431,14 @@ class SeasonStats():
         if 'siloHourlySnapshots' in graph_seasons_response:
             self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
             self.total_deposited_bdv = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['totalDepositedBDV'])
-            self.assets = graph_seasons_response['siloHourlySnapshots'][season_index]['silo']['assets'] # Beans minted this season # newFarmableBeans
+            # List of each asset at the start of the season. Note that this is offset by 1 from subgraph data.
+            self.pre_assets = []
+            logging.info(f'siloAssetHourlySnapshots: {graph_seasons_response["siloAssetHourlySnapshots"]}')
+            for asset_season_snapshot in graph_seasons_response['siloAssetHourlySnapshots']:
+                # Shift back by one season since asset amounts represent current/end of season values.
+                if int(asset_season_snapshot['season']) == self.season - 1:
+                    self.pre_assets.append(asset_season_snapshot)
+            logging.info(f'self.pre_assets: {self.pre_assets}')
         if 'fieldHourlySnapshots' in graph_seasons_response:
             self.weather = float(graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'])
             self.newPods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newPods'])
@@ -381,12 +451,18 @@ class AssetChanges():
     def __init__(self, init_season_asset, final_season_asset):
         self.init_season_asset = init_season_asset
         self.final_season_asset = final_season_asset
-        self.token = init_season_asset['token']
+        self.token = init_season_asset['siloAsset']['token']
         self.delta_asset = int(
             final_season_asset['totalDepositedAmount']) - int(init_season_asset['totalDepositedAmount'])
+        # self.delta_asset_percent = (
+        #     int(final_season_asset['totalDepositedAmount']) /
+        #     int(init_season_asset['totalDepositedAmount']) - 1) * 100
         self.delta_bdv = int(
             final_season_asset['totalDepositedBDV']) - int(init_season_asset['totalDepositedBDV'])
-        
+        # self.delta_bdv_percent = (
+        #     int(final_season_asset['totalDepositedBDV']) /
+        #     int(init_season_asset['totalDepositedBDV']) - 1) * 100
+
 
 class GraphAccessException(Exception):
     """Failed to access the graph."""
