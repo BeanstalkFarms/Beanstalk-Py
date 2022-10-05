@@ -390,13 +390,13 @@ class SeasonsMonitor(Monitor):
 
                 ### VERSION 1
                 if delta_asset < 0:
-                    ret_string += f'📉 {round_num(abs(delta_asset * asset_bdv), 0)} BDV Withdrawn'
+                    ret_string += f'📉 {round_num(abs(delta_asset * asset_bdv), 0)} BDV'
                 elif delta_asset == 0:
                     ret_string += f'🧾 No change'
                 else:
-                    ret_string += f'📈 {round_num(abs(delta_asset * asset_bdv), 0)} BDV Deposited'
-                # ret_string += f' -  {token_symbol}  ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
-                ret_string += f' -  {token_symbol}  ({round_num_auto(eth_chain.bean_to_float(current_bdv)/1000000, sig_fig_min=2)} mmBDV)'
+                    ret_string += f'📈 {round_num(abs(delta_asset * asset_bdv), 0)} BDV'
+                # ret_string += f' — {token_symbol}  ({round_num(eth_chain.bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
+                ret_string += f' — {token_symbol}  ({round_num_auto(eth_chain.bean_to_float(current_bdv)/1000000, sig_fig_min=2)}M BDV)'
 
                 ### VERSION 2
                 # if delta_asset < 0:

@@ -43,13 +43,6 @@ CRV_DECIMALS = 18
 LUSD_DECIMALS = 18
 CURVE_POOL_TOKENS_DECIMALS = 18
 
-# Hardcoded human-readable names for tokens.
-HARDCODE_ADDRESS_TO_NAME = {
-    BEAN_ADDR:'Bean',
-    CURVE_BEAN_3CRV_ADDR:'Curve BEAN:3CRV LP',
-    UNRIPE_3CRV_ADDR:'Unripe 3CRV LP',
-}
-
 
 UNI_V2_POOL_FEE = 0.003  # %
 
@@ -77,9 +70,9 @@ STARTSOIL_INDEX = 0
 # Incomplete of Beanstalk Terming of Tokens for human use.
 TOKEN_SYMBOL_MAP = {
     BEAN_ADDR.lower() : 'BEAN',
-    CURVE_BEAN_3CRV_ADDR.lower() : 'BEAN:3CRV',
+    CURVE_BEAN_3CRV_ADDR.lower() : 'BEAN3CRV',
     UNRIPE_ADDR.lower() : 'urBEAN',
-    UNRIPE_3CRV_ADDR.lower() : 'urBEAN:3CRV'
+    UNRIPE_3CRV_ADDR.lower() : 'urBEAN3CRV'
 }
 
 
