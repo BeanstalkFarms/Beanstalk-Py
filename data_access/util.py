@@ -8,7 +8,7 @@ def get_with_retries(request_url, max_tries=10):
     try_count = 0
     while True:
         try:
-            response = requests.get(request_url)
+            response = requests.get(request_url, timeout=6)
             logging.info(f'Response: {response}')
             return response.json()
 
