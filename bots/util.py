@@ -1604,18 +1604,11 @@ def value_to_emojis(value):
 def number_to_emoji(n):
     """Take an int as a string or int and return the corresponding # emoji. Above 10 returns '#'."""
     n = int(n)
-    if n == 0: return '0️⃣'
-    elif n == 1: return '1️⃣'
-    elif n == 2: return '2️⃣'
-    elif n == 3: return '3️⃣'
-    elif n == 4: return '4️⃣'
-    elif n == 5: return '5️⃣'
-    elif n == 6: return '6️⃣'
-    elif n == 7: return '7️⃣'
-    elif n == 8: return '8️⃣'
-    elif n == 9: return '9️⃣'
-    elif n == 10: return '🔟'
-    else: return '#️⃣'
+    if n == 0: return '🏆'
+    elif n == 1: return '🥇'
+    elif n == 2: return '🥈'
+    elif n == 3: return '🥉'
+    else: return '🏅'
 
 def percent_to_moon_emoji(percent):
     """Convert a float percent (e.g. .34) to a gradient moon emoji."""
