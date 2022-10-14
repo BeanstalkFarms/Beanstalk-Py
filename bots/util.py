@@ -675,9 +675,11 @@ class CurvePoolMonitor(Monitor):
         Assumes that there are no non-Bean:3CRV TokenExchangeUnderlying events in logs.
         Note that Event Log Object is not the same as Event object.
         """
+        # NOTE(funderberker): Using txn function to determine what is happening no longer works 
+        # because nearly everything is embedded into farm(bytes[] data) calls.
         # Ignore Silo Convert txns, which will be handled by the Beanstalk monitor.
-        transaction = self._eth_event_client._web3.eth.get_transaction(txn_hash)
-        if sig_compare(transaction['input'][:9], eth_chain.convert_sigs.values()):
+        if event_sig_in_txn(eth_chain.BEANSTALK_EVENT_MAP['Convert'], txn_hash):
+            logging.info('Ignoring pool txn, reporting as convert instead.')
             return
         
         if self.pool_type == eth_chain.EventClientType.CURVE_BEAN_3CRV_POOL:
@@ -685,11 +687,11 @@ class CurvePoolMonitor(Monitor):
         # No default since each pool must have support manually built in.
         for event_log in event_logs:
             event_str = self.any_event_str(
-                event_log, bean_price, transaction)
+                event_log, bean_price)
             if event_str:
                 self.message_function(event_str)
 
-    def any_event_str(self, event_log, bean_price, transaction):
+    def any_event_str(self, event_log, bean_price):
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         sold_id = event_log.args.get('sold_id')
@@ -1527,8 +1529,19 @@ class MsgHandler(logging.Handler):
         return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
 
 def event_in_logs(name, event_logs):
+    """Return True if an event with given name is in the set of logs. Else return False."""
     for event_log in event_logs:
         if event_log.event == name:
+            return True
+    return False
+
+def event_sig_in_txn(event_sig, txn_hash, web3=None):
+    """Return True if an event signature appears in any logs from a txn. Else return False."""
+    if not web3:
+        web3 = eth_chain.get_web3_instance()
+    receipt = web3.eth.get_transaction_receipt(txn_hash)
+    for log in receipt.logs:
+        if log.topics[0].hex() == event_sig:
             return True
     return False
 

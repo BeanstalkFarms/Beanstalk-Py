@@ -103,7 +103,6 @@ add_event_to_dict('Burn(address,uint256,uint256,address)',
 add_event_to_dict('Swap(address,uint256,uint256,uint256,uint256,address)',
                   UNISWAP_POOL_EVENT_MAP, UNISWAP_POOL_SIGNATURES_LIST)
 
-# NOTE(funderberker): This may not be the appropriate or comprehensive set of events.
 CURVE_POOL_EVENT_MAP = {}
 CURVE_POOL_SIGNATURES_LIST = []
 add_event_to_dict('TokenExchange(address,int128,uint256,int128,uint256)',
@@ -178,7 +177,6 @@ add_event_to_dict('TransferSingle(address,address,address,uint256,uint256)',
                   FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
 add_event_to_dict('TransferBatch(address,address,address,uint256[],uint256[])',
                   FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
-print(FERTILIZER_EVENT_MAP)
 
 
 def generate_sig_hash_map(sig_str_list):
@@ -647,10 +645,10 @@ class EthEventsClient():
 
         # Track which unique logs have already been processed from this event batch.
         for entry in new_entries:
-            # This should only be triggered when pulling dry run test entries set directly since it
-            # will include entries from other contracts.
-            if entry.address != self._contract_address:
-                continue
+            # # This should only be triggered when pulling dry run test entries set directly since it
+            # # will include entries from other contracts.
+            # if entry.address != self._contract_address:
+            #     continue
             # The event topic associated with this entry.
             topic_hash = entry['topics'][0].hex()
 
@@ -925,6 +923,11 @@ def get_test_entries():
     from hexbytes import HexBytes
     time.sleep(1)
     entries = [
+
+        # Entries are a 1:1 mapping with events. A single txn can have have multiple entries and
+        # multiple events. Different events/entries for the same txn will have different topics
+        # if they are for a different event type. So a single txn may need multiple entries here.
+
         # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x9ec4bb0665ea05462c94c6482051d656f0d8d9f087acc9f835b4ee26f4944f9e'), 'blockNumber': 13816727, 'data': '0x0000000000000000000000000000000000000000000000000000000000000c4c0000000000000000000000000000000000000000000000000000000000168678',
         #               'logIndex': 698, 'removed': False, 'topics': [HexBytes('0x916fd954accea6bad98fd6d8dda65058a5a16511534ebb14b2380f24aa61cc3a'), HexBytes('0x000000000000000000000000821acf4602b9d57da21dee0c3db45e71143c0b45')], 'transactionHash': HexBytes('0xf9665147a5d4f518b71c6f1239a84b5db3aaac980d5992a075e45249959bf1de'), 'transactionIndex': 158}),
         # AttributeDict({'address': '0x87898263B6C5BABe34b4ec53F22d98430b91e371', 'blockHash': HexBytes('0xd1e2eba6747cf9598e155b6d2da9eac7d24c0601b5a5842a6ae6b72a6e16fe65'), 'blockNumber': 13817493, 'data': '0x000000000000000000000000000000000000000000000000554528d91e9a45ce0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006164581d0',
@@ -1002,7 +1005,17 @@ def get_test_entries():
         # # Farmer's market: PodOrderFilled, after re-order.
         # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'topics': [HexBytes('0xcde76f76bb5e9a4f97126b0428845b44e01404c9fc99ce9eeb029533f77e5ca9'), HexBytes('0x000000000000000000000000de13b8b32a0c7c1c300cd4151772b7ebd605660b'), HexBytes('0x000000000000000000000000eafc0e4acf147e53398a4c9ae5f15950332cce06')],
         #               'data': '0x656f15e31fde7a753fa054712ff9a3f3fd50bf38c365f6eb917d1872ccb3dca80000000000000000000000000000000000000000000000000000265ac54b663b0000000000000000000000000000000000000000000000000000004015d49b3e00000000000000000000000000000000000000000000000000000000c75315aa', 'blockNumber': 14374880, 'transactionHash': HexBytes('0xc9c8ecf03558d4c4bbdbf02f9cf2fdafa6b0e186b754ef2d6cd6c18af5c0cb71'), 'transactionIndex': 288, 'blockHash': HexBytes('0x99111767441abfbf1094ecb8b96c17ad16ba90635da5d0b5578de541380d60f1'), 'logIndex':372, 'removed': False}),
-
+        # Convert to Beans (x5), each with different topics from different entries / logs.
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xe33e870abfdc94f16b84690bb691174f893d5c11c376f4ed4b7c9cda7fc12a10'), 'blockNumber': 15721919, 'data': '0x0000000000000000000000000000000000000000000000000000000000001ddc0000000000000000000000000000000000000000000000000000000000310ee50000000000000000000000000000000000000000000000000000000000310ee5', 'logIndex': 17,
+                      'removed': False, 'topics': [HexBytes('0xdbe49eaf5c2a8a7f65920c200ca5d47395540b884f6a1886fdb2611624f9981b'), HexBytes('0x00000000000000000000000087c9e571ae1657b19030eee27506c5d7e66ac29e'), HexBytes('0x000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab')], 'transactionHash': HexBytes('0xaa09fc851308f808acec5badb44df10234a2beb128b4bd609d6368b88bb3e954'), 'transactionIndex': 6}),
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xe33e870abfdc94f16b84690bb691174f893d5c11c376f4ed4b7c9cda7fc12a10'), 'blockNumber': 15721919, 'data': '0x000000000000000000000000c9c32cd16bf7efb85ff14e0c8603cc90f6f2ee49000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab00000000000000000000000000000000000000000000018b7a074d6eae]206eee00000000000000000000000000000000000000000000000000000001b2e2854c',
+                      'logIndex': 30, 'removed': False, 'topics': [HexBytes('0x3f7117900f070f33613da64255c3e8a5b791ff071197653712e53fde9c3dab3d'), HexBytes('0x00000000000000000000000087c9e571ae1657b19030eee27506c5d7e66ac29e')], 'transactionHash': HexBytes('0xaa09fc851308f808acec5badb44df10234a2beb128b4bd609d6368b88bb3e954'), 'transactionIndex': 6}),
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xe33e870abfdc94f16b84690bb691174f893d5c11c376f4ed4b7c9cda7fc12a10'), 'blockNumber': 15721919, 'data': '0x000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000018b7a074d6eae206eee000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000017d4000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000018b7a074d6eae206eee',
+                      'logIndex': 24, 'removed': False, 'topics': [HexBytes('0x5546b2ec4df884f6457f3f55f277a96bceff5c3d163925fd706cfc65c3bc5bc3'), HexBytes('0x00000000000000000000000087c9e571ae1657b19030eee27506c5d7e66ac29e'), HexBytes('0x000000000000000000000000c9c32cd16bf7efb85ff14e0c8603cc90f6f2ee49')], 'transactionHash': HexBytes('0xaa09fc851308f808acec5badb44df10234a2beb128b4bd609d6368b88bb3e954'), 'transactionIndex': 6}),
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xe33e870abfdc94f16b84690bb691174f893d5c11c376f4ed4b7c9cda7fc12a10'), 'blockNumber': 15721919, 'data': '0x0000000000000000000000000000000000000000000000000000000000310ee5', 'logIndex': 20, 'removed': False, 'topics': [
+                      HexBytes('0xa5b32e50fecda2ccbfc130436ca7957154138f097b2a834f19ce579afd2d8427'), HexBytes('0x00000000000000000000000087c9e571ae1657b19030eee27506c5d7e66ac29e')], 'transactionHash': HexBytes('0xaa09fc851308f808acec5badb44df10234a2beb128b4bd609d6368b88bb3e954'), 'transactionIndex': 6}),
+        AttributeDict({'address': '0xc9C32cd16Bf7eFB85Ff14e0c8603cc90F6F2eE49', 'blockHash': HexBytes('0xe33e870abfdc94f16b84690bb691174f893d5c11c376f4ed4b7c9cda7fc12a10'), 'blockNumber': 15721919, 'data': '0x00000000000000000000000000000000000000000000018b7a074d6eae206eee00000000000000000000000000000000000000000000000000000001b2e2854c0000000000000000000000000000000000000000001741f2fc140e556ee0469e',
+                      'logIndex': 23, 'removed': False, 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5')], 'transactionHash': HexBytes('0xaa09fc851308f808acec5badb44df10234a2beb128b4bd609d6368b88bb3e954'), 'transactionIndex': 6}),
         # Bean:3CRV RemoveLiquidityOne - remove Bean.
         AttributeDict({'address': '0xc9C32cd16Bf7eFB85Ff14e0c8603cc90F6F2eE49', 'blockHash': HexBytes('0x1b6ea196d0a669dac906db5d20105a34ba6cd881b4ee2904a40c496599ff485f'), 'blockNumber': 15318843, 'data': '0x000000000000000000000000000000000000000000000f0410de0ab4bcf3ab7a0000000000000000000000000000000000000000000000000000001084364d840000000000000000000000000000000000000000001dbcbf16c93639317b55dd',
                       'logIndex': 242, 'removed': False, 'topics': [HexBytes('0x5ad056f2e28a8cec232015406b843668c1e36cda598127ec3b8c59b8c72773a0'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5')], 'transactionHash': HexBytes('0xc91ae5056aebbf162ddcbaf6c6767e0c7d70d704f1b923cf883d7ff5e0051c0f'), 'transactionIndex': 165}),
