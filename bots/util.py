@@ -1628,7 +1628,9 @@ def percent_to_moon_emoji(percent):
 
 PDT_OFFSET = 7 * 60 * 60
 holiday_schedule = [
-    (1662768000, 1662854400 + PDT_OFFSET, '🏮') # Mid Autumn Festival, UTC+9 9:00 - UTC-7 24:00
+    (1662768000, 1662854400 + PDT_OFFSET, '🏮'), # Mid Autumn Festival, UTC+9 9:00 - UTC-7 24:00
+    (1666681200, 1667296800, '🎃'), # Halloween, Oct 24 - Nov 1
+    (1669287600, 1669374000, '🦃') # US Thanksgiving, Nov 24 - Nov 25
 ]
 
 def holiday_emoji():
