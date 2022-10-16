@@ -1,5 +1,8 @@
 """
 Tools to inspect diamond contracts. Tailored to Beanstalk.
+
+This doesn't do much more than txn_parse.py, but it is less about printing information and a 
+clean example of how to parse farm() txns.
 """
 import argparse
 import logging

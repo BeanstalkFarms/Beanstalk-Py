@@ -51,7 +51,7 @@ def format_log_str(log, indent=0):
     ret_str_list = []
     for key, value in log.items():
         if isinstance(value, AttributeDict):
-            str_value = f'\n{format_log_str(value, 4)}'
+            str_value = f'\n{format_log_str(value, 2)}'
         elif isinstance(value, HexBytes):
             str_value = value.hex()
         else:
@@ -140,12 +140,12 @@ def format_farm_call_str(decoded_txn, beanstalk_contract):
         decoded_sub_method_call = beanstalk_contract.decode_function_input(
             sub_method_call_bytes)
         logging.info(f'decoded_sub_method_call: {decoded_sub_method_call}')
-        ret_str += f'    sub-call: {decoded_sub_method_call[0].function_identifier}'
-        ret_str += '\n    args:'
+        ret_str += f'  sub-call: {decoded_sub_method_call[0].function_identifier}'
+        ret_str += '\n  args:'
         for arg_name, value in decoded_sub_method_call[1].items():
             # Clean up bytes as strings for printing.
             if type(value) is bytes:
                 value = value.hex()
-            ret_str += f'\n        {arg_name}: {value}'
-        ret_str += '\n'
+            ret_str += f'\n    {arg_name}: {value}'
+        ret_str += '\n\n'
     return ret_str

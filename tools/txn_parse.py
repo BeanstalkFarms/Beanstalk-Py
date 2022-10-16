@@ -4,25 +4,6 @@ Tool to extract all information about a transaction from chain.
 Example use:
 python3 -m tools.txn_puller 0x61ce4cfaf84ad70d83299c10e4dda09a6a593f8a328ac3db9e683088c2637f68
 python3 txn_puller.py 0x34f24706cb3cbd26da893e8abf181e1868c11f95a7f39891baa842f19e61b72f -p ../constants/abi/beanstalk_abi.json
-
-Web3 lib txn receipt structure:
-TxReceipt = TypedDict("TxReceipt", {
-    "blockHash": HexBytes,
-    "blockNumber": BlockNumber,
-    "contractAddress": Optional[ChecksumAddress],
-    "cumulativeGasUsed": int,
-    "effectiveGasPrice": int,
-    "gasUsed": Wei,
-    "from": ChecksumAddress,
-    "logs": List[LogReceipt],
-    "logsBloom": HexBytes,
-    "root": HexStr,
-    "status": int,
-    "to": ChecksumAddress,
-    "transactionHash": HexBytes,
-    "transactionIndex": int,
-})
-
 """
 
 import argparse
@@ -80,4 +61,6 @@ if __name__ == '__main__':
     if decoded_txn[0].function_identifier == 'farm' and txn.to == constants.addresses.BEANSTALK_ADDR:
         print(tools.util.format_farm_call_str(decoded_txn, contract))
     else:
-        print(f'args:\n{decoded_txn[1]}')
+        print(f'args:')
+        for arg_name, value in decoded_txn[1].items():
+            print(f'    arg_name: {value}')
