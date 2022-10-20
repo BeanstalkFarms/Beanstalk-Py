@@ -55,7 +55,7 @@ BARN_RAISE_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
 # Bytes in 50 megabytes.
 ONE_HUNDRED_MEGABYTES = 100**6
 # Initial time to wait before reseting dead monitor.
-RESET_MONITOR_DELAY_INIT = 5  # seconds
+RESET_MONITOR_DELAY_INIT = 15  # seconds
 # Timestamp for start of Barn Raise.
 BARN_RAISE_START_TIME = 1652112000 # seconds
 
@@ -1485,7 +1485,10 @@ class NFTPreviewMonitor(PreviewMonitor):
             # Set bot name and status.
             # Floor price preview.
             if self.display_index in [0, 1, 2]:
-                collection_stats = self.opensea_api.collection_stats(collection_slug=slug)['stats']
+                logging.info('Retrieving OpenSea data for {slug} slug...')
+                collection = self.opensea_api.collection_stats(collection_slug=slug)
+                logging.info('OpenSea data for {slug} slug:\n{collection}')
+                collection_stats = collection['stats']
                 name_str = f'Floor: {collection_stats["floor_price"]}Ξ'
                 status_str = f'{name}'
                 
