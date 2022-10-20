@@ -143,7 +143,7 @@ class Monitor():
             except Exception as e:
                 logging.error(f'Unhandled exception in the {self.name} thread.'
                               f'\n**restarting the monitor**.')
-                logging.exception(e)
+                logging.warning(e, exc_info=True)
             # Reset the restart delay after a stretch of successful running.
             if time.time() > retry_time + 3600:
                 self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
@@ -1375,10 +1375,12 @@ class PricePreviewMonitor(PreviewMonitor):
         super().__init__('Price', name_function, status_function, 4)
         self.HOURS = 24
         self.last_name = ''
-        self.bean_client = eth_chain.BeanClient()
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.bean_client = None
+        self.beanstalk_graph_client = None
 
     def _monitor_method(self):
+        self.bean_client = eth_chain.BeanClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
@@ -1422,11 +1424,13 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
     def __init__(self, name_function, status_function):
         super().__init__('Barn Raise Preview', name_function, status_function, 2)
         self.last_name = ''
-        self.beanstalk_client = eth_chain.BeanstalkClient()
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.beanstalk_client = None
+        self.beanstalk_graph_client = None
         # self.snapshot_sql_client = SnapshotSqlClient()
 
     def _monitor_method(self):
+        self.beanstalk_client = eth_chain.BeanstalkClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
@@ -1452,9 +1456,10 @@ class NFTPreviewMonitor(PreviewMonitor):
 
     def __init__(self, name_function, status_function):
         super().__init__('NFT', name_function, status_function, 2)
-        self.opensea_api = OpenseaAPI()
+        self.opensea_api = None
 
     def _monitor_method(self):
+        self.opensea_api = OpenseaAPI()
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
