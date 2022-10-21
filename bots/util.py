@@ -1455,7 +1455,7 @@ class NFTPreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into BeaNFT collections."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('NFT', name_function, status_function, 2)
+        super().__init__('NFT', name_function, status_function, 2, check_period=APPROX_BLOCK_TIME)
         self.opensea_api = None
 
     def _monitor_method(self):
@@ -1485,9 +1485,9 @@ class NFTPreviewMonitor(PreviewMonitor):
             # Set bot name and status.
             # Floor price preview.
             if self.display_index in [0, 1, 2]:
-                logging.info('Retrieving OpenSea data for {slug} slug...')
+                logging.info(f'Retrieving OpenSea data for {slug} slug...')
                 collection = self.opensea_api.collection_stats(collection_slug=slug)
-                logging.info('OpenSea data for {slug} slug:\n{collection}')
+                logging.info(f'OpenSea data for {slug} slug:\n{collection}')
                 collection_stats = collection['stats']
                 name_str = f'Floor: {collection_stats["floor_price"]}Ξ'
                 status_str = f'{name}'
