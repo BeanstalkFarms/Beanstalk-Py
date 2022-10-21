@@ -61,7 +61,7 @@ BARN_RAISE_START_TIME = 1652112000 # seconds
 
 GENESIS_SLUG="beanft-genesis"
 WINTER_SLUG="beanft-collection"
-# BARN_RAISE_SLUG=""
+BARN_RAISE_SLUG="beanft-barnraise-collection"
 
 
 class PegCrossType(Enum):
@@ -1455,7 +1455,7 @@ class NFTPreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into BeaNFT collections."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('NFT', name_function, status_function, 2, check_period=APPROX_BLOCK_TIME)
+        super().__init__('NFT', name_function, status_function, 3, check_period=APPROX_BLOCK_TIME)
         self.opensea_api = None
 
     def _monitor_method(self):
@@ -1475,9 +1475,9 @@ class NFTPreviewMonitor(PreviewMonitor):
             elif self.display_index == 1:
                 slug = WINTER_SLUG
                 name = 'Winter BeaNFT'
-            # elif self.display_index == 2:
-            #     slug = BARN_RAISE_SLUG
-            #     name = 'Barn Raise BeaNFT'
+            elif self.display_index == 2:
+                slug = BARN_RAISE_SLUG
+                name = 'Barn Raise BeaNFT'
             else:
                 logging.exception('Invalid status index for NFT Preview Bot.')
                 continue
