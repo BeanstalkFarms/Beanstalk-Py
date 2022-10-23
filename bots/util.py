@@ -20,7 +20,7 @@ from data_access.graphs import BeanSqlClient, BeanstalkSqlClient
 from data_access import eth_chain
 from data_access.etherscan import get_gas_base_fee
 from data_access.coin_gecko import get_token_price, ETHEREUM_CG_ID
-
+import tools.util
 
 # Strongly encourage Python 3.8+.
 # If not 3.8+ uncaught exceptions on threads will not be logged.
@@ -1049,7 +1049,7 @@ class MarketMonitor(Monitor):
         Note that Event Log Object is not the same as Event object.
         """
         # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction_receipt = eth_chain.get_txn_receipt_or_wait(
+        transaction_receipt = tools.util.get_txn_receipt_or_wait(
             self._web3, txn_hash)
 
         # Handle txn logs individually using default strings.
@@ -1547,7 +1547,7 @@ def event_sig_in_txn(event_sig, txn_hash, web3=None):
     """Return True if an event signature appears in any logs from a txn. Else return False."""
     if not web3:
         web3 = eth_chain.get_web3_instance()
-    receipt = web3.eth.get_transaction_receipt(txn_hash)
+    receipt = tools.util.get_txn_receipt_or_wait(web3, txn_hash)
     for log in receipt.logs:
         if log.topics[0].hex() == event_sig:
             return True

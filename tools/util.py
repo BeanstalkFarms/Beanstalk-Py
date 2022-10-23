@@ -5,7 +5,6 @@ import os
 import time
 from web3 import Web3, WebsocketProvider
 from web3.datastructures import AttributeDict
-from web3.exceptions import TransactionNotFound
 from web3.logs import DISCARD
 
 
@@ -16,9 +15,6 @@ web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
 def decode_logs(txn_receipt, event):
     """Returns all decoded logs of an event in a receipt."""
     return event.processReceipt(txn_receipt, errors=DISCARD)
-
-#  self.beanstalk_contract.events['PodOrderCancelled']().processReceipt(transaction_receipt, errors=eth_chain.DISCARD)
-
 
 def get_decoded_logs(txn_receipt, contract):
     """Get all decoded logs from a single contract in a receipt.
@@ -69,17 +65,17 @@ def web3_call_with_retries(web3_function, max_retries=5):
     def retry_wrapper(web3, txn_hash):
         try_count = 0
         while True:
+            try_count += 1
             try:
                 return web3_function(web3, txn_hash)
-            except TransactionNotFound as e:
-                if try_count > max_retries:
-                    logging.error(
-                        f'Failed to get txn after {try_count} retries. Was the block orphaned?')
-                    raise (e)
-                logging.warning(f'Failed to get txn. Retrying...\n{e}')
-            # ~ 1 ETH block time.
-            time.sleep(15)
-            try_count += 1
+            except Exception as e:
+                if try_count < max_retries:
+                    logging.warning(f'Failed to get txn. Retrying...\n{e}')
+                    time.sleep(15)
+                    continue
+                logging.error(
+                    f'Failed to get txn after {try_count} retries. Was the block orphaned?')
+                raise (e)
     return retry_wrapper
 
 
