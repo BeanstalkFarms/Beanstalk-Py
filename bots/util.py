@@ -1543,8 +1543,12 @@ def event_sig_in_txn(event_sig, txn_hash, web3=None):
         web3 = get_web3_instance()
     receipt = tools.util.get_txn_receipt_or_wait(web3, txn_hash)
     for log in receipt.logs:
-        if log.topics[0].hex() == event_sig:
-            return True
+        try:
+            if log.topics[0].hex() == event_sig:
+                return True
+        # Ignore anonymous events (logs without topics).
+        except IndexError:
+            pass
     return False
 
 
