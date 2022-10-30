@@ -115,6 +115,13 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_barn_raise, report_events=True, report_summaries=False, prod=prod, dry_run=False)
         self.barn_raise_monitor.start()
 
+
+        # Ignore exceptions of this type and retry. Note that no logs will be generated.
+        # Ignore base class, because we always want to reconnect.
+        # https://discordpy.readthedocs.io/en/latest/api.html#discord.ClientUser.edit
+        # https://discordpy.readthedocs.io/en/latest/api.html#exceptions
+        self._update_naming.add_exception_type(discord.DiscordException)
+        
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         self.send_queued_messages.add_exception_type(
             discord.errors.DiscordServerError)
