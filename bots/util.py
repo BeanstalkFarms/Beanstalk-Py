@@ -60,8 +60,8 @@ RESET_MONITOR_DELAY_INIT = 15  # seconds
 BARN_RAISE_START_TIME = 1652112000  # seconds
 
 GENESIS_SLUG = "beanft-genesis"
-WINTER_SLUG = "beanft-collection"
-BARN_RAISE_SLUG = "beanft-barnraise-collection"
+WINTER_SLUG = "beanft-winter"
+BARN_RAISE_SLUG = "beanft-barn-raise"
 
 
 class PegCrossType(Enum):
