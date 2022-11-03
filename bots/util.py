@@ -1287,7 +1287,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
     def set_nickname(self, text):
         """Set bot server nickname."""
-        self.nickname = holiday_emoji() + text
+        self.nickname = text
 
     def set_status(self, text):
         """Set bot custom status text."""
@@ -1308,7 +1308,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
             self.current_guilds.append(guild)
             logging.info(f'Guild found: {guild.id}')
 
-    @tasks.loop(seconds=0.1, reconnect=True)
+    @tasks.loop(seconds=1, reconnect=True)
     async def _update_naming(self):
         if self.nickname:
             # Note(funderberker): Is this rate limited?
@@ -1379,7 +1379,7 @@ class PricePreviewMonitor(PreviewMonitor):
             price_info = self.bean_client.get_price_info()
             bean_price = self.bean_client.avg_bean_price(price_info=price_info)
             delta_b = self.bean_client.total_delta_b(price_info=price_info)
-            name_str = f'BEAN: ${round_num(bean_price, 4)}'
+            name_str = f'{holiday_emoji()}BEAN: ${round_num(bean_price, 4)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
@@ -1430,7 +1430,7 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
             percent_funded = self.beanstalk_client.get_recap_funded_percent()
             fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
-            name_str = f'Sold: ${round_num(fertilizer_bought, 0)}'
+            name_str = f'{holiday_emoji()}Sold: ${round_num(fertilizer_bought, 0)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
@@ -1483,7 +1483,7 @@ class NFTPreviewMonitor(PreviewMonitor):
                     collection_slug=slug)
                 logging.info(f'OpenSea data for {slug} slug:\n{collection}')
                 collection_stats = collection['stats']
-                name_str = f'Floor: {collection_stats["floor_price"]}Ξ'
+                name_str = f'{holiday_emoji()}Floor: {collection_stats["floor_price"]}Ξ'
                 status_str = f'{name}'
 
             self.name_function(name_str)
@@ -1501,7 +1501,7 @@ class EthPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             gas_base_fee = get_gas_base_fee()
             eth_price = get_token_price(ETHEREUM_CG_ID)
-            self.name_function(f'{round_num(gas_base_fee, 1)} Gwei')
+            self.name_function(f'{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei')
             self.status_function(f'ETH: ${round_num(eth_price)}')
 
 
