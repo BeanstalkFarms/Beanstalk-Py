@@ -4,6 +4,7 @@ from collections import OrderedDict
 import discord
 from discord.ext import tasks, commands
 from enum import Enum, IntEnum
+import re
 import logging
 from opensea import OpenseaAPI
 import os
@@ -1667,6 +1668,14 @@ def msg_includes_embedded_links(msg):
     if msg.count(']('):
         return True
 
+def strip_custom_discord_emojis(text):
+    """Remove custom discord emojis using regex."""
+    # <:beanstalker:1004908839394615347>
+    stripped_type_0 = re.sub(r'<:[Z-z]+:[0-9]+>', ' ', text)
+    # :PU_PeepoPumpkin:
+    # Unclear if this second type will come in normal workflow.
+    stripped_type_1 = re.sub(r':[0-z]+:', ' ', text)
+    return stripped_type_1
 
 def handle_sigterm(signal_number, stack_frame):
     """Process a sigterm with a python exception for clean exiting."""

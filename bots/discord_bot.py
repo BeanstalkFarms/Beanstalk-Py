@@ -8,6 +8,7 @@ import logging.handlers
 import os
 import signal
 import subprocess
+import telebot
 
 import discord
 from discord.ext import tasks, commands
@@ -24,11 +25,16 @@ DISCORD_CHANNEL_ID_MARKET = 940729085095723069
 DISCORD_CHANNEL_ID_REPORT = 943711736391933972
 DISCORD_CHANNEL_ID_BARN_RAISE = 969594841455558717
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
+TELEGRAM_FWD_CHAT_ID_TEST = "-1001655547288"  # Beanstalk Bot Testing channel
+TELEGRAM_FWD_CHAT_ID_PRODUCTION = "@beanstalkUSD"  # Beanstalk Announcements channel ("-1001544001982")
 BUCKET_NAME = 'bots_data_8723748'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
 STAGE_BLOB_NAME = 'stage_channel_to_wallets'
 WALLET_WATCH_LIMIT = 10
 
+DISCORD_CHANNEL_ID_ANNOUNCEMENTS = 880500642546851850
+DISCORD_CHANNEL_ID_WEEKLY_UPDATES = 1025448845594861718
+DISCORD_CHANNEL_ID_SNAPSHOTS = 975498149223366786
 
 class Channel(Enum):
     PEG = 0
@@ -38,11 +44,12 @@ class Channel(Enum):
     MARKET = 4
     REPORT = 5
     BARN_RAISE = 6
+    TELEGRAM_FWD = 7
 
 
 class DiscordClient(discord.ext.commands.Bot):
 
-    def __init__(self, prod=False):
+    def __init__(self, prod=False, telegram_token=None):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
         # self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
@@ -63,6 +70,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
             self._chat_id_market = DISCORD_CHANNEL_ID_MARKET
             self._chat_id_barn_raise = DISCORD_CHANNEL_ID_BARN_RAISE
+            self._chat_id_telegram_fwd = TELEGRAM_FWD_CHAT_ID_PRODUCTION
             logging.info('Configured as a production instance.')
         else:
             # NOTE(funderberker): LOCAL TESTING
@@ -74,6 +82,7 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_market = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_barn_raise = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_telegram_fwd = TELEGRAM_FWD_CHAT_ID_TEST
             logging.info('Configured as a staging instance.')
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
@@ -86,6 +95,14 @@ class DiscordClient(discord.ext.commands.Bot):
         self.channel_id_to_channel = {}
 
         self.msg_queue = []
+
+        self.channels_to_fwd = [DISCORD_CHANNEL_ID_ANNOUNCEMENTS,
+                                DISCORD_CHANNEL_ID_WEEKLY_UPDATES]
+        # # For dry_run testing.
+        # self.channels_to_fwd = [DISCORD_CHANNEL_ID_TEST_BOT]
+        self.tele_bot = None
+        if telegram_token is not None:
+            self.tele_bot = telebot.TeleBot(telegram_token, parse_mode='Markdown')
 
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
@@ -166,6 +183,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the Barn Raise channel."""
         self.msg_queue.append((Channel.BARN_RAISE, text))
 
+    def send_msg_telegram_fwd(self, text):
+        """Forward a message through the Telegram bot in the Beanstalk chat."""
+        self.msg_queue.append((Channel.TELEGRAM_FWD, text))
+
     async def on_ready(self):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_peg = self.get_channel(self._chat_id_peg)
@@ -224,7 +245,7 @@ class DiscordClient(discord.ext.commands.Bot):
             logging.error('Failed to send DM')
             logging.exception(e)
 
-    @tasks.loop(seconds=0.1, reconnect=True)
+    @tasks.loop(seconds=0.4, reconnect=True)
     async def send_queued_messages(self):
         """Send messages in queue.
 
@@ -261,6 +282,11 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_market.send(msg)
                 elif channel is Channel.BARN_RAISE:
                     await self._channel_barn_raise.send(msg)
+                elif channel is Channel.TELEGRAM_FWD:
+                    if self.tele_bot is not None:
+                        self.tele_bot.send_message(chat_id=self._chat_id_telegram_fwd, text=msg)
+                    else:
+                        logging.warning('Discord tele_bot not configured to forward. Ignoring...')
                 # If channel is a channel_id string.
                 elif type(channel) == str:
                     await self.send_dm(channel, msg)
@@ -268,11 +294,15 @@ class DiscordClient(discord.ext.commands.Bot):
                     logging.error(
                         'Unknown channel seen in msg queue: {channel}')
                 self.msg_queue = self.msg_queue[1:]
+        except telebot.apihelper.ApiTelegramException as e:
+            logging.warning(e, exc_info=True)
+            logging.warning(
+                'Failed to send message to Telegram bot. Will ~not~ retry.')
+            self.msg_queue = self.msg_queue[1:]
         except Exception as e:
             logging.warning(e, exc_info=True)
             logging.warning(
                 'Failed to send message to Discord server. Will retry.')
-            return
 
     @send_queued_messages.before_loop
     async def before_send_queued_messages_loop(self):
@@ -284,6 +314,13 @@ class DiscordClient(discord.ext.commands.Bot):
         # Do not reply to itself.
         if message.author.id == self.user.id:
             return
+
+        # If the message was in a channel we want to forward to Telegram.
+        if message.channel.id in self.channels_to_fwd:
+            forwarded_message = f'Forwarded Discord message\n' \
+                f'From *{message.author}* in {message.channel.name}\n\n' \
+                f'{util.strip_custom_discord_emojis(message.content)}'
+            self.send_msg_telegram_fwd(forwarded_message)
 
         # Process commands.
         await self.process_commands(message)
@@ -506,12 +543,14 @@ if __name__ == '__main__':
     # Automatically detect if this is a production environment.
     try:
         token = os.environ["DISCORD_BOT_TOKEN_PROD"]
+        telegram_token = os.environ["TELEGRAM_BOT_TOKEN_PROD"]
         prod = True
     except KeyError:
         token = os.environ["DISCORD_BOT_TOKEN"]
+        telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
 
-    discord_client = DiscordClient(prod=prod)
+    discord_client = DiscordClient(prod=prod, telegram_token=telegram_token)
 
     try:
         discord_client.run(token)
