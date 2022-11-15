@@ -1259,6 +1259,130 @@ class BarnRaiseMonitor(Monitor):
             self.message_function(event_str)
 
 
+class RootMonitor(Monitor):
+    """Monitor Root token contract."""
+
+    def __init__(self, message_function, prod=False, dry_run=False):
+        super().__init__('RootMonitor', message_function,
+                         APPROX_BLOCK_TIME, prod=prod, dry_run=dry_run)
+        self._eth_event_client = EthEventsClient(EventClientType.ROOT_TOKEN)
+        self.root_client = RootClient()
+
+    def _monitor_method(self):
+        last_check_time = 0
+        while self._thread_active:
+            if time.time() < last_check_time + APPROX_BLOCK_TIME:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
+                self._handle_txn_logs(txn_hash, event_logs)
+
+    def _handle_txn_logs(self, txn_hash, event_logs):
+        """Process the root token event logs for a single txn.
+
+        Note that Event Log Object is not the same as Event object.
+        """
+        root_bdv = self.root_client.get_root_token_bdv()
+        for event_log in event_logs:
+            event_str = self.any_event_str(event_log, root_bdv)
+            if event_str:
+                self.message_function(event_str)
+
+    def any_event_str(self, event_log, root_bdv):
+        event_str = ''
+        # Parse possible values of interest from the event log.
+        account = event_log.args.get('account')
+        deposits = event_log.args.get('deposits')
+        bdv = event_log.args.get('bdv')
+        stalk = event_log.args.get('stalk')
+        seeds = event_log.args.get('seeds')
+        shares = event_log.args.get('shares')
+        value_bdv = root_bdv * shares # is this always the same as event arg 'bdv' ?
+
+        if event_log.event == 'Mint':
+            event_str += f' {shares} Root minted from {bdv} BDV'
+        elif event_log.event == 'Redeem':
+            event_str += f' {shares} Root redeemed for {bdv} BDV'
+        else:
+            logging.warning(
+                f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
+
+        event_str += f'\n{value_to_emojis(value_bdv)}'
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # Empty line that does not get stripped.
+        event_str += '\n_ _'
+        return event_str
+
+
+
+class BettingMonitor(Monitor):
+    """Monitor the Root Betting contract(s)."""
+
+    def __init__(self, message_function, prod=False, dry_run=False):
+        super().__init__('Betting', message_function,
+                         BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._eth_event_client = EthEventsClient(EventClientType.BETTING)
+        self._web3 = get_web3_instance()
+        self.root_client = RootClient(self._web3)
+        self.betting_client = BettingClient(self._web3)
+
+    def _monitor_method(self):
+        last_check_time = 0
+        while self._thread_active:
+            if time.time() < last_check_time + BEANSTALK_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
+                self._handle_txn_logs(txn_hash, event_logs)
+
+    def _handle_txn_logs(self, txn_hash, event_logs):
+        """Process the root event logs for a single txn.
+
+        Note that Event Log Object is not the same as Event object.
+        """
+        root_bdv = self.root_client.get_root_token_bdv()
+        for event_log in event_logs:
+            event_str = self.any_event_str(event_log, root_bdv)
+            if event_str:
+                self.message_function(event_str)
+
+    def any_event_str(self, event_log, root_bdv):
+        event_str = ''
+
+        # Parse possible values of interest from the event log.
+        pool_id = event_log.args.get('poolId')
+
+        number_of_teams = event_log.args.get('numberOfTeams')
+        start_time = event_log.args.get('startTime')
+
+        player = event_log.args.get('player')
+        team_id = event_log.args.get('teamId')
+        amount = event_log.args.get('amount') or 0
+
+        pool = self.betting_client.get_pool(pool_id)
+        value_bdv = root_bdv * amount
+
+        if event_log.event == 'BetPlaced':
+            team = self.betting_client.get_pool_team(pool_id, team_id)
+            event_str += f'🎲 Bet Placed - {value_bdv} BDV on {team["name"]} in {pool["eventName"]} Pool'
+        elif event_log.event == 'PoolCreated':
+            event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
+        elif event_log.event == 'PoolStarted':
+            event_str += f'📣 Pool Started - {pool["eventName"]}'
+        else:
+            logging.warning(
+                f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
+
+        event_str += f'\n{value_to_emojis(value_bdv)}'
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # Empty line that does not get stripped.
+        event_str += '\n_ _'
+        return event_str
+
+
+
 class DiscordSidebarClient(discord.ext.commands.Bot):
 
     def __init__(self, monitor, prod=False):
@@ -1333,7 +1457,10 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
 
 class PreviewMonitor(Monitor):
-    """Base class for Discord Sidebar monitors. Do not use directly."""
+    """Base class for Discord Sidebar monitors. Do not use directly.
+    
+    Discord bot applications permissions needed: Change Nickname
+    """
 
     def __init__(self, name, name_function, status_function, display_count=0, check_period=PREVIEW_CHECK_PERIOD):
         super().__init__(name, lambda s: None, check_period, prod=True)
@@ -1357,7 +1484,8 @@ class PreviewMonitor(Monitor):
 
     def iterate_display_index(self):
         """Iterate the display index by one, looping at max display count."""
-        self.display_index = (self.display_index + 1) % self.display_count
+        if self.display_count != 0:
+            self.display_index = (self.display_index + 1) % self.display_count
 
 
 class PricePreviewMonitor(PreviewMonitor):
@@ -1504,6 +1632,34 @@ class EthPreviewMonitor(PreviewMonitor):
             eth_price = get_token_price(ETHEREUM_CG_ID)
             self.name_function(f'{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei')
             self.status_function(f'ETH: ${round_num(eth_price)}')
+
+
+class RootValuePreviewMonitor(PreviewMonitor):
+    """Monitor data that offers view into current Root token status via discord nickname/status."""
+
+    def __init__(self, name_function, status_function):
+        super().__init__('RootValue', name_function, status_function, 0)
+        self.HOURS = 24
+        self.last_name = ''
+        self.root_client = None
+
+    def _monitor_method(self):
+        self.root_client = RootClient()
+        self.status_function('Root Token Value in BDV\n(BDV = Bean denominated Value)')
+        while self._thread_active:
+            self.wait_for_next_cycle()
+            self.iterate_display_index()
+
+            root_bdv = self.root_client.get_root_token_bdv()
+            name_str = f'ROOT: {round_num(root_bdv, 4)} BDV'
+            if name_str != self.last_name:
+                self.name_function(name_str)
+                self.last_name = name_str
+
+            # # Rotate data and update status.
+            # if self.display_index == 0:
+            #     self.status_function(
+            #         f'')
 
 
 class MsgHandler(logging.Handler):

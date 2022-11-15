@@ -12,7 +12,7 @@ if __name__ == '__main__':
     logging.basicConfig(format=f'Discord Eth Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
-                                "discord_eth_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES/5),
+                                "discord_eth_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 

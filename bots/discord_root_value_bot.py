@@ -1,5 +1,3 @@
-"""Bot for the Discord sidebar that displays pricing information for all BeaNFT collections."""
-
 import logging
 import logging.handlers
 import os
@@ -9,10 +7,10 @@ from bots import util
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format=f'Discord NFT Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
+    logging.basicConfig(format=f'Discord Root Value Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
                         level=logging.INFO, handlers=[
                             logging.handlers.RotatingFileHandler(
-                                "discord_nft_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1),
+                                "discord_root_value_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1),
                             logging.StreamHandler()])
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
@@ -20,15 +18,15 @@ if __name__ == '__main__':
 
     # Automatically detect if this is a production environment.
     try:
-        token = os.environ["DISCORD_NFT_BOT_TOKEN_PROD"]
+        token = os.environ["DISCORD_ROOT_VALUE_BOT_TOKEN_PROD"]
         prod = True
         logging.info('Configured as a production instance.')
     except KeyError:
-        # Note this is the shared discord staging bot.
+        # Note this is the *shared* discord staging bot.
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    client = util.DiscordSidebarClient(util.NFTPreviewMonitor)
+    client = util.DiscordSidebarClient(util.RootValuePreviewMonitor)
 
     try:
         client.run(token)

@@ -35,8 +35,9 @@ URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 ETH_DECIMALS = 18
 LP_DECIMALS = 18
 BEAN_DECIMALS = 6
-POD_DECIMALS = 6
 SOIL_DECIMALS = 6
+POD_DECIMALS = 6
+ROOT_DECIMALS = 18
 DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
@@ -180,6 +181,28 @@ add_event_to_dict('TransferBatch(address,address,address,uint256[],uint256[])',
                   FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
 
 
+# Root token events.
+ROOT_EVENT_MAP = {}
+ROOT_SIGNATURES_LIST = []
+add_event_to_dict('Mint(address,DepositTransfer[],uint256,uint256,uint256,uint256)',
+                  ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
+add_event_to_dict('Redeem(address,DepositTransfer[],uint256,uint256,uint256,uint256)',
+                  ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
+
+
+# Root token events.
+BETTING_EVENT_MAP = {}
+BETTING_SIGNATURES_LIST = []
+# Betting contract.
+add_event_to_dict('BetPlaced(uint256,address,uint256,uint256);',
+                  BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
+# Pool management contract.
+add_event_to_dict('PoolCreated(uint256,uint256,uint256);',
+                  BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
+add_event_to_dict('PoolStarted(uint256);',
+                  BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
+
+
 def generate_sig_hash_map(sig_str_list):
     return {sig.split('(')[0]: Web3.keccak(
         text=sig).hex() for sig in sig_str_list}
@@ -234,6 +257,15 @@ with open(os.path.join(os.path.dirname(__file__),
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/fertilizer_abi.json')) as fertilizer_abi_file:
     fertilizer_abi = json.load(fertilizer_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/root_abi.json')) as root_abi_file:
+    root_abi = json.load(root_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/betting_abi.json')) as betting_abi_file:
+    betting_abi = json.load(betting_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/betting_admin_abi.json')) as betting_admin_abi_file:
+    betting_admin_abi = json.load(betting_admin_abi_file)
 
 
 def get_web3_instance():
@@ -286,6 +318,21 @@ def get_fertilizer_contract(web3):
     """Get a web.eth.contract object for the Barn Raise Fertilizer contract. Contract is not thread safe."""
     return web3.eth.contract(
         address=FERTILIZER_ADDR, abi=fertilizer_abi)
+
+def get_root_contract(web3):
+    """Get a web.eth.contract object for the Root Token contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=ROOT_ADDR, abi=root_abi)
+
+def get_betting_admin_contract(web3):
+    """Get a web.eth.contract object for the betting pools contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=BETTING_ADMIN_ADDR, abi=betting_admin_abi)
+
+def get_betting_contract(web3):
+    """Get a web.eth.contract object for the betting bets contract. Contract is not thread safe."""
+    return web3.eth.contract(
+        address=BETTING_ADDR, abi=betting_abi)
 
 def get_erc20_contract(web3, address):
     """Get a web3.eth.contract object for a standard ERC20 token contract."""
@@ -454,6 +501,45 @@ class BeanClient(ChainClient):
         """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
 
+
+class RootClient(ChainClient):
+    """Common functionality related to the Root token."""
+
+    def __init__(self, web3=None):
+        super().__init__(web3)
+        self.price_contract = get_root_contract(self._web3)
+
+    def get_root_token_bdv(self):
+        """Get BDV of the root token and return as float."""
+        logging.info('Getting root BDV...', exc_info=True)
+        return root_to_float(call_contract_function_with_retry(
+            self.price_contract.functions.bdvPerRoot()))
+
+
+class BettingClient(ChainClient):
+    """Common functionality related to the Betting system."""
+
+    def __init__(self, web3=None):
+        super().__init__(web3)
+        self.pools_contract = get_betting_admin_contract(self._web3)
+        # self.bets_contract = get_betting_contract(self._web3)
+
+    def get_pool(self, pool_id):
+        """Get pool struct."""
+        pool_id = int(pool_id)
+        logging.info(f'Getting pool info for pool {pool_id}...')
+        return call_contract_function_with_retry(
+            self.pools_contract.functions.getPool(pool_id))
+
+    def get_pool_team(self, pool_id, team_id):
+        """Get team struct."""
+        pool_id = int(pool_id)
+        team_id = int(team_id)
+        logging.info(f'Getting pool team info for pool {pool_id} and team {team_id}...')
+        return call_contract_function_with_retry(
+            self.pools_contract.functions.getPoolTeam(pool_id, team_id))
+
+
 # NOTE(funderberker): Deprecated. No longer in use, has not been updated post Replant.
 class UniswapClient(ChainClient):
     def __init__(self, web3=None):
@@ -565,6 +651,8 @@ class EventClientType(IntEnum):
     MARKET = 1
     BARN_RAISE = 2
     CURVE_BEAN_3CRV_POOL = 3
+    ROOT_TOKEN = 4
+    BETTING = 5
 
 
 class EthEventsClient():
@@ -574,55 +662,75 @@ class EthEventsClient():
         self._web3 = get_web3_instance()
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
-            self._contract = get_bean_3crv_pool_contract(self._web3)
-            self._contract_address = CURVE_BEAN_3CRV_ADDR
+            self._contracts = [get_bean_3crv_pool_contract(self._web3)]
+            self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
-            self._set_filter()
+            self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
-            self._contract = get_beanstalk_contract(self._web3)
-            self._contract_address = BEANSTALK_ADDR
+            self._contracts = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
-            self._set_filter()
+            self._set_filters()
         elif self._event_client_type == EventClientType.MARKET:
-            self._contract = get_beanstalk_contract(self._web3)
-            self._contract_address = BEANSTALK_ADDR
+            self._contracts = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
-            self._set_filter()
+            self._set_filters()
         elif self._event_client_type == EventClientType.BARN_RAISE:
-            self._contract = get_fertilizer_contract(self._web3)
-            self._contract_address = FERTILIZER_ADDR
+            self._contracts = [get_fertilizer_contract(self._web3)]
+            self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
-            self._set_filter()
+            self._set_filters()
+        elif self._event_client_type == EventClientType.ROOT_TOKEN:
+            self._contracts = [get_root_contract(self._web3)]
+            self._contract_addresses = [ROOT_ADDR]
+            self._events_dict = ROOT_EVENT_MAP
+            self._signature_list = ROOT_SIGNATURES_LIST
+            self._set_filters()
+        elif self._event_client_type == EventClientType.BETTING:
+            self._contracts = [get_betting_admin_contract(self._web3), get_betting_contract(self._web3)]
+            self._contract_addresses = [betting_admin_ADDR, betting_ADDR]
+            self._events_dict = BETTING_EVENT_MAP
+            self._signature_list = BETTING_SIGNATURES_LIST
+            self._set_filters()
         else:
             raise ValueError("Illegal event client type.")
 
 
 
-    def _set_filter(self):
+    def _set_filters(self):
         """This is located in a method so it can be reset on the fly."""
-        self._event_filter = safe_create_filter(self._web3,
-            address=self._contract_address,
-            topics=[self._signature_list],
-            # from_block=10581687, # Use this to search for old events. # Rinkeby
-            # from_block=14205000, # Use this to search for old events. # Mainnet
-            from_block='latest',
-            to_block='latest'
-        )
+        self._event_filters = []
+        for address in self._contract_addresses:
+            self._event_filters.append(
+                safe_create_filter(self._web3,
+                    address=address,
+                    topics=[self._signature_list],
+                    # from_block=10581687, # Use this to search for old events. # Rinkeby
+                    # from_block=14205000, # Use this to search for old events. # Mainnet
+                    from_block='latest',
+                    to_block='latest'
+                )
+            )
 
     def get_log_range(self, from_block, to_block='latest'):
-        filter = safe_create_filter(self._web3,
-            address=self._contract_address,
-            topics=[self._signature_list],
-            from_block=from_block,
-            to_block=to_block
-        )
-        return self.get_new_logs(filter=filter, get_all=True)
+        filters = []
+        for address in self._contract_addresses:
+            filters.append(
+                safe_create_filter(self._web3,
+                    address=address,
+                    topics=[self._signature_list],
+                    from_block=from_block,
+                    to_block=to_block
+                )
+            )
+        return self.get_new_logs(filters=filters, get_all=True)
 
-    def get_new_logs(self, dry_run=False, filter=None, get_all=False):
+    def get_new_logs(self, dry_run=False, filters=None, get_all=False):
         """Iterate through all entries passing filter and return list of decoded Log Objects.
 
         Each on-chain event triggered creates one log, which is associated with one entry. We
@@ -633,13 +741,15 @@ class EthEventsClient():
         Note that there may be multiple unique entries with the same topic. Though we assume
         each entry indicates one log of interest.
         """
-        if filter is None:
-            filter = self._event_filter
+        if filters is None:
+            filters = self._event_filters
         # All decoded logs of interest from each txn.
         txn_logs_dict = {}
 
         if not dry_run:
-            new_entries = self.safe_get_new_entries(filter, get_all=get_all)
+            new_entries = []
+            for filter in filters:
+                new_entries.extend(self.safe_get_new_entries(filter, get_all=get_all))
         else:
             new_entries = get_test_entries()
             time.sleep(3)
@@ -846,6 +956,7 @@ def call_contract_function_with_retry(function, max_tries=10):
         except Exception as e:
             if try_count < max_tries:
                 try_count += 1
+                time.sleep(0.5)
                 continue
             else:
                 logging.error(
@@ -878,6 +989,10 @@ def soil_to_float(soil_long):
 
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
+
+
+def root_to_float(root_long):
+    return token_to_float(root_long, ROOT_DECIMALS)
 
 
 def dai_to_float(dai_long):
