@@ -791,9 +791,13 @@ class EthEventsClient():
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
-                # logging.warning(self._contract.events[self._events_dict[signature]]())
-                decoded_logs.extend(self._contract.events[
-                    self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD)) 
+                for contract in self._contracts:
+                    try:
+                        decoded_logs.extend(contract.events[
+                            self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
+                    except Exception:
+                        # Try next contract if cannot decode from this contract.
+                        continue
             logging.info(f'Decoded logs:\n{decoded_logs}')
 
             # Prune unrelated logs - logs that are of the same event types we watch, but are
