@@ -1291,22 +1291,33 @@ class RootMonitor(Monitor):
 
     def any_event_str(self, event_log, root_bdv):
         event_str = ''
-        # Parse possible values of interest from the event log.
-        account = event_log.args.get('account')
-        deposits = event_log.args.get('deposits')
-        bdv = bean_to_float(event_log.args.get('bdv'))
-        stalk = stalk_to_float(event_log.args.get('stalk'))
-        seeds = seeds_to_float(event_log.args.get('seeds'))
-        shares = root_to_float(event_log.args.get('shares'))
-        value_bdv = root_bdv * shares # is this always the same as event arg 'bdv' ?
+        if event_log.event != 'Transfer':
+            logging.warning('IGNORING NON-TRANSFER EVENTS in ROOT TOKEN MONITOR')
+            return ''
+        # # Parse possible values of interest from the event log.
+        # account = event_log.args.get('account')
+        # deposits = event_log.args.get('deposits')
+        # bdv = bean_to_float(event_log.args.get('bdv'))
+        # stalk = stalk_to_float(event_log.args.get('stalk'))
+        # seeds = seeds_to_float(event_log.args.get('seeds'))
+        # shares = root_to_float(event_log.args.get('shares'))
+        # value_bdv = root_bdv * shares # is this always the same as event arg 'bdv' ?
 
-        if event_log.event == 'Mint':
-            event_str += f'🌳 {round_num(shares, 2)} Root minted from {round_num(bdv, 2)} BDV'
-        elif event_log.event == 'Redeem':
-            event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
+        amount = root_to_float(event_log.args.value)
+        value_bdv = root_bdv * amount # is this always the same as event arg 'bdv' ?
+
+        # if event_log.event == 'Mint':
+        #     event_str += f'🌳 {round_num(shares, 2)} Root minted from {round_num(bdv, 2)} BDV'
+        # elif event_log.event == 'Redeem':
+        #     event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
+        if event_log.args.get('from') == NULL_ADDR:
+            event_str += f'🌳 {round_num(amount, 2)} Root minted ({round_num(value_bdv, 2)} BDV)'
+        elif event_log.args.get('to') == NULL_ADDR:
+            event_str += f'🪓 {round_num(amount, 2)} Root redeemed ({round_num(value_bdv, 2)} BDV)'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
+            return ''
 
         event_str += f'\n{value_to_emojis(value_bdv)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
