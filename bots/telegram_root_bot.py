@@ -9,7 +9,8 @@ from bots import util
 from data_access.eth_chain import EventClientType
 
 TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
-TELE_CHAT_ID_PRODUCTION = "-1001688877681"  # Root Tracker channel
+TELE_CHAT_ID_ROOT_PRODUCTION = "-1001688877681"  # Root Tracker channel
+TELE_CHAT_ID_PARADOX_PRODUCTION = "-1001830693664"  # Paradox Tracker channel
 
 
 class TelegramBot(object):
@@ -17,34 +18,47 @@ class TelegramBot(object):
     def __init__(self, token, prod=False):
 
         if prod:
-            self._chat_id = TELE_CHAT_ID_PRODUCTION
+            self._chat_id_root = TELE_CHAT_ID_ROOT_PRODUCTION
+            self._chat_id_paradox = TELE_CHAT_ID_PARADOX_PRODUCTION
             logging.info('Configured as a production instance.')
         else:
-            self._chat_id = TELE_CHAT_ID_STAGING
+            self._chat_id_root = TELE_CHAT_ID_STAGING
+            self._chat_id_paradox = TELE_CHAT_ID_STAGING
             logging.info('Configured as a staging instance.')
 
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
 
-        self.token_monitor = util.RootMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.token_monitor = util.RootMonitor(self.send_msg_root, prod=prod, dry_run=False)
         self.token_monitor.start()
 
-        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.betting_monitor = util.BettingMonitor(self.send_msg_paradox, prod=prod, dry_run=False)
         self.betting_monitor.start()
 
-    def send_msg(self, msg):
+    def clean_msg(self, msg):
+        # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
+        # Remove URL pointy brackets used by md formatting to suppress link previews.
+        return msg.replace('<', '').replace('>', '')
+
+    def send_msg_root(self, msg):
         # Ignore empty messages.
         if not msg:
             return
-        # Remove URL pointy brackets used by md formatting to suppress link previews.
-        msg = msg.replace('<', '').replace('>', '')
-        # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
+        msg = self.clean_msg(msg)
         self.tele_bot.send_message(
-            chat_id=self._chat_id, text=msg, disable_web_page_preview=True)
-        logging.info(f'Message sent:\n{msg}\n')
+            chat_id=self._chat_id_root, text=msg, disable_web_page_preview=True)
+        logging.info(f'Message sent in root channel:\n{msg}\n')
+
+    def send_msg_paradox(self, msg):
+        # Ignore empty messages.
+        if not msg:
+            return
+        msg = self.clean_msg(msg)
+        self.tele_bot.send_message(
+            chat_id=self._chat_id_paradox, text=msg, disable_web_page_preview=True)
+        logging.info(f'Message sent in paradox channel:\n{msg}\n')
 
     def stop(self):
         self.token_monitor.stop()
-        self.betting_monitor.stop()
 
 
 if __name__ == '__main__':
