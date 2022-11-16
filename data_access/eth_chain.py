@@ -672,6 +672,7 @@ class EventClientType(IntEnum):
 class EthEventsClient():
     def __init__(self, event_client_type):
         # Track recently seen txns to avoid processing same txn multiple times.
+        self.all_got = False # Temp
         self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
         self._event_client_type = event_client_type
@@ -726,7 +727,7 @@ class EthEventsClient():
                     topics=[self._signature_list],
                     # from_block=10581687, # Use this to search for old events. # Rinkeby
                     # from_block=14205000, # Use this to search for old events. # Mainnet
-                    from_block='latest',
+                    from_block=15984396,
                     to_block='latest'
                 )
             )
@@ -851,7 +852,8 @@ class EthEventsClient():
         while try_count < 5:
             try_count += 1
             try:
-                if get_all:
+                if get_all and not self.all_got:
+                    self.all_got = True
                     return filter.get_all_entries()
                 # We must verify new_entries because get_new_entries() will occasionally pull
                 # entries that are not actually new. May be a bug with web3 or may just be a relic
@@ -1220,7 +1222,7 @@ def monitor_betting_events():
         topics=[BETTING_SIGNATURES_LIST],
         # from_block=10581687, # Use this to search for old events. # Rinkeby
         # from_block=14205000, # Use this to search for old events. # Mainnet
-        from_block=7931434,
+        from_block=15984396,
         to_block='latest'
     )
     entries = filter.get_all_entries()
