@@ -26,15 +26,17 @@ except KeyError:
 # # Local node testing address for foundry anvil node using https.
 # LOCAL_TESTING_URL = 'http://localhost:8545/'
 # # Goerli testing address.
-# API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
-# URL = 'wss://eth-goerli.g.alchemy.com/v2/' + ALCHEMY_GOERLI_API_KEY
-URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
+GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
+URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
+# URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
 LP_DECIMALS = 18
 BEAN_DECIMALS = 6
 SOIL_DECIMALS = 6
+STALK_DECIMALS = 10
+SEED_DECIMALS = 6
 POD_DECIMALS = 6
 ROOT_DECIMALS = 18
 DAI_DECIMALS = 18
@@ -193,12 +195,12 @@ add_event_to_dict('Redeem(address,DepositTransfer[],uint256,uint256,uint256,uint
 BETTING_EVENT_MAP = {}
 BETTING_SIGNATURES_LIST = []
 # Betting contract.
-add_event_to_dict('BetPlaced(uint256,address,uint256,uint256);',
+add_event_to_dict('BetPlaced(uint256,address,uint256,uint256)',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
 # Pool management contract.
-add_event_to_dict('PoolCreated(uint256,uint256,uint256);',
+add_event_to_dict('PoolCreated(uint256,uint256,uint256)',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
-add_event_to_dict('PoolStarted(uint256);',
+add_event_to_dict('PoolStarted(uint256)',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
 
 
@@ -511,7 +513,7 @@ class RootClient(ChainClient):
     def get_root_token_bdv(self):
         """Get BDV of the root token and return as float."""
         logging.info('Getting root BDV...', exc_info=True)
-        return root_to_float(call_contract_function_with_retry(
+        return bean_to_float(call_contract_function_with_retry(
             self.price_contract.functions.bdvPerRoot()))
 
 
@@ -527,16 +529,27 @@ class BettingClient(ChainClient):
         """Get pool struct."""
         pool_id = int(pool_id)
         logging.info(f'Getting pool info for pool {pool_id}...')
-        return call_contract_function_with_retry(
+        return_list = call_contract_function_with_retry(
             self.pools_contract.functions.getPool(pool_id))
+        return {
+            'id': return_list[0],
+            'numberOfTeams': return_list[1],
+            'eventName': return_list[2]
+        }
 
     def get_pool_team(self, pool_id, team_id):
         """Get team struct."""
         pool_id = int(pool_id)
         team_id = int(team_id)
         logging.info(f'Getting pool team info for pool {pool_id} and team {team_id}...')
-        return call_contract_function_with_retry(
+        return_list = call_contract_function_with_retry(
             self.pools_contract.functions.getPoolTeam(pool_id, team_id))
+        return {
+            'id': return_list[0],
+            'name': return_list[1],
+            'status': return_list[2],
+            'totalAmount': root_to_float(return_list[3])
+        }
 
 
 # NOTE(funderberker): Deprecated. No longer in use, has not been updated post Replant.
@@ -990,6 +1003,14 @@ def soil_to_float(soil_long):
     return token_to_float(soil_long, SOIL_DECIMALS)
 
 
+def stalk_to_float(soil_long):
+    return token_to_float(soil_long, STALK_DECIMALS)
+
+
+def seeds_to_float(soil_long):
+    return token_to_float(soil_long, SEED_DECIMALS)
+
+
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
 
@@ -1186,6 +1207,25 @@ def monitor_beanstalk_events():
         time.sleep(5)
 
 
+def monitor_betting_events():
+    # client = EthEventsClient(EventClientType.BETTING)
+    # while True:
+    #     events = client.get_new_logs(dry_run=False)
+    #     time.sleep(5)
+    web3 = get_web3_instance()
+    filter = safe_create_filter(web3,
+        address=BETTING_ADMIN_ADDR,
+        topics=[BETTING_SIGNATURES_LIST],
+        # from_block=10581687, # Use this to search for old events. # Rinkeby
+        # from_block=14205000, # Use this to search for old events. # Mainnet
+        from_block=7931434,
+        to_block='latest'
+    )
+    entries = filter.get_all_entries()
+    for entry in entries:
+        logging.warning(entry)
+
+
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
@@ -1194,5 +1234,6 @@ if __name__ == '__main__':
     # monitor_curve_pool_events()
     # bean_client = BeanClient()
     # bean_client.avg_bean_price()
-    curve_client = CurveClient()
-    print(curve_client.get_3crv_price())
+    # curve_client = CurveClient()
+    # print(curve_client.get_3crv_price())
+    monitor_betting_events()

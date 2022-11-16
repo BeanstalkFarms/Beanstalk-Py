@@ -1294,16 +1294,16 @@ class RootMonitor(Monitor):
         # Parse possible values of interest from the event log.
         account = event_log.args.get('account')
         deposits = event_log.args.get('deposits')
-        bdv = event_log.args.get('bdv')
-        stalk = event_log.args.get('stalk')
-        seeds = event_log.args.get('seeds')
-        shares = event_log.args.get('shares')
+        bdv = bean_to_float(event_log.args.get('bdv'))
+        stalk = stalk_to_float(event_log.args.get('stalk'))
+        seeds = seeds_to_float(event_log.args.get('seeds'))
+        shares = root_to_float(event_log.args.get('shares'))
         value_bdv = root_bdv * shares # is this always the same as event arg 'bdv' ?
 
         if event_log.event == 'Mint':
-            event_str += f' {shares} Root minted from {bdv} BDV'
+            event_str += f'🌳 {round_num(shares, 2)} Root minted from {round_num(bdv, 2)} BDV'
         elif event_log.event == 'Redeem':
-            event_str += f' {shares} Root redeemed for {bdv} BDV'
+            event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
@@ -1358,14 +1358,17 @@ class BettingMonitor(Monitor):
 
         player = event_log.args.get('player')
         team_id = event_log.args.get('teamId')
-        amount = event_log.args.get('amount') or 0
+        amount = root_to_float(event_log.args.get('amount')) or 0
 
         pool = self.betting_client.get_pool(pool_id)
         value_bdv = root_bdv * amount
 
         if event_log.event == 'BetPlaced':
-            team = self.betting_client.get_pool_team(pool_id, team_id)
-            event_str += f'🎲 Bet Placed - {value_bdv} BDV on {team["name"]} in {pool["eventName"]} Pool'
+            event_str += f'🎲 Bet Placed - {round_num(value_bdv, 0)} BDV'
+            if pool['numberOfTeams'] > 0:
+                team = self.betting_client.get_pool_team(pool_id, team_id)
+                event_str +=  f' on {team["name"]}'
+            event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
             event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
         elif event_log.event == 'PoolStarted':
