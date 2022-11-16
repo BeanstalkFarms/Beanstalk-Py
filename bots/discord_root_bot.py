@@ -20,7 +20,7 @@ DISCORD_CHANNEL_ID_BETTING = 1039026151168933928
 class Channel(Enum):
     REPORT = 0
     TOKEN = 1
-    BETTING = 1
+    BETTING = 2
 
 
 class DiscordClient(discord.ext.commands.Bot):
