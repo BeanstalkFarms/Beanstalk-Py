@@ -1337,6 +1337,7 @@ class BettingMonitor(Monitor):
             for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
                 self._handle_txn_logs(txn_hash, event_logs)
 
+
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the root event logs for a single txn.
 
@@ -1344,9 +1345,7 @@ class BettingMonitor(Monitor):
         """
         root_bdv = self.root_client.get_root_token_bdv()
         for event_log in event_logs:
-            event_str = self.any_event_str(event_log, root_bdv)
-            if event_str:
-                self.message_function(event_str)
+            self.message_function(self.any_event_str(event_log, root_bdv))
 
     def any_event_str(self, event_log, root_bdv):
         event_str = ''
@@ -1645,13 +1644,13 @@ class RootValuePreviewMonitor(PreviewMonitor):
 
     def _monitor_method(self):
         self.root_client = RootClient()
-        self.status_function('Root Token Value in BDV\n(BDV = Bean denominated Value)')
+        self.status_function('Root Token Value')
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
             root_bdv = self.root_client.get_root_token_bdv()
-            name_str = f'ROOT: {round_num(root_bdv, 4)} BDV'
+            name_str = f'ROOT: {round_num(root_bdv, 3)} BDV'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str

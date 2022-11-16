@@ -31,7 +31,7 @@ class TwitterRootBot(object):
             access_token=access_token, access_token_secret=access_token_secret
         )
 
-        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod)
+        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
         self.betting_monitor.start()
 
     def send_msg(self, msg):

@@ -21,15 +21,14 @@ try:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
 except KeyError:
     API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
-URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
-# URL = 'wss://phoenix.node.bean.money/ ' + API_KEY # Pheonix test node
-# NOTE(funderberker): LOCAL TESTING
-# URL = 'http://localhost:8545/' # local anvil test node
 
-# Rinkeby testing.
-# URL = 'wss://eth-rinkeby.alchemyapi.io/v2/XXXXXXXXXXXXXXXXXXX'
-# Ropsten testing.
-# URL = 'wss://ropsten.infura.io/ws/v3/XXXXXXXXXXXXXXXX' # 'wss://ropsten.infura.io/ws/v3/XXXXXXXXXXXXX'
+
+# # Local node testing address for foundry anvil node using https.
+# LOCAL_TESTING_URL = 'http://localhost:8545/'
+# # Goerli testing address.
+# API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
+# URL = 'wss://eth-goerli.g.alchemy.com/v2/' + ALCHEMY_GOERLI_API_KEY
+URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -270,11 +269,11 @@ with open(os.path.join(os.path.dirname(__file__),
 
 def get_web3_instance():
     """Get an instance of web3 lib."""
+    # # NOTE(funderberker): LOCAL TESTING (uses https due to local network constraints).
+    # return Web3(HTTPProvider(LOCAL_TESTING_URL))
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
-    # NOTE(funderberker): LOCAL TESTING
     return Web3(WebsocketProvider(URL, websocket_timeout=60))
-    # return Web3(HTTPProvider(URL))
 
 def get_eth_usdc_pool_contract(web3):
     """Get a web.eth.contract object for the uniswap ETH:USDC pool. Contract is not thread safe."""
@@ -693,7 +692,7 @@ class EthEventsClient():
             self._set_filters()
         elif self._event_client_type == EventClientType.BETTING:
             self._contracts = [get_betting_admin_contract(self._web3), get_betting_contract(self._web3)]
-            self._contract_addresses = [betting_admin_ADDR, betting_ADDR]
+            self._contract_addresses = [BETTING_ADMIN_ADDR, BETTING_ADDR]
             self._events_dict = BETTING_EVENT_MAP
             self._signature_list = BETTING_SIGNATURES_LIST
             self._set_filters()
