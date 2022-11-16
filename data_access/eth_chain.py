@@ -185,9 +185,9 @@ add_event_to_dict('TransferBatch(address,address,address,uint256[],uint256[])',
 # Root token events.
 ROOT_EVENT_MAP = {}
 ROOT_SIGNATURES_LIST = []
-add_event_to_dict('Mint(address,DepositTransfer[],uint256,uint256,uint256,uint256)',
+add_event_to_dict('Mint(address,tuple[],uint256,uint256,uint256,uint256)',
                   ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
-add_event_to_dict('Redeem(address,DepositTransfer[],uint256,uint256,uint256,uint256)',
+add_event_to_dict('Redeem(address,tuple[],uint256,uint256,uint256,uint256)',
                   ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
 
 
