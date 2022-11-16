@@ -26,9 +26,9 @@ except KeyError:
 # # Local node testing address for foundry anvil node using https.
 # LOCAL_TESTING_URL = 'http://localhost:8545/'
 # # Goerli testing address.
-GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
-URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
-# URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
+# GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
+# URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
+URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
