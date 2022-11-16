@@ -31,6 +31,9 @@ class TwitterRootBot(object):
             access_token=access_token, access_token_secret=access_token_secret
         )
 
+        self.token_monitor = util.RootMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.token_monitor.start()
+
         self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
         self.betting_monitor.start()
 
@@ -57,6 +60,7 @@ class TwitterRootBot(object):
         logging.info(f'Tweeted:\n{msg}\n')
 
     def stop(self):
+        self.token_monitor.stop()
         self.betting_monitor.stop()
 
     def infinity_polling(self):
