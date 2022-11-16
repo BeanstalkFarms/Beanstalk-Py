@@ -53,9 +53,9 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_token, prod=prod, dry_run=False)
         self.token_monitor.start()
 
-        self.betting_monitor = util.BettingMonitor(
-            self.send_msg_betting, prod=prod, dry_run=False)
-        self.betting_monitor.start()
+        # self.betting_monitor = util.BettingMonitor(
+        #     self.send_msg_betting, prod=prod, dry_run=False)
+        # self.betting_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         # Ignore base class, because we always want to reconnect.
@@ -71,7 +71,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.token_monitor.stop()
-        self.betting_monitor.stop()
+        # self.betting_monitor.stop()
 
     def send_msg_report(self, text):
         """Send a message through the Discord bot in the report/test channel."""
