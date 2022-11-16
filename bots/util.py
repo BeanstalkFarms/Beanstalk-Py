@@ -1291,8 +1291,8 @@ class RootMonitor(Monitor):
 
     def any_event_str(self, event_log, root_bdv):
         event_str = ''
-        if event_log.event != 'Transfer':
-            logging.warning('IGNORING NON-TRANSFER EVENTS in ROOT TOKEN MONITOR')
+        if event_log.event != 'Transfer' or event_log.addr != ROOT_ADDR:
+            logging.warning('IGNORING EVERYTHING THAT IS NOT A ROOT TRANSFER EVENT in ROOT TOKEN MONITOR')
             return ''
         # # Parse possible values of interest from the event log.
         # account = event_log.args.get('account')
