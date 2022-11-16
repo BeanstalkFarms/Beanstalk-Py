@@ -1275,7 +1275,7 @@ class RootMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run, get_all=True).items():
+            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
                 self._handle_txn_logs(txn_hash, event_logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
