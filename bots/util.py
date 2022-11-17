@@ -1369,7 +1369,8 @@ class BettingMonitor(Monitor):
 
         player = event_log.args.get('player')
         team_id = event_log.args.get('teamId')
-        winner_id = event_log.args.get('winnerId')
+
+        winner_ids = event_log.args.get('winnerId')
         amount = root_to_float(event_log.args.get('amount')) or 0
 
         pool = self.betting_client.get_pool(pool_id)
@@ -1387,8 +1388,11 @@ class BettingMonitor(Monitor):
         elif event_log.event == 'PoolStarted':
             event_str += f'📣 Pool Started - {pool["eventName"]}'
         elif event_log.event == 'PoolGraded':
-            team = self.betting_client.get_pool_team(pool_id, winner_id)
-            event_str += f'🏁 Pool Graded - {pool["eventName"]}: {team["name"]}'
+            winner_str = ''
+            for winner_id in winner_ids:
+                team = self.betting_client.get_pool_team(pool_id, winner_id)
+                winner_str += f' {team["name"]}'
+            event_str += f'🏁 Pool Graded - {pool["eventName"]}:{winner_str}'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')

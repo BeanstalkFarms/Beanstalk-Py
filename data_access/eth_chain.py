@@ -204,6 +204,8 @@ add_event_to_dict('PoolCreated(uint256,uint256,uint256)',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
 add_event_to_dict('PoolStarted(uint256)',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
+add_event_to_dict('PoolGraded(uint256,uint256[])',
+                  BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
 
 
 def generate_sig_hash_map(sig_str_list):
