@@ -1380,8 +1380,8 @@ class BettingMonitor(Monitor):
             event_str += f'🎲 Bet Placed - {round_num(amount, 0)} Roots'
             if pool['numberOfTeams'] > 0:
                 team = self.betting_client.get_pool_team(pool_id, team_id)
-                team_odds = team['totalAmount'] / pool['totalAmount']
-                event_str +=  f' on {team["name"]} ({round_num(team_odds*100, 2)}%)'
+                implied_odds = team['totalAmount'] / pool['totalAmount']
+                event_str +=  f' on {team["name"]} ({implied_odds_to_american(implied_odds)})'
             event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
             event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
@@ -1871,6 +1871,16 @@ def holiday_emoji():
             return emoji
     return ''
 
+def implied_odds_to_american(implied_odds):
+    """Convert implied odds float to American odds (str)."""
+    if implied_odds < 0 or implied_odds > 1:
+        raise ValueError('Implied odds must be normalized between 0-1')
+    # payout = 1 / implied_odds
+    profit = 1 / implied_odds * (1 - implied_odds)
+    if profit >= 1:
+        return f'+{round_num(profit*100, 0)}'
+    else:
+        return f'-{round_num(100/profit, 0)}'
 
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
