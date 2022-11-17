@@ -20,6 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('event_definition', type=str,
                         help='the str of the event contract definition. ex)  RemoveDeposit(address,address,uint32,uint256)')
     # parser.add_argument('-l', '--list', action='store_true', help='list beanstalk event definitions')
+    parser.add_argument('-e', '--show_entries', action='store_true', help='show event entries')
     parser.add_argument('-n', '--num_txns', type=int, default=1,
                         help='the max number of matching txns to return')
     parser.add_argument('-a', '--address', type=str,
@@ -61,7 +62,7 @@ if __name__ == '__main__':
         entries = filter.get_all_entries()
         for entry in reversed(entries):  # Newest to oldest.
             entry_matches.append(
-                (entry['transactionHash'].hex(), entry['blockNumber']))  # txn hash
+                (entry['transactionHash'].hex(), entry['blockNumber'], entry))  # txn hash
             if len(entry_matches) >= args.num_txns:
                 break
 
@@ -77,3 +78,5 @@ if __name__ == '__main__':
         print(f'Transactions containing event definition:')
         for match in entry_matches:
             print(f'{match[0]}  (block: {match[1]})')
+            if args.show_entries:
+                print(f'entry:\n{match[2]}')

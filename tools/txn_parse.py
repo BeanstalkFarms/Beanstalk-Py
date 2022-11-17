@@ -56,11 +56,16 @@ if __name__ == '__main__':
 
     # If a farm txn, decode the underlying farm method calls.
     txn = tools.util.get_txn_or_wait(web3, args.txn_hash)
-    decoded_txn = contract.decode_function_input(txn.input)
-    print(f'\n\nfunction: {decoded_txn[0].function_identifier}')
-    if decoded_txn[0].function_identifier == 'farm' and txn.to == constants.addresses.BEANSTALK_ADDR:
-        print(tools.util.format_farm_call_str(decoded_txn, contract))
-    else:
-        print(f'args:')
-        for arg_name, value in decoded_txn[1].items():
-            print(f'    arg_name: {value}')
+    decoded_txn = None
+    try:
+        decoded_txn = contract.decode_function_input(txn.input)
+    except ValueError as e:
+        logging.warning(e)
+    if decoded_txn is not None:
+        print(f'\n\nfunction: {decoded_txn[0].function_identifier}')
+        if decoded_txn[0].function_identifier == 'farm' and txn.to == constants.addresses.BEANSTALK_ADDR:
+            print(tools.util.format_farm_call_str(decoded_txn, contract))
+        else:
+            print(f'args:')
+            for arg_name, value in decoded_txn[1].items():
+                print(f'    arg_name: {value}')
