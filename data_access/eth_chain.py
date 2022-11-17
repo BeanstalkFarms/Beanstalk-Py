@@ -516,9 +516,15 @@ class RootClient(ChainClient):
 
     def get_root_token_bdv(self):
         """Get BDV of the root token and return as float."""
-        logging.info('Getting root BDV...', exc_info=True)
+        logging.info('Getting Root BDV...', exc_info=True)
         return bean_to_float(call_contract_function_with_retry(
             self.price_contract.functions.bdvPerRoot()))
+    
+    def get_total_supply(self):
+        """Get total supply of the root token and return as float."""
+        logging.info('Getting Root supply...', exc_info=True)
+        return root_to_float(call_contract_function_with_retry(
+            self.price_contract.functions.totalSupply()))
 
 
 class BettingClient(ChainClient):

@@ -1661,7 +1661,7 @@ class RootValuePreviewMonitor(PreviewMonitor):
     """Monitor data that offers view into current Root token status via discord nickname/status."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('RootValue', name_function, status_function, 0)
+        super().__init__('RootValue', name_function, status_function, 1)
         self.HOURS = 24
         self.last_name = ''
         self.root_client = None
@@ -1679,10 +1679,9 @@ class RootValuePreviewMonitor(PreviewMonitor):
                 self.name_function(name_str)
                 self.last_name = name_str
 
-            # # Rotate data and update status.
-            # if self.display_index == 0:
-            #     self.status_function(
-            #         f'')
+            # Rotate data and update status.
+            if self.display_index == 0:
+                self.status_function(f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
 
 
 class MsgHandler(logging.Handler):
