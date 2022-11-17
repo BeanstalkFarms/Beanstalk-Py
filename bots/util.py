@@ -1380,8 +1380,7 @@ class BettingMonitor(Monitor):
             event_str += f'🎲 Bet Placed - {round_num(amount, 0)} Roots'
             if pool['numberOfTeams'] > 0:
                 team = self.betting_client.get_pool_team(pool_id, team_id)
-                implied_odds = team['totalAmount'] / pool['totalAmount']
-                event_str +=  f' on {team["name"]} ({implied_odds_to_american(implied_odds)})'
+                event_str +=  f' on {team["name"]} ({get_american_odds(pool["totalAmount"], team["totalAmount"])})'
             event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
             event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
@@ -1686,20 +1685,23 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
     """Monitor data that offers view into live Paradox Pools via discord nickname/status."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('Betting', name_function, status_function, 0, check_period=PREVIEW_CHECK_PERIOD)
+        super().__init__('Betting', name_function, status_function, 2, check_period=PREVIEW_CHECK_PERIOD)
         self.last_name = ''
         self.betting_client = None
+        self.active_pool_index = 0
 
     def _monitor_method(self):
         self.betting_client = BettingClient()
         while self._thread_active:
-            self.wait_for_next_cycle()
             self.iterate_display_index()
 
             active_pools = self.betting_client.get_active_pools()
-            pool = active_pools[self.display_index]
-            # Update display count if there were on chain changes to set of pools.
-            self.display_count = len(active_pools)
+
+            if len(active_pools) == 0:
+                time.sleep(60)
+                continue
+            self.active_pool_index = (self.active_pool_index + 1) % len(active_pools)
+            pool = active_pools[self.active_pool_index]
 
             # root_bdv = self.root_client.get_root_token_bdv()
             name_str = f'{pool["eventName"]}'
@@ -1708,8 +1710,20 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
                 self.last_name = name_str
 
             # Rotate data and update status.
-            self.status_function(f'Pot: {round_num(pool["totalAmount"], 0)} Roots')
-            # self.status_function(f'Bets: {pool["totalBets"]}')
+            self.status_function(f'{pool["eventName"]}')
+
+            # Rotate data and update status.
+            # Pot Size.
+            if self.display_index == 0:
+                self.name_function(f'Pot: {round_num(pool["totalAmount"], 0)} Roots')
+                self.wait_for_next_cycle()
+            # Single outcome odds.
+            elif self.display_index == 1:
+                for team_id in range(pool['numberOfTeams']):
+                    team = self.betting_client.get_pool_team(pool['id'], team_id)
+                    self.name_function(f'{team["name"]}: {get_american_odds(pool["totalAmount"], team["totalAmount"])}')
+                    self.wait_for_next_cycle()
+
 
 
 class MsgHandler(logging.Handler):
@@ -1871,8 +1885,13 @@ def holiday_emoji():
             return emoji
     return ''
 
-def implied_odds_to_american(implied_odds):
-    """Convert implied odds float to American odds (str)."""
+def get_implied_odds(pool_amount, team_amount):
+    """Calculate implied odds from pool and team amounts (float)."""
+    return team_amount/pool_amount
+
+def get_american_odds(pool_amount, team_amount):
+    """Calculate American odds (str)."""
+    implied_odds = get_implied_odds(pool_amount, team_amount)
     if implied_odds < 0 or implied_odds > 1:
         raise ValueError('Implied odds must be normalized between 0-1')
     # payout = 1 / implied_odds
