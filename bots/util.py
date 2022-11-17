@@ -1488,7 +1488,7 @@ class PreviewMonitor(Monitor):
     def __init__(self, name, name_function, status_function, display_count=0, check_period=PREVIEW_CHECK_PERIOD):
         super().__init__(name, lambda s: None, check_period, prod=True)
         self.name = name
-        self.display_count = display_count
+        self.display_count = display_count # can be changed on the fly by subclass.
         self.name_function = name_function
         self.status_function = status_function
         self.check_period = check_period
@@ -1662,13 +1662,11 @@ class RootValuePreviewMonitor(PreviewMonitor):
 
     def __init__(self, name_function, status_function):
         super().__init__('RootValue', name_function, status_function, 1)
-        self.HOURS = 24
         self.last_name = ''
         self.root_client = None
 
     def _monitor_method(self):
         self.root_client = RootClient()
-        self.status_function('Root Token Value')
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
@@ -1682,6 +1680,36 @@ class RootValuePreviewMonitor(PreviewMonitor):
             # Rotate data and update status.
             if self.display_index == 0:
                 self.status_function(f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
+
+
+class ParadoxPoolsPreviewMonitor(PreviewMonitor):
+    """Monitor data that offers view into live Paradox Pools via discord nickname/status."""
+
+    def __init__(self, name_function, status_function):
+        super().__init__('Betting', name_function, status_function, 0, check_period=PREVIEW_CHECK_PERIOD)
+        self.last_name = ''
+        self.betting_client = None
+
+    def _monitor_method(self):
+        self.betting_client = BettingClient()
+        while self._thread_active:
+            self.wait_for_next_cycle()
+            self.iterate_display_index()
+
+            active_pools = self.betting_client.get_active_pools()
+            pool = active_pools[self.display_index]
+            # Update display count if there were on chain changes to set of pools.
+            self.display_count = len(active_pools)
+
+            # root_bdv = self.root_client.get_root_token_bdv()
+            name_str = f'{pool["eventName"]}'
+            if name_str != self.last_name:
+                self.name_function(name_str)
+                self.last_name = name_str
+
+            # Rotate data and update status.
+            self.status_function(f'Pot: {round_num(pool["totalAmount"], 0)} Roots')
+            # self.status_function(f'Bets: {pool["totalBets"]}')
 
 
 class MsgHandler(logging.Handler):

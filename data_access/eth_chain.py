@@ -535,6 +535,11 @@ class BettingClient(ChainClient):
         self.pools_contract = get_betting_admin_contract(self._web3)
         # self.bets_contract = get_betting_contract(self._web3)
 
+    def get_pool_count(self):
+        """Get number of active pools and return as int."""
+        logging.info(f'Getting pool count...')
+        return call_contract_function_with_retry(self.pools_contract.functions.getTotalPools())
+
     def get_pool(self, pool_id):
         """Get pool struct."""
         pool_id = int(pool_id)
@@ -546,8 +551,34 @@ class BettingClient(ChainClient):
             'numberOfTeams': return_list[1],
             'eventName': return_list[2],
             'totalBets': return_list[3],
-            'totalAmount': root_to_float(return_list[4])
+            'totalAmount': root_to_float(return_list[4]),
+            'status': return_list[8]
         }
+
+    # NOTE(funderberker): Very inefficient. Need better impl contract side.
+    def get_all_pools(self):
+        """
+        Get all pools stored on contract.
+        
+        Assumes pool IDs are ascending ints from 0 to getTotalPools().
+        """
+        logging.info(f'Getting all pools...')
+        pool_list = []
+        num_pools = self.get_pool_count()
+        for i in range(num_pools):
+            pool_list.append(self.get_pool(i))
+        return pool_list
+    
+    # NOTE(funderberker): Very inefficient. Need better impl contract side.
+    def get_active_pools(self):
+        """Get all pools stored on contract."""
+        logging.info(f'Getting active pools...')
+        active_pools = []
+        pools = self.get_all_pools()
+        for pool in pools:
+            if pool['status'] == 1: # ??
+                active_pools.append(pool)
+        return active_pools
 
     def get_pool_team(self, pool_id, team_id):
         """Get team struct."""
