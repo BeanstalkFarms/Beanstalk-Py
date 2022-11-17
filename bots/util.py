@@ -1369,26 +1369,32 @@ class BettingMonitor(Monitor):
 
         player = event_log.args.get('player')
         team_id = event_log.args.get('teamId')
+        winner_id = event_log.args.get('winnerId')
         amount = root_to_float(event_log.args.get('amount')) or 0
 
         pool = self.betting_client.get_pool(pool_id)
         value_bdv = root_bdv * amount
 
         if event_log.event == 'BetPlaced':
-            event_str += f'🎲 Bet Placed - {round_num(value_bdv, 0)} BDV'
+            event_str += f'🎲 Bet Placed - {round_num(amount, 0)} Roots'
             if pool['numberOfTeams'] > 0:
                 team = self.betting_client.get_pool_team(pool_id, team_id)
-                event_str +=  f' on {team["name"]}'
+                team_odds = team['totalAmount'] / pool['totalAmount']
+                event_str +=  f' on {team["name"]} ({round_num(team_odds*100, 2)}%)'
             event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
             event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
         elif event_log.event == 'PoolStarted':
             event_str += f'📣 Pool Started - {pool["eventName"]}'
+        elif event_log.event == 'PoolGraded':
+            team = self.betting_client.get_pool_team(pool_id, winner_id)
+            event_str += f'🏁 Pool Graded - {pool["eventName"]}: {team["name"]}'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
 
-        event_str += f'\n{value_to_emojis(value_bdv)}'
+        if value_bdv:
+            event_str += f'\n{value_to_emojis_betting(value_bdv)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'
@@ -1781,6 +1787,9 @@ def value_to_emojis(value):
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
+def value_to_emojis_betting(value):
+    """Convert a rounded dollar value to a string of emojis. Smaller values for betting."""
+    return value_to_emojis(value*10)
 
 def number_to_emoji(n):
     """Take an int as a string or int and return the corresponding # emoji. Above 10 returns '#'."""

@@ -536,7 +536,9 @@ class BettingClient(ChainClient):
         return {
             'id': return_list[0],
             'numberOfTeams': return_list[1],
-            'eventName': return_list[2]
+            'eventName': return_list[2],
+            'totalBets': return_list[3],
+            'totalAmount': root_to_float(return_list[4])
         }
 
     def get_pool_team(self, pool_id, team_id):
@@ -1170,14 +1172,21 @@ def get_test_entries():
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc6f4c8ed3f0f8cd6e47274fafa400c4a704135685b15da294fdba1fa52abe467'), 'blockNumber': 15529227, 'data': '0x00000000000000000000000000000000000000000000000000007c829000b88c', 'logIndex': 245, 'removed': False, 'topics': [
                       HexBytes('0xe9dc43fcbeb08ecb743b537fa98567049e3b77e283833f89ab216b22ede6ba0a'), HexBytes('0x000000000000000000000000bd50a98a99438325067302d987cceba3c7a8a296')], 'transactionHash': HexBytes('0x289fc5d8f7ed480e716d9a2fd04e285e669add269465f764df1cc320e00244ab'), 'transactionIndex': 86}),
         # PodOrderCancelled.
-        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x74ac17f022b692c06a3ff6d851bca27dd83ac7405ece649ad2dcfbeb71de2d84'), 'blockNumber': 15519178, 'data': '0xa916fb40410a322048278608e62233f31596e8d02b0ed2c5c5d52684f7377b60', 'logIndex': 267, 'removed': False, 'topics': [
+        Attribute   Dict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x74ac17f022b692c06a3ff6d851bca27dd83ac7405ece649ad2dcfbeb71de2d84'), 'blockNumber': 15519178, 'data': '0xa916fb40410a322048278608e62233f31596e8d02b0ed2c5c5d52684f7377b60', 'logIndex': 267, 'removed': False, 'topics': [
                       HexBytes('0x531180eb4d1153cb99f00e54fef0a473edc9e3e951f9a88468fec65988e9e4f8'), HexBytes('0x000000000000000000000000cde68f6a7078f47ee664ccbc594c9026a8a72d25')], 'transactionHash': HexBytes('0xa2f923a5245c23ac9d52e21a96224a10997d9acc10c57239397ad3e7a2826a63'), 'transactionIndex': 92}),
         # Barn Raise - TransferSingle from Null address (Mint). ROPSTEN.
         AttributeDict({'address': '0xd598d3799521a3F95784A81c883ddf1122Ad769B', 'topics': [HexBytes('0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000a3c5a4df1c8ddad68af70c0f26ddd4ea99f323a4')],
                       'data': '0x00000000000000000000000000000000000000000000000000000000000017ba0000000000000000000000000000000000000000000000000000000000000001', 'blockNumber': 12312645, 'transactionHash': HexBytes('0x57e89d1f5bddddb2199ada7aabf46b9178e51e37401a7606f0bdb2a9174034e4'), 'transactionIndex': 3, 'blockHash': HexBytes('0x88da4209db288be2140634db3855bf464240fc54cb2f5f8c8241c5d7f9eff0c3'), 'logIndex': 5, 'removed': False}),
         # Fert Purchase
         AttributeDict({'address': '0x402c84De2Ce49aF88f5e2eF3710ff89bFED36cB6', 'blockHash': HexBytes('0x051c7a75f5a2941bf35054770a9c876ea0212c6ca7c1d7ed96b60b7fb8dd8b96'), 'blockNumber': 15399679, 'data': '0x000000000000000000000000000000000000000000000000000000000017b512000000000000000000000000000000000000000000000000000000000000000a', 'logIndex': 112, 'removed': False, 'topics': [HexBytes(
-                      '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000c9f817ea7aabe604f5677bf9c1339e32ef1b90f0')], 'transactionHash': HexBytes('0xf9eaf497b51d604185fffb00e00e440fda588c64b3643b0ae89780e2b5af459d'), 'transactionIndex': 54})
+                      '0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62'), HexBytes('0x000000000000000000000000c1e088fc1323b20bcbee9bd1b9fc9546db5624c5'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000c9f817ea7aabe604f5677bf9c1339e32ef1b90f0')], 'transactionHash': HexBytes('0xf9eaf497b51d604185fffb00e00e440fda588c64b3643b0ae89780e2b5af459d'), 'transactionIndex': 54}),
+        # Bet Placed
+        AttributeDict({'address': '0xF3266919C00Aa61929b8C4fC5112e8F36665b2aa', 'blockHash': HexBytes('0xdb7c4f3d4c6a2c974a78918591e9a40ae7703fdf3b9d7f86b6bce001d6818d98'), 'blockNumber': 15988634, 'data': '0x00000000000000000000000000000000000000000000001578274de46bcb0000', 'logIndex': 32, 'removed': False, 'topics': [HexBytes('0x1b8a9031cb9351278d70a994f81536e9e08c91162e64f92b2fe4766fb7a891b4'), HexBytes(
+            '0x0000000000000000000000000000000000000000000000000000000000000003'), HexBytes('0x000000000000000000000000c997b8078a2c4aa2ac8e17589583173518f3bc94'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000')], 'transactionHash': HexBytes('0xe3402d6f9ffe537909be457cad9146b084d5d6b7b3db70394184e86c1956584a'), 'transactionIndex': 23}),
+        # Pool Created
+        AttributeDict({'address': '0xbAB1c9BF99E1aebb809Fa19d5A20b8E13F9Fb8BF', 'blockHash': HexBytes('0x4e56676a2efe14757e52017d78a72c53ffe5f2e85284ca2ca09a401978e6df35'), 'blockNumber': 15987034, 'data': '0x00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000063824610', 'logIndex': 137, 'removed': False, 'topics': [HexBytes('0x6a0c7fbf44f6331867816b75328f586816c7ff60b5f3b71d7ccd1da786a93898'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000002')], 'transactionHash': HexBytes('0x6d5628da740f2d8bab442938a001ef276c797620e39c8d1fe9574906be1c6ac1'), 'transactionIndex': 58}),
+        # Pool Started
+        AttributeDict({'address': '0xbAB1c9BF99E1aebb809Fa19d5A20b8E13F9Fb8BF', 'blockHash': HexBytes('0x77bd7338676da563b871105ea1cc4fe37da1a47b2d7f8726dd861424f1d05b19'), 'blockNumber': 15987829, 'data': '0x', 'logIndex': 213, 'removed': False, 'topics': [HexBytes('0x510ad7fdc6893c3992445eb80eeade3af54768c0d8dc2cc8fc57b1c9afa1491d'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000003')], 'transactionHash': HexBytes('0x970750d83a9cc6f27bdbf68c3eb7ed04d41c2fd06aafdb4e7794dc033cafa1e8'), 'transactionIndex': 99})
     ]
     return entries
 
