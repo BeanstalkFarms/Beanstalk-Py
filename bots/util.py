@@ -1267,6 +1267,7 @@ class RootMonitor(Monitor):
                          APPROX_BLOCK_TIME, prod=prod, dry_run=dry_run)
         self._eth_event_client = EthEventsClient(EventClientType.ROOT_TOKEN)
         self.root_client = RootClient()
+        self.bean_client = BeanClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1305,21 +1306,22 @@ class RootMonitor(Monitor):
 
         amount = root_to_float(event_log.args.value)
         value_bdv = root_bdv * amount # is this always the same as event arg 'bdv' ?
+        value_usd = value_bdv * self.bean_client.avg_bean_price()
 
         # if event_log.event == 'Mint':
         #     event_str += f'🌳 {round_num(shares, 2)} Root minted from {round_num(bdv, 2)} BDV'
         # elif event_log.event == 'Redeem':
         #     event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
         if event_log.args.get('from') == NULL_ADDR:
-            event_str += f'🌳 {round_num(amount, 2)} Root minted ({round_num(value_bdv, 2)} BDV)'
+            event_str += f'🌳 {round_num(amount, 2)} Root minted (${round_num(value_usd, 2)})'
         elif event_log.args.get('to') == NULL_ADDR:
-            event_str += f'🪓 {round_num(amount, 2)} Root redeemed ({round_num(value_bdv, 2)} BDV)'
+            event_str += f'🪓 {round_num(amount, 2)} Root redeemed (${round_num(value_usd, 2)})'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
             return ''
 
-        event_str += f'\n{value_to_emojis(value_bdv)}'
+        event_str += f'\n{value_to_emojis(value_usd)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'
