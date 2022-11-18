@@ -1321,7 +1321,7 @@ class RootMonitor(Monitor):
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
             return ''
 
-        event_str += f'\n{value_to_emojis(value_usd)}'
+        event_str += f'\n{value_to_emojis_root(value_usd)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'
@@ -1399,7 +1399,7 @@ class BettingMonitor(Monitor):
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
 
         if value_bdv:
-            event_str += f'\n{value_to_emojis_betting(value_bdv)}'
+            event_str += f'\n{value_to_emojis_root(value_bdv)}'
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'
@@ -1834,7 +1834,7 @@ def value_to_emojis(value):
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
-def value_to_emojis_betting(value):
+def value_to_emojis_root(value):
     """Convert a rounded dollar value to a string of emojis. Smaller values for betting."""
     return value_to_emojis(value*10)
 
