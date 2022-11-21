@@ -1087,7 +1087,7 @@ class MarketMonitor(Monitor):
                 price_per_pod_str = round_num(
                     bean_to_float(pod_listing['pricePerPod']), 3)
                 amount_str = round_num(bean_to_float(
-                    int(pod_listing['totalAmount']) - int(pod_listing['filledAmount'])), 0)
+                    int(pod_listing['amount']) - int(pod_listing['filledAmount'])), 0)
                 event_str += f'❌ Pod Listing Cancelled'
                 event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
             else:
@@ -1704,12 +1704,6 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
                 continue
             self.active_pool_index = (self.active_pool_index + 1) % len(active_pools)
             pool = active_pools[self.active_pool_index]
-
-            # root_bdv = self.root_client.get_root_token_bdv()
-            name_str = f'{pool["eventName"]}'
-            if name_str != self.last_name:
-                self.name_function(name_str)
-                self.last_name = name_str
 
             # Rotate data and update status.
             self.status_function(f'{pool["eventName"]}')
