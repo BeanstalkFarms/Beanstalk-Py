@@ -552,7 +552,8 @@ class BettingClient(ChainClient):
             'eventName': return_list[2],
             'totalBets': return_list[3],
             'totalAmount': root_to_float(return_list[4]),
-            'status': return_list[8]
+            'status': return_list[8],
+            'startTime': return_list[10]
         }
 
     # NOTE(funderberker): Very inefficient. Need better impl contract side.
@@ -575,8 +576,9 @@ class BettingClient(ChainClient):
         logging.info(f'Getting active pools...')
         active_pools = []
         pools = self.get_all_pools()
+        current_time = time.time()
         for pool in pools:
-            if pool['status'] == 1: # ??
+            if pool['status'] == 1 and pool['startTime'] < current_time:
                 active_pools.append(pool)
         return active_pools
 
