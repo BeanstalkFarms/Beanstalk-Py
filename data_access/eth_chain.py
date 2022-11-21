@@ -191,6 +191,9 @@ ROOT_SIGNATURES_LIST = []
 #                   ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
 add_event_to_dict('Transfer(address,address,uint256)',
                   ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
+# Watch for Root account Plants.
+add_event_to_dict('Plant(address,uint256)',
+                  ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
 
 
 # Root token events.

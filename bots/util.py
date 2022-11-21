@@ -1292,8 +1292,8 @@ class RootMonitor(Monitor):
 
     def any_event_str(self, event_log, root_bdv):
         event_str = ''
-        if event_log.event != 'Transfer' or event_log.address != ROOT_ADDR:
-            logging.warning('IGNORING EVERYTHING THAT IS NOT A ROOT TRANSFER EVENT in ROOT TOKEN MONITOR')
+        if event_log.address != ROOT_ADDR:
+            logging.warning('Ignoring non-Root token events (i.e. transfers of other tokens).')
             return ''
         # # Parse possible values of interest from the event log.
         # account = event_log.args.get('account')
@@ -1303,19 +1303,25 @@ class RootMonitor(Monitor):
         # seeds = seeds_to_float(event_log.args.get('seeds'))
         # shares = root_to_float(event_log.args.get('shares'))
         # value_bdv = root_bdv * shares # is this always the same as event arg 'bdv' ?
+        bean_usd = self.bean_client.avg_bean_price()
 
-        amount = root_to_float(event_log.args.value)
-        value_bdv = root_bdv * amount # is this always the same as event arg 'bdv' ?
-        value_usd = value_bdv * self.bean_client.avg_bean_price()
+        if event_log.event == 'Transfer':
+            amount = root_to_float(event_log.args.value)
+            value_bdv = root_bdv * amount # is this always the same as event arg 'bdv' ?
+            value_usd = value_bdv * bean_usd
 
-        # if event_log.event == 'Mint':
-        #     event_str += f'🌳 {round_num(shares, 2)} Root minted from {round_num(bdv, 2)} BDV'
-        # elif event_log.event == 'Redeem':
-        #     event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
-        if event_log.args.get('from') == NULL_ADDR:
-            event_str += f'🌳 {round_num(amount, 2)} Root minted (${round_num(value_usd, 2)})'
-        elif event_log.args.get('to') == NULL_ADDR:
-            event_str += f'🪓 {round_num(amount, 2)} Root redeemed (${round_num(value_usd, 2)})'
+            # if event_log.event == 'Mint':
+            #     event_str += f'🌳 {round_num(shares, 2)} Root minted from {round_num(bdv, 2)} BDV'
+            # elif event_log.event == 'Redeem':
+            #     event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
+            if event_log.args.get('from') == NULL_ADDR:
+                event_str += f'🌳 {round_num(amount, 2)} Root minted (${round_num(value_usd, 2)})'
+            elif event_log.args.get('to') == NULL_ADDR:
+                event_str += f'🪓 {round_num(amount, 2)} Root redeemed (${round_num(value_usd, 2)})'
+        if event_log.event == 'Plant':
+            beans = root_to_float(event_log.args.beans)
+            value_usd = beans * bean_usd
+            event_str += f' Roots Earned {beans} Beans (${value_usd})'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
