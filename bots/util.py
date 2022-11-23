@@ -1086,9 +1086,12 @@ class MarketMonitor(Monitor):
                     pod_listing['index']) + pods_to_float(pod_listing['start']) - pods_harvested, 0)
                 price_per_pod_str = round_num(
                     bean_to_float(pod_listing['pricePerPod']), 3)
-                amount_str = round_num(bean_to_float(int(pod_listing['amount'])), 0)
+                # amount_str = round_num(bean_to_float(
+                #     int(pod_listing['amount']) - int(pod_listing['filledAmount'])), 0)
                 event_str += f'❌ Pod Listing Cancelled'
-                event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
+                # event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
+                ## NOTE(funderberker): Temporarily disable information until subgraph problems fixed.
+                event_str += f' - Pods Listed at {start_place_in_line_str}'
             else:
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
                 amount_str = round_num(pods_to_float(
