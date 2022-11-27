@@ -1290,6 +1290,13 @@ def monitor_betting_events():
     for entry in entries:
         logging.warning(entry)
 
+    client = RootClient(web3)
+    client.get_total_supply()
+    client.get_root_token_bdv()
+
+    client = BettingClient(web3)
+    logging.info(client.get_active_pools())
+
 
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""

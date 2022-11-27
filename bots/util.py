@@ -1320,7 +1320,7 @@ class RootMonitor(Monitor):
                 event_str += f'🌳 {round_num(amount, 2)} Root minted (${round_num(value_usd, 2)})'
             elif event_log.args.get('to') == NULL_ADDR:
                 event_str += f'🪓 {round_num(amount, 2)} Root redeemed (${round_num(value_usd, 2)})'
-        if event_log.event == 'Plant':
+        elif event_log.event == 'Plant':
             beans = root_to_float(event_log.args.beans)
             value_usd = beans * bean_usd
             event_str += f' Roots Earned {beans} Beans (${value_usd})'
