@@ -205,8 +205,9 @@ add_event_to_dict('BetPlaced(uint256,address,uint256,uint256)',
 # Pool management contract.
 add_event_to_dict('PoolCreated(uint256,uint256,uint256)',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
-add_event_to_dict('PoolStarted(uint256)',
-                  BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
+# Event not actually in use on chain.
+# add_event_to_dict('PoolStarted(uint256)',
+#                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
 add_event_to_dict('PoolGraded(uint256,uint256[])',
                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
 add_event_to_dict('WinningsClaimed(uint256,address,uint256)',

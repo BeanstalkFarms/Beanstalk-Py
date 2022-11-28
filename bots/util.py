@@ -1337,10 +1337,20 @@ class BettingMonitor(Monitor):
     def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__('Betting', message_function,
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self.pool_check_time = APPROX_BLOCK_TIME * 4
         self._eth_event_client = EthEventsClient(EventClientType.BETTING)
         self._web3 = get_web3_instance()
         self.root_client = RootClient(self._web3)
         self.betting_client = BettingClient(self._web3)
+        self.pool_status_thread = threading.Thread(target=self._pool_status_thread_method())
+
+    def start(self):
+        super().start()
+        self.pool_status_thread.start()
+
+    def stop(self):
+        super().stop()
+        self.pool_status_thread.join(2 * self.pool_check_time)
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1351,6 +1361,21 @@ class BettingMonitor(Monitor):
             last_check_time = time.time()
             for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
                 self._handle_txn_logs(txn_hash, event_logs)
+
+    def _pool_status_thread_method(self):
+        """Send messages when pool status changes without associated event."""
+        end_time_range = time.time()
+        while True:
+            start_time_range = end_time_range
+            time.sleep(self.pool_check_time)
+            pools = self.betting_client.get_pools()
+            end_time_range = time.time()
+            for pool in pools:
+                if pool['status'] == 1: # Betting phase or currently playing
+                    # If pool has started since last check (no more betting).
+                    if pool['startTime'] >= start_time_range and pool['startTime'] < end_time_range:
+                        self.message_function(f'📣 Pool Started - {pool["eventName"]}')
+
 
 
     def _handle_txn_logs(self, txn_hash, event_logs):
@@ -1391,14 +1416,14 @@ class BettingMonitor(Monitor):
             event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
             event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
-        elif event_log.event == 'PoolStarted':
-            event_str += f'📣 Pool Started - {pool["eventName"]}'
+        # elif event_log.event == 'PoolStarted':
+        #     event_str += f'📣 Pool Started - {pool["eventName"]}'
         elif event_log.event == 'PoolGraded':
             winner_str = ''
             for winner_id in winner_ids:
                 team = self.betting_client.get_pool_team(pool_id, winner_id)
                 winner_str += f' {team["name"]}'
-            event_str += f'🏁 Pool Graded - {pool["eventName"]}:{winner_str}'
+            event_str += f'🏁 Pool Graded - {pool["eventName"]}: {winner_str}'
         elif event_log.event == 'WinningsClaimed':
             event_str += f'💰 Winnings Claimed - {amount} Root from {pool["eventName"]}'
         else:
