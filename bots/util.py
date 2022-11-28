@@ -1320,6 +1320,10 @@ class RootMonitor(Monitor):
                 event_str += f'🌳 {round_num(amount, 2)} Root minted (${round_num(value_usd, 2)})'
             elif event_log.args.get('to') == NULL_ADDR:
                 event_str += f'🪓 {round_num(amount, 2)} Root redeemed (${round_num(value_usd, 2)})'
+            else:
+                logging.info(
+                    f'Transfer of Root tokens, not mint or redeem. Ignoring.')
+                return ''
         elif event_log.event == 'Plant':
             beans = root_to_float(event_log.args.beans)
             value_usd = beans * bean_usd
@@ -1390,7 +1394,10 @@ class BettingMonitor(Monitor):
             event_str += f'🎲 Bet Placed - {round_num(amount, 0)} Roots'
             if pool['numberOfTeams'] > 0:
                 team = self.betting_client.get_pool_team(pool_id, team_id)
-                event_str +=  f' on {team["name"]} ({get_american_odds(pool["totalAmount"], team["totalAmount"])})'
+                event_str +=  f' on {team["name"]}'
+                american_odds = get_american_odds(pool["totalAmount"], team["totalAmount"])
+                if american_odds:
+                    event_str +=  f' ({american_odds})'
             event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
             event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
@@ -1725,7 +1732,11 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
             elif self.display_index == 1:
                 for team_id in range(pool['numberOfTeams']):
                     team = self.betting_client.get_pool_team(pool['id'], team_id)
-                    self.name_function(f'{team["name"]}: {get_american_odds(pool["totalAmount"], team["totalAmount"])}')
+                    name_str = f'{team["name"]}'
+                    american_odds = get_american_odds(pool["totalAmount"], team["totalAmount"])
+                    if american_odds:
+                        name_str += f': {american_odds}'
+                    self.name_function(name_str)
                     self.wait_for_next_cycle()
 
 
@@ -1898,6 +1909,13 @@ def get_american_odds(pool_amount, team_amount):
     implied_odds = get_implied_odds(pool_amount, team_amount)
     if implied_odds < 0 or implied_odds > 1:
         raise ValueError('Implied odds must be normalized between 0-1')
+    # Occurs when this team has no bets but other teams do
+    if implied_odds == 0:
+        return ''
+    # Occurs when only this team has bets.
+    elif implied_odds == 1:
+        return ''
+
     # payout = 1 / implied_odds
     profit = 1 / implied_odds * (1 - implied_odds)
     if profit >= 1:
