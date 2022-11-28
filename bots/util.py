@@ -1042,8 +1042,8 @@ class MarketMonitor(Monitor):
         # Pull args from event logs. Not all will be populated.
         # Amount of pods being listed/ordered.
         amount = pods_to_float(event_log.args.get('amount'))
-        price_per_pod = bean_to_float(
-            event_log.args.get('pricePerPod'))
+        price_per_pod = bean_to_float(event_log.args.get('pricePerPod'))
+        cost_in_beans = bean_to_float(event_log.args.get('costInBeans'))
 
         # Index of the plot (place in line of first pod of the plot).
         plot_index = pods_to_float(event_log.args.get('index'))
@@ -1128,26 +1128,16 @@ class MarketMonitor(Monitor):
                 logging.info(f'Transfer log(s):\n{transfer_logs}')
                 # There should be exactly one transfer log of Beans.
                 beans_paid = 0
-                listing_graph_id = event_log.args.get(
-                    'from').lower() + '-' + str(event_log.args.get('index'))
-                try:
-                    price_per_pod = bean_to_float(
-                        self.beanstalk_graph_client.get_pod_listing(listing_graph_id)['pricePerPod'])
-                    beans_paid = bean_to_float(
-                        event_log.args.get('amount')) * price_per_pod
-                except Exception as e:
-                    logging.error(
-                        f'Failed to get pod listing from subgraph for txn {transaction_receipt.transactionHash.hex()}. Proceeding without price info...', exc_info=True)
-                    price_per_pod = None
-                    beans_paid = None
+                price_per_pod = bean_to_float(cost_in_beans/amount)
+                beans_paid = bean_to_float(
+                    event_log.args.get('amount')) * price_per_pod
                 event_str += f'{amount_str} Pods Listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
                     event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * beans_paid)})'
                     event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
-                pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
-                price_per_pod = bean_to_float(pod_order['pricePerPod'])
+                price_per_pod = bean_to_float(cost_in_beans/amount)
                 beans_paid = price_per_pod * amount
                 event_str += f'{amount_str} Pods Ordered at ' \
                     f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \
