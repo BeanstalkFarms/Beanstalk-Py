@@ -90,8 +90,7 @@ class Monitor():
         # Time to wait before restarting monitor after an unhandled exception. Exponential backoff.
         self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
         self._thread_active = False
-        self._thread_wrapper = threading.Thread(
-            target=self._thread_wrapper_method)
+        self._thread_wrapper = threading.Thread(target=self._thread_wrapper_method)
 
     @abstractmethod
     def _monitor_method(self):
@@ -488,118 +487,6 @@ class SeasonsMonitor(Monitor):
         ret_string += f'🌿 Deposited LP: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
         ret_string += f'🌾 Pods: {round_num(account_status["pods"])}\n'
         return ret_string
-'''
-
-# DEPRECATED. WILL NEED REFRESHER BEFORE USING AGAIN.
-'''
-class UniswapPoolMonitor(Monitor):
-    """Monitor the ETH:BEAN Uniswap V2 pool for events."""
-
-    def __init__(self, message_function, prod=False, dry_run=False):
-        super().__init__('Uniswap Pool', message_function,
-                         POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._eth_event_client = EthEventsClient(
-            EventClientType.UNISWAP_POOL)
-        self.uniswap_client = UniswapClient()
-        self.bean_client = BeanClient()
-
-    def _monitor_method(self):
-        last_check_time = 0
-        while self._thread_active:
-            if time.time() < last_check_time + POOL_CHECK_RATE:
-                time.sleep(0.5)
-                continue
-            last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
-
-            # # For testing purposes, track the price on each check.
-            # if not self.prod:
-            #     self.uniswap_client.current_eth_and_bean_price()
-
-    def _handle_txn_logs(self, txn_hash, event_logs):
-        """Process the pool event logs for a single txn.
-
-        Assumes that there are not non-Bean swaps in logs (e.g. ETH:USDC).
-        Note that Event Log Object is not the same as Event object. *sideeyes web3.py developers.*
-        """
-        # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction = self.uniswap_client._web3.eth.get_transaction(txn_hash)
-        txn_method_sig_prefix = transaction['input'][:9]
-
-        # Process the txn logs based on the method.
-        # Ignore silo conversion events. They will be handled by the beanstalk class.
-        if event_in_logs('Convert', event_logs):
-            return
-
-        # Each txn of interest should only include one ETH:BEAN swap.
-        if len(event_logs) > 1:
-            logging.warning(
-                f'Multiple swaps of interest seen in a single txn ({str(event_logs)}).')
-        for event_log in event_logs:
-            event_str = UniswapPoolMonitor.any_event_str(
-                event_log, self.uniswap_client.current_eth_price(),
-                self.bean_client.uniswap_v2_bean_price())
-            if event_str:
-                self.message_function(event_str)
-
-    @abstractmethod
-    def any_event_str(event_log, eth_price, bean_price):
-        event_str = ''
-        # Parse possible values of interest from the event log. Not all will be populated.
-        eth_amount = eth_to_float(event_log.args.get('amount0'))
-        bean_amount = bean_to_float(event_log.args.get('amount1'))
-        eth_in = eth_to_float(event_log.args.get('amount0In'))
-        eth_out = eth_to_float(event_log.args.get('amount0Out'))
-        bean_in = bean_to_float(event_log.args.get('amount1In'))
-        bean_out = bean_to_float(event_log.args.get('amount1Out'))
-
-        if event_log.event in ['Mint', 'Burn']:
-            if event_log.event == 'Mint':
-                event_str += f'📥 LP added - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
-            if event_log.event == 'Burn':
-                event_str += f'📤 LP removed - {round_num(bean_amount)} Beans and {round_num(eth_amount, 4)} ETH'
-            # LP add/remove always takes equal value of both assets.
-            lp_value = bean_amount * bean_price * 2
-            event_str += f' (${round_num(lp_value)})'
-            event_str += f'\n{value_to_emojis(lp_value)}'
-        elif event_log.event == 'Swap':
-            if eth_in:
-                event_str += UniswapPoolMonitor.swap_event_str(
-                    eth_price, bean_price, eth_in=eth_in, bean_out=bean_out)
-            elif bean_in:
-                event_str += UniswapPoolMonitor.swap_event_str(
-                    eth_price, bean_price, bean_in=bean_in, eth_out=eth_out)
-
-        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-        # Empty line that does not get stripped.
-        event_str += '\n_ _'
-        return event_str
-
-    @abstractmethod
-    def swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
-        event_str = ''
-        if ((not eth_in and not bean_in) or (not eth_out and not bean_out)):
-            logging.error(
-                'Must set at least one input and one output of swap.')
-            return ''
-        if ((eth_in and bean_in) or (eth_out and bean_out)):
-            logging.error('Cannot set two inputs or two outputs of swap.')
-            return ''
-        if eth_in:
-            event_str += f'📗 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
-            swap_price = avg_eth_to_bean_swap_price(
-                eth_in, bean_out, eth_price)
-            swap_value = swap_price * bean_out
-        elif bean_in:
-            event_str += f'📕 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
-            swap_price = avg_bean_to_eth_swap_price(
-                bean_in, eth_out, eth_price)
-            swap_value = swap_price * bean_in
-        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
-        event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
-        event_str += f'\n{value_to_emojis(swap_value)}'
-        return event_str
 '''
 
 
@@ -1000,7 +887,6 @@ class MarketMonitor(Monitor):
         self.bean_contract = get_bean_contract(self._web3)
         self.beanstalk_contract = get_beanstalk_contract(self._web3)
         self.beanstalk_graph_client = BeanstalkSqlClient()
-        # self.uniswap_client = UniswapClient()
 
     def _monitor_method(self):
         last_check_time = 0
@@ -1285,7 +1171,7 @@ class RootMonitor(Monitor):
     def any_event_str(self, event_log, root_bdv):
         event_str = ''
         if event_log.address != ROOT_ADDR:
-            logging.warning('Ignoring non-Root token events (i.e. transfers of other tokens).')
+            logging.warning(f'Ignoring non-Root token events (i.e. transfers of other tokens). {event_log.address}')
             return ''
         # # Parse possible values of interest from the event log.
         # account = event_log.args.get('account')
@@ -1331,6 +1217,106 @@ class RootMonitor(Monitor):
 
 
 
+class RootUniswapMonitor(Monitor):
+    """Monitor the Root:Bean Uniswap V3 pool for events."""
+
+    def __init__(self, message_function, prod=False, dry_run=False):
+        super().__init__('Root:Bean Uniswap V3 Pool', message_function,
+                         POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._eth_event_client = EthEventsClient(EventClientType.UNI_V3_ROOT_BEAN_POOL)
+        self.uniswap_client = UniswapV3Client(UNI_V3_ROOT_BEAN_ADDR, ROOT_DECIMALS, BEAN_DECIMALS)
+        self.bean_client = BeanClient()
+        self.root_client = RootClient()
+
+    def _monitor_method(self):
+        last_check_time = 0
+        while self._thread_active:
+            if time.time() < last_check_time + POOL_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
+                self._handle_txn_logs(txn_hash, event_logs)
+
+    def _handle_txn_logs(self, txn_hash, event_logs):
+        """Process the pool event logs for a single txn."""
+        # Prune any swaps or logs not in the Root:Bean Uni V3 pool.
+        pool_only_event_logs = []
+        for event_log in event_logs:
+            if event_log.address == UNI_V3_ROOT_BEAN_ADDR:
+                pool_only_event_logs.append(event_log)
+        event_logs = pool_only_event_logs
+
+        for event_log in event_logs:
+            event_str = self.any_event_str(event_log)
+            if event_str:
+                self.message_function(event_str)
+
+    def any_event_str(self, event_log):
+        event_str = ''
+        # Parse possible values of interest from the event log. Not all will be populated.
+        root_amount = eth_to_float(event_log.args.get('amount0'))
+        bean_amount = bean_to_float(event_log.args.get('amount1'))
+        pool_amount = bean_to_float(event_log.args.get('amount'))
+
+        root_buy = True if root_amount < 0 else False
+        root_amount = abs(root_amount)
+        bean_amount = abs(bean_amount)
+        
+        bean_price = self.bean_client.avg_bean_price()
+
+        if event_log.event in ['Mint', 'Burn']:
+            if event_log.event == 'Mint':
+                event_str += f'📥 LP added - {round_num(root_amount, 0)} Roots and {round_num(bean_amount, 0)} Beans'
+            if event_log.event == 'Burn':
+                event_str += f'📤 LP removed - {round_num(root_amount, 0)} Roots and {round_num(bean_amount, 0)} Beans'
+            root_bean_equivalent = root_amount * self.root_client.get_root_token_bdv()
+            lp_value = (root_bean_equivalent + bean_amount) * bean_price
+            event_str += f' (${round_num(lp_value)})'
+            event_str += f'\n{value_to_emojis(lp_value)}'
+        elif event_log.event == 'Swap':
+            swap_value = bean_amount * bean_price
+            if root_buy: # Root leaving pool
+                event_str += f'📘 {round_num(root_amount, 0)} Root bought for {round_num(bean_amount, 0)} Beans'
+            else: # Bean leaving pool
+                event_str += f'📙 {round_num(root_amount, 0)} Root sold for {round_num(bean_amount, 0)} Beans'
+
+            event_str += f' @ {round_num(bean_amount/root_amount, 4)} BDV'
+            event_str += f'  -  Current Root BDV in pool is ${round_num(self.uniswap_client.price_ratio(), 4)}'
+            event_str += f'\n{value_to_emojis(swap_value)}'
+
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # Empty line that does not get stripped.
+        event_str += '\n_ _'
+        return event_str
+
+    @abstractmethod
+    def swap_event_str(eth_price, bean_price, eth_in=None, bean_in=None, eth_out=None, bean_out=None):
+        event_str = ''
+        if ((not eth_in and not bean_in) or (not eth_out and not bean_out)):
+            logging.error(
+                'Must set at least one input and one output of swap.')
+            return ''
+        if ((eth_in and bean_in) or (eth_out and bean_out)):
+            logging.error('Cannot set two inputs or two outputs of swap.')
+            return ''
+        if eth_in:
+            event_str += f'📘 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
+            swap_price = avg_eth_to_bean_swap_price(
+                eth_in, bean_out, eth_price)
+            swap_value = swap_price * bean_out
+        elif bean_in:
+            event_str += f'📙 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
+            swap_price = avg_bean_to_eth_swap_price(
+                bean_in, eth_out, eth_price)
+            swap_value = swap_price * bean_in
+        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+        event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
+        event_str += f'\n{value_to_emojis(swap_value)}'
+        return event_str
+
+
+
 class BettingMonitor(Monitor):
     """Monitor the Root Betting contract(s)."""
 
@@ -1342,7 +1328,7 @@ class BettingMonitor(Monitor):
         self._web3 = get_web3_instance()
         self.root_client = RootClient(self._web3)
         self.betting_client = BettingClient(self._web3)
-        self.pool_status_thread = threading.Thread(target=self._pool_status_thread_method())
+        self.pool_status_thread = threading.Thread(target=self._pool_status_thread_method)
 
     def start(self):
         super().start()
@@ -1368,7 +1354,7 @@ class BettingMonitor(Monitor):
         while True:
             start_time_range = end_time_range
             time.sleep(self.pool_check_time)
-            pools = self.betting_client.get_pools()
+            pools = self.betting_client.get_all_pools()
             end_time_range = time.time()
             for pool in pools:
                 if pool['status'] == 1: # Betting phase or currently playing

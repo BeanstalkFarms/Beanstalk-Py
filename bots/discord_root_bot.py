@@ -14,6 +14,7 @@ from bots import util
 
 DISCORD_CHANNEL_ID_TEST_BOT = 1039026320237142066
 DISCORD_CHANNEL_ID_TOKEN = 1039026004594790430
+DISCORD_CHANNEL_ID_EXCHANGE = 1046690004392476732
 DISCORD_CHANNEL_ID_BETTING = 1039026151168933928
 
 
@@ -21,6 +22,7 @@ class Channel(Enum):
     REPORT = 0
     TOKEN = 1
     BETTING = 2
+    EXCHANGE = 3
 
 
 class DiscordClient(discord.ext.commands.Bot):
@@ -33,11 +35,13 @@ class DiscordClient(discord.ext.commands.Bot):
         if prod:
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_token = DISCORD_CHANNEL_ID_TOKEN
+            self._chat_id_exchange = DISCORD_CHANNEL_ID_EXCHANGE
             self._chat_id_betting = DISCORD_CHANNEL_ID_BETTING
             logging.info('Configured as a production instance.')
         else:
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_token = DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_exchange = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_betting = DISCORD_CHANNEL_ID_TEST_BOT
             logging.info('Configured as a staging instance.')
 
@@ -52,6 +56,10 @@ class DiscordClient(discord.ext.commands.Bot):
         self.token_monitor = util.RootMonitor(
             self.send_msg_token, prod=prod, dry_run=False)
         self.token_monitor.start()
+
+        self.uniswap_monitor = util.RootUniswapMonitor(
+            self.send_msg_exchange, prod=prod, dry_run=False)
+        self.uniswap_monitor.start()
 
         self.betting_monitor = util.BettingMonitor(
             self.send_msg_betting, prod=prod, dry_run=False)
@@ -71,6 +79,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.token_monitor.stop()
+        self.uniswap_monitor.stop()
         self.betting_monitor.stop()
 
     def send_msg_report(self, text):
@@ -80,6 +89,10 @@ class DiscordClient(discord.ext.commands.Bot):
     def send_msg_token(self, text):
         """Send a message through the Discord bot in the token channel."""
         self.msg_queue.append((Channel.TOKEN, text))
+    
+    def send_msg_exchange(self, text):
+        """Send a message through the Discord bot in the exchange channel."""
+        self.msg_queue.append((Channel.EXCHANGE, text))
 
     def send_msg_betting(self, text):
         """Send a message through the Discord bot in the betting channel."""
@@ -88,11 +101,12 @@ class DiscordClient(discord.ext.commands.Bot):
     async def on_ready(self):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_token = self.get_channel(self._chat_id_token)
+        self._channel_exchange = self.get_channel(self._chat_id_exchange)
         self._channel_betting = self.get_channel(self._chat_id_betting)
 
         logging.info(
             f'Discord channels are {self._channel_report}, {self._channel_token}, '
-            f'{self._channel_betting}')
+            f'{self._chat_id_exchange}, {self._channel_betting}')
 
         # Guild IDs for all servers this bot is in.
         self.current_guilds = []
@@ -151,6 +165,8 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_report.send(msg)
                 elif channel is Channel.TOKEN:
                     await self._channel_token.send(msg)
+                elif channel is Channel.EXCHANGE:
+                    await self._channel_exchange.send(msg)
                 elif channel is Channel.BETTING:
                     await self._channel_betting.send(msg)
                 else:

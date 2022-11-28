@@ -97,14 +97,24 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     sig_list.append(event_signature_hash)
 
 
-UNISWAP_POOL_EVENT_MAP = {}
-UNISWAP_POOL_SIGNATURES_LIST = []
+UNISWAP_V2_POOL_EVENT_MAP = {}
+UNISWAP_V2_POOL_SIGNATURES_LIST = []
 add_event_to_dict('Mint(address,uint256,uint256)',
-                  UNISWAP_POOL_EVENT_MAP, UNISWAP_POOL_SIGNATURES_LIST)
+                  UNISWAP_V2_POOL_EVENT_MAP, UNISWAP_V2_POOL_SIGNATURES_LIST)
 add_event_to_dict('Burn(address,uint256,uint256,address)',
-                  UNISWAP_POOL_EVENT_MAP, UNISWAP_POOL_SIGNATURES_LIST)
+                  UNISWAP_V2_POOL_EVENT_MAP, UNISWAP_V2_POOL_SIGNATURES_LIST)
 add_event_to_dict('Swap(address,uint256,uint256,uint256,uint256,address)',
-                  UNISWAP_POOL_EVENT_MAP, UNISWAP_POOL_SIGNATURES_LIST)
+                  UNISWAP_V2_POOL_EVENT_MAP, UNISWAP_V2_POOL_SIGNATURES_LIST)
+
+UNISWAP_V3_POOL_EVENT_MAP = {}
+UNISWAP_V3_POOL_SIGNATURES_LIST = []
+add_event_to_dict('Mint(address,address,int24,int24,uint128,uint256,uint256)',
+                  UNISWAP_V3_POOL_EVENT_MAP, UNISWAP_V3_POOL_SIGNATURES_LIST)
+add_event_to_dict('Burn(address,int24,int24,uint128,uint256,uint256)',
+                  UNISWAP_V3_POOL_EVENT_MAP, UNISWAP_V3_POOL_SIGNATURES_LIST)
+add_event_to_dict('Swap(address,address,int256,int256,uint160,uint128,int24)',
+                  UNISWAP_V3_POOL_EVENT_MAP, UNISWAP_V3_POOL_SIGNATURES_LIST)
+
 
 CURVE_POOL_EVENT_MAP = {}
 CURVE_POOL_SIGNATURES_LIST = []
@@ -251,8 +261,11 @@ with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/erc20_abi.json')) as erc20_abi_file:
     erc20_abi = json.load(erc20_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
-                       '../constants/abi/uniswap_v2_pool_abi.json')) as uniswap_pool_abi_file:
-    uniswap_pool_abi = json.load(uniswap_pool_abi_file)
+                       '../constants/abi/uniswap_v2_pool_abi.json')) as uniswap_v2_pool_abi_file:
+    uniswap_v2_pool_abi = json.load(uniswap_v2_pool_abi_file)
+with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/uniswap_v3_pool_abi.json')) as uniswap_v3_pool_abi_file:
+    uniswap_v3_pool_abi = json.load(uniswap_v3_pool_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/curve_pool_abi.json')) as curve_pool_abi_file:
     curve_pool_abi = json.load(curve_pool_abi_file)
@@ -287,10 +300,10 @@ def get_web3_instance():
     # functionality. Monitoring is done through periodic get_new_events calls.
     return Web3(WebsocketProvider(URL, websocket_timeout=60))
 
-def get_eth_usdc_pool_contract(web3):
-    """Get a web.eth.contract object for the uniswap ETH:USDC pool. Contract is not thread safe."""
+def get_uniswap_v3_contract(address, web3):
+    """Get a web.eth.contract object for arbitrary Uniswap v3 pool. Contract is not thread safe."""
     return web3.eth.contract(
-        address=UNI_V2_ETH_USDC_ADDR, abi=uniswap_pool_abi)
+        address=address, abi=uniswap_v3_pool_abi)
 
 def get_bean_3crv_pool_contract(web3):
     """Get a web.eth.contract object for the curve BEAN:3CRV pool. Contract is not thread safe."""
@@ -603,36 +616,30 @@ class BettingClient(ChainClient):
         }
 
 
-# NOTE(funderberker): Deprecated. No longer in use, has not been updated post Replant.
-class UniswapClient(ChainClient):
-    def __init__(self, web3=None):
+class UniswapV3Client(ChainClient):
+    def __init__(self, address, token_0_decimals, token_1_decimals, web3=None):
         super().__init__(web3)
-        self.eth_usdc_pool_contract = get_eth_usdc_pool_contract(self._web3)
-        # self.eth_bean_pool_contract = get_eth_bean_pool_contract(self._web3)
+        self.contract = get_uniswap_v3_contract(address, self._web3)
+        self.token_0_decimals = token_0_decimals
+        self.token_1_decimals = token_1_decimals
 
-    def current_eth_price(self):
-        reserve0, reserve1, last_swap_block_time = call_contract_function_with_retry(
-            self.eth_usdc_pool_contract.functions.getReserves())
-        eth_reserves = eth_to_float(reserve1)
-        usdc_reserves = usdc_to_float(reserve0)
-        eth_price = usdc_reserves / eth_reserves
-        logging.info(f'Current ETH Price: {eth_price} (last ETH:USDC txn block time: '
-                     f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
-        return eth_price
+    ## UNISWAP V2 logic
+    # def current_root_bdv(self):
+    #     reserve0, reserve1, last_swap_block_time = call_contract_function_with_retry(
+    #         self.contract.functions.getReserves())
+    #     root_reserves = root_to_float(reserve1)
+    #     bean_reserves = bean_to_float(reserve0)
+    #     root_bdv = bean_reserves / root_reserves
+    #     logging.info(f'Current Root BDV: {root_bdv} (last Root:Bean txn block time: '
+    #                  f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
+    #     return root_bdv
 
-    """
-    DEPRECATED. Waiting for next implementation of Bean Price Oracle with $/LP to remove.
-    """
-    def current_eth_and_bean_price(self):
-        reserve0, reserve1, last_swap_block_time = call_contract_function_with_retry(
-            self.eth_bean_pool_contract.functions.getReserves())
-        eth_reserves = eth_to_float(reserve0)
-        bean_reserves = bean_to_float(reserve1)
-        eth_price = self.current_eth_price()
-        bean_price = eth_price * eth_reserves / bean_reserves
-        logging.info(f'Current bean price: {bean_price} (last ETH:BEAN txn block time: '
-                     f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
-        return eth_price, bean_price
+    def price_ratio(self):
+        # sqrtPriceX96 = sqrt(bean/root)
+        sqrtPriceX96, _,_,_,_,_,_ = call_contract_function_with_retry(
+            self.contract.functions.slot0())
+        return uni_v3_sqrtPriceX96_to_float(sqrtPriceX96, self.token_0_decimals, self.token_1_decimals)
+
 
 class CurveClient(ChainClient):
     """Client for interacting with standard curve pools."""
@@ -716,6 +723,7 @@ class EventClientType(IntEnum):
     CURVE_BEAN_3CRV_POOL = 3
     ROOT_TOKEN = 4
     BETTING = 5
+    UNI_V3_ROOT_BEAN_POOL = 6
 
 
 class EthEventsClient():
@@ -729,6 +737,12 @@ class EthEventsClient():
             self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
+            self._set_filters()
+        elif self._event_client_type == EventClientType.UNI_V3_ROOT_BEAN_POOL:
+            self._contracts = [get_uniswap_v3_contract(UNI_V3_ROOT_BEAN_ADDR, self._web3)]
+            self._contract_addresses = [UNI_V3_ROOT_BEAN_ADDR]
+            self._events_dict = UNISWAP_V3_POOL_EVENT_MAP
+            self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contracts = [get_beanstalk_contract(self._web3)]
@@ -1037,57 +1051,56 @@ def token_to_float(token_long, decimals):
         return 0
     return int(token_long) / (10 ** decimals)
 
-
 def eth_to_float(gwei):
     return token_to_float(gwei, ETH_DECIMALS)
-
 
 def lp_to_float(lp_long):
     return token_to_float(lp_long, LP_DECIMALS)
 
-
 def bean_to_float(bean_long):
     return token_to_float(bean_long, BEAN_DECIMALS)
-
 
 def soil_to_float(soil_long):
     return token_to_float(soil_long, SOIL_DECIMALS)
 
-
 def stalk_to_float(soil_long):
     return token_to_float(soil_long, STALK_DECIMALS)
-
 
 def seeds_to_float(soil_long):
     return token_to_float(soil_long, SEED_DECIMALS)
 
-
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
-
 
 def root_to_float(root_long):
     return token_to_float(root_long, ROOT_DECIMALS)
 
-
 def dai_to_float(dai_long):
     return token_to_float(dai_long, DAI_DECIMALS)
-
 
 def usdc_to_float(usdc_long):
     return token_to_float(usdc_long, USDC_DECIMALS)
 
-
 def usdt_to_float(usdt_long):
     return token_to_float(usdt_long, USDT_DECIMALS)
-
 
 def crv_to_float(crv_long):
     return token_to_float(crv_long, CRV_DECIMALS)
 
-
 def lusd_to_float(lusd_long):
     return token_to_float(lusd_long, LUSD_DECIMALS)
+
+def uni_v3_fixed_to_floating_point(fixed_point):
+    # Why 192? According to their docs it is a Q64.96 value.
+    return fixed_point / (2 ** 192)
+
+def uni_v3_sqrtPriceX96_to_float(fixed_point, decimals_0, decimals_1):
+    """Return float representing price ratio of token1/token0."""
+    unnormalized_ratio = uni_v3_fixed_to_floating_point(fixed_point**2)
+    if decimals_0 > decimals_1:
+        return unnormalized_ratio * (10 ** (decimals_0 - decimals_1))
+    else:
+        return unnormalized_ratio / (10 ** (decimals_1 - decimals_0))
 
 
 def get_test_entries():
@@ -1243,7 +1256,13 @@ def get_test_entries():
             '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000'), HexBytes('0x000000000000000000000000c997b8078a2c4aa2ac8e17589583173518f3bc94')], 'transactionHash': HexBytes('0x15f7714af939c4ab6e18a3d5c5676ea1113b60311a8d8b1e2b3a32bec5550027'), 'transactionIndex': 50}),
         # Root Redeemed
         AttributeDict({'address': '0x77700005BEA4DE0A78b956517f099260C2CA9a26', 'blockHash': HexBytes('0xbb89f4c8b5784281043e8df03bfeeec52f7ddc2f2ffd7531fbe0be8717009ac0'), 'blockNumber': 15989807, 'data': '0x00000000000000000000000000000000000000000000000068f270a4f2c43b14', 'logIndex': 105, 'removed': False, 'topics': [HexBytes(
-            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'), HexBytes('0x0000000000000000000000007e946603f26b7f46fdb0d106124db35bf14fcdb8'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000')], 'transactionHash': HexBytes('0x31bb9114845ecbd6208d96089c038b1feb8cf48c06deac31f3e90d3d8adeaf36'), 'transactionIndex': 99})
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'), HexBytes('0x0000000000000000000000007e946603f26b7f46fdb0d106124db35bf14fcdb8'), HexBytes('0x0000000000000000000000000000000000000000000000000000000000000000')], 'transactionHash': HexBytes('0x31bb9114845ecbd6208d96089c038b1feb8cf48c06deac31f3e90d3d8adeaf36'), 'transactionIndex': 99}),
+        # Swap - Uni V3 Root:Bean Pool
+        AttributeDict({'address': '0x11DD6f9e1a7Bb35A61FAda4AEc645F603050783e', 'blockHash': HexBytes('0x4f5cd785316e77f9930a20481a22b2a94a6f91d9b222e15ec13b6169edc67430'), 'blockNumber': 16055390, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffc9a61083125be51f4e000000000000000000000000000000000000000000000000000000003bf3debe0000000000000000000000000000000000000000000010c7be067fe30e47d48b0000000000000000000000000000000000000000000000005f8a1d419cf34b9ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc89f',
+                      'logIndex': 173, 'removed': False, 'topics': [HexBytes('0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67'), HexBytes('0x000000000000000000000000e592427a0aece92de3edee1f18e0157c05861564'), HexBytes('0x000000000000000000000000b1be0000bfdcddc92a8290202830c4ef689dceaa')], 'transactionHash': HexBytes('0x2e7b6b070f37114acb4492e766c027fc71ad07f1734a8eb738e2d49720395b97'), 'transactionIndex': 90}),
+        # Mint - Uni V3 Root:Bean Pool
+        AttributeDict({'address': '0x11DD6f9e1a7Bb35A61FAda4AEc645F603050783e', 'blockHash': HexBytes('0x138dbd24b73906520fbdb2cf6103ce69044082bb77a9aae65f3ebd12fe5e1d6d'), 'blockNumber': 16035594, 'data': '0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe8800000000000000000000000000000000000000000000000059e3ee9cd1e035cd0000000000000000000000000000000000000000000009e883a26e5ec7f7fb110000000000000000000000000000000000000000000000000000000ba43b7400', 'logIndex': 80,
+                      'removed': False, 'topics': [HexBytes('0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde'), HexBytes('0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe88'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc800'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc92c')], 'transactionHash': HexBytes('0xf36947e2f14eb33a249001dbd87e8ae4141e8d4585deb1c51e06e922f8d7b495'), 'transactionIndex': 39})
     ]
     return entries
 

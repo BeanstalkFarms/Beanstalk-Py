@@ -31,6 +31,9 @@ class TelegramBot(object):
         self.token_monitor = util.RootMonitor(self.send_msg_root, prod=prod, dry_run=False)
         self.token_monitor.start()
 
+        self.uniswap_monitor = util.RootUniswapMonitor(self.send_msg_root, prod=prod, dry_run=True)
+        self.uniswap_monitor.start()
+
         self.betting_monitor = util.BettingMonitor(self.send_msg_paradox, prod=prod, dry_run=False)
         self.betting_monitor.start()
 
@@ -59,6 +62,8 @@ class TelegramBot(object):
 
     def stop(self):
         self.token_monitor.stop()
+        self.uniswap_monitor.stop()
+        self.betting_monitor.stop()
 
 
 if __name__ == '__main__':
