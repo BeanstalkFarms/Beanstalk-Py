@@ -15,9 +15,6 @@ requests_logger.setLevel(logging.WARNING)
 
 
 FIELDS_PLACEHOLDER = 'FIELDS'
-DEFAULT_SEASON_FIELDS = ['id', 'timestamp', 'price', 'weather', 'newFarmableBeans',
-                         'newHarvestablePods', 'newPods', 'lp', 'pods', 'beans'
-                        ]
 
 # Names of common graph fields.
 PRICE_FIELD = 'price'
@@ -48,7 +45,8 @@ BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
 # BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
 #     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
-BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
+# BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
+BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-dev'
 
 
 class BeanSqlClient(object):
@@ -187,13 +185,13 @@ class BeanstalkSqlClient(object):
         query_str = """
             query {
                 fertilizers {
-                    totalSupply
+                    supply
                 }
             }
         """
         # Create gql query and execute.
         try:
-            return float(execute(self._client, query_str)['fertilizers'][0]['totalSupply'])
+            return float(execute(self._client, query_str)['fertilizers'][0]['supply'])
         except GraphAccessException as e:
             logging.exception(e)
             logging.error(
@@ -235,7 +233,7 @@ class BeanstalkSqlClient(object):
             query_str += f"""
                 seasons(first: {num_seasons}, skip: 0, orderBy: season, orderDirection: desc) {{
                     season
-                    timestamp
+                    createdAt
                     price
                     deltaBeans
                     deltaB
@@ -252,19 +250,19 @@ class BeanstalkSqlClient(object):
                     first: {num_seasons}
                 ){{
                     season
-                    hourlyBeanMints #newFarmableBeans
-                    totalDepositedBDV
+                    deltaBeanMints
+                    depositedBDV
                 }}
                 siloAssetHourlySnapshots(
                     orderBy: season
                     orderDirection: desc
                     first: {(num_seasons + 2) * MAX_ASSET_SNAPSHOTS_PER_SEASON}
-                    where: {{totalDepositedAmount_gt: "0",
+                    where: {{depositedAmount_gt: "0",
                              siloAsset_: {{silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
                            }}
                 ) {{
-                    totalDepositedAmount
-                    totalDepositedBDV
+                    depositedAmount
+                    depositedBDV
                     season
                     siloAsset {{
                         token
@@ -281,10 +279,10 @@ class BeanstalkSqlClient(object):
                 ) {{
                     id
                     season
-                    weather
-                    newPods
-                    totalPods #pods
-                    newSoil
+                    temperature
+                    harvestablePods
+                    unharvestablePods
+                    issuedSoil
                     sownBeans
                 }}
             """
@@ -313,9 +311,9 @@ class BeanstalkSqlClient(object):
         """
         query_str = """
             silo(id: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5") {
-                assets(first: 100, where: {totalDepositedAmount_gt: "0"}) {
+                assets(first: 100, where: {depositedAmount_gt: "0"}) {
                     token
-                    totalDepositedAmount
+                    depositedAmount
                 }
             }
         """
@@ -333,80 +331,6 @@ class BeanstalkSqlClient(object):
         return len(result['silo']['assets'])
     
 
-### DEPRECATED VIA SUBGRAPH IMPL CHANGES ###
-'''
-    def current_season_stat(self, field):
-        return self.current_season_stats([field])[field]
-
-    def current_season_stats(self, fields=DEFAULT_SEASON_FIELDS):
-        return self.seasons_stats(season_ages=[0], fields=fields)[0]
-
-    def last_completed_season_stat(self, field):
-        return self.last_completed_season_stats([field])[field]
-
-    def last_completed_season_stats(self, fields=DEFAULT_SEASON_FIELDS):
-        return self.seasons_stats(season_ages=[1], fields=fields)[0]
-
-    def seasons_stats(self, season_ages=[0, 1], fields=DEFAULT_SEASON_FIELDS):
-        """Retrieve the specified data for a season.
-
-        Args:
-            season_ages: list of ascending order int of season age relative to current season.
-            fields: list of strings specifying which fields should be retried.
-
-        Raises:
-            gql.transport.exceptions.TransportQueryError: Invalid field name provided.
-        """
-        # General query string with season sub fields placeholder.
-        query_str = """
-            query last_season_stats {
-                seasons(first: """ + str(len(season_ages)) + """,
-                        skip: """ + str(season_ages[0]) + """,
-                        orderBy: timestamp, orderDirection: desc)
-                { """ + FIELDS_PLACEHOLDER + """ }
-            }
-        """
-
-        # Stringify array and inject fields into query string.
-        query_str = string_inject_fields(query_str, fields)
-
-        # Create gql query and execute.
-        try:
-            return execute(self._client, query_str)['seasons']
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
-
-    def wallet_stats(self, account_id):
-        return self.wallets_stats([account_id])[0]
-
-    def wallets_stats(self, account_ids):
-        """Returns list of maps, where each map represents a single account."""
-        # General query string.
-        query_str = """
-            query wallets_stats {
-                accounts(subgraphError:deny, first: """ + str(len(account_ids)) + """ 
-                    where: {
-                        id_in: [ """ + ','.join([f'"{id}"' for id in account_ids]) + """ ]
-                    }
-                ) {
-                    id, depositedLP, depositedBeans, pods
-                }
-            }
-        """
-
-        # Create gql query and execute.
-        try:
-            return execute(self._client, query_str)['accounts']
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
-'''
-
 class SeasonStats():
     """Standard object containing fields for all fields of interest for a single season.
 
@@ -422,15 +346,15 @@ class SeasonStats():
             raise ValueError('Must specify season or include season data to create SeasonStats object.')
         self.season = season or graph_seasons_response['seasons'][season_index]['season']
         if 'seasons' in graph_seasons_response:
-            self.timestamp = graph_seasons_response['seasons'][season_index]['timestamp']
+            self.created_at = graph_seasons_response['seasons'][season_index]['createdAt']
             self.price = float(graph_seasons_response['seasons'][season_index]['price'])
             self.delta_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['deltaBeans']) # deltaB at beginning of season
             self.delta_b = bean_to_float(graph_seasons_response['seasons'][season_index]['deltaB']) # time weighted deltaB based from previous 2 seasons - same as from oracle - used to determine mints and soil
             self.total_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['beans']) # Bean supply
             self.reward_beans = bean_to_float(graph_seasons_response['seasons'][season_index]['rewardBeans']) # silo rewards + fert rewards + pods harvestable
         if 'siloHourlySnapshots' in graph_seasons_response:
-            self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['hourlyBeanMints']) # Beans minted this season # newFarmableBeans
-            self.total_deposited_bdv = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['totalDepositedBDV'])
+            self.silo_hourly_bean_mints = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['deltaBeanMints']) # Beans minted this season # newFarmableBeans
+            self.deposited_bdv = bean_to_float(graph_seasons_response['siloHourlySnapshots'][season_index]['depositedBDV'])
             # List of each asset at the start of the season. Note that this is offset by 1 from subgraph data.
             self.pre_assets = []
             logging.info(f'siloAssetHourlySnapshots: {graph_seasons_response["siloAssetHourlySnapshots"]}')
@@ -440,10 +364,9 @@ class SeasonStats():
                     self.pre_assets.append(asset_season_snapshot)
             logging.info(f'self.pre_assets: {self.pre_assets}')
         if 'fieldHourlySnapshots' in graph_seasons_response:
-            self.weather = float(graph_seasons_response['fieldHourlySnapshots'][season_index]['weather'])
-            self.newPods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newPods'])
-            self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['totalPods'])  # pods
-            self.new_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['newSoil'])
+            self.temperature = float(graph_seasons_response['fieldHourlySnapshots'][season_index]['temperature'])
+            self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['harvestablePods'] + graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods'])
+            self.issued_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['issuedSoil'])
             self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['sownBeans'])
 
 class AssetChanges():
@@ -453,15 +376,15 @@ class AssetChanges():
         self.final_season_asset = final_season_asset
         self.token = init_season_asset['siloAsset']['token']
         self.delta_asset = int(
-            final_season_asset['totalDepositedAmount']) - int(init_season_asset['totalDepositedAmount'])
+            final_season_asset['depositedAmount']) - int(init_season_asset['depositedAmount'])
         # self.delta_asset_percent = (
-        #     int(final_season_asset['totalDepositedAmount']) /
-        #     int(init_season_asset['totalDepositedAmount']) - 1) * 100
+        #     int(final_season_asset['depositedAmount']) /
+        #     int(init_season_asset['depositedAmount']) - 1) * 100
         self.delta_bdv = int(
-            final_season_asset['totalDepositedBDV']) - int(init_season_asset['totalDepositedBDV'])
+            final_season_asset['depositedBDV']) - int(init_season_asset['depositedBDV'])
         # self.delta_bdv_percent = (
-        #     int(final_season_asset['totalDepositedBDV']) /
-        #     int(init_season_asset['totalDepositedBDV']) - 1) * 100
+        #     int(final_season_asset['depositedBDV']) /
+        #     int(init_season_asset['depositedBDV']) - 1) * 100
 
 
 class GraphAccessException(Exception):
