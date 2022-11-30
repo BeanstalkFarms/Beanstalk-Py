@@ -330,7 +330,7 @@ class SeasonsMonitor(Monitor):
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
             if ((self.current_season_id != current_season_stats.season and
-                    int(current_season_stats.timestamp) > time.time() - SEASON_DURATION / 2) or
+                    int(current_season_stats.created_at) > time.time() - SEASON_DURATION / 2) or
                     self._dry_run):
                 self.current_season_id = current_season_stats.season
                 logging.info(
@@ -346,20 +346,20 @@ class SeasonsMonitor(Monitor):
             current_season_stats.total_beans * 100
         price = current_season_stats.price
         delta_b = current_season_stats.delta_b
-        newSoil = current_season_stats.new_soil
-        last_weather = last_season_stats.weather
+        issued_soil = current_season_stats.issued_soil
+        last_weather = last_season_stats.temperature
         sown_beans = last_season_stats.sown_beans
 
         fertilizer_bought = self.beanstalk_graph_client.get_fertilizer_bought()
         percent_recap = self.beanstalk_client.get_recap_funded_percent()
 
         # Silo asset balances.
-        current_silo_bdv = current_season_stats.total_deposited_bdv
+        current_silo_bdv = current_season_stats.deposited_bdv
         silo_assets_changes = self.beanstalk_graph_client.silo_assets_seasonal_changes(
             current_season_stats.pre_assets, last_season_stats.pre_assets)
         logging.info([a.final_season_asset for a in silo_assets_changes])
         silo_assets_changes.sort(key=lambda a: int(
-            a.final_season_asset['totalDepositedBDV']), reverse=True)
+            a.final_season_asset['depositedBDV']), reverse=True)
 
         # Current state.
         ret_string = f'⏱ Season {last_season_stats.season} is complete!'
@@ -386,10 +386,10 @@ class SeasonsMonitor(Monitor):
                 delta_asset = token_to_float(
                     asset_changes.delta_asset, decimals)
                 # Asset BDV at final season end, deduced from subgraph data.
-                asset_bdv = bean_to_float(asset_changes.final_season_asset['totalDepositedBDV']) / token_to_float(
-                    asset_changes.final_season_asset['totalDepositedAmount'], decimals)
+                asset_bdv = bean_to_float(asset_changes.final_season_asset['depositedBDV']) / token_to_float(
+                    asset_changes.final_season_asset['depositedAmount'], decimals)
                 # asset_bdv = bean_to_float(asset_changes.final_season_bdv)
-                current_bdv = asset_changes.final_season_asset["totalDepositedBDV"]
+                current_bdv = asset_changes.final_season_asset["depositedBDV"]
 
                 # VERSION 1
                 if delta_asset < 0:
@@ -405,12 +405,12 @@ class SeasonsMonitor(Monitor):
             ret_string += f'\n\n**Field**'
             ret_string += f'\n🌾 {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods minted'
             ret_string += f'\n🏞 '
-            if newSoil == 0:
+            if issued_soil == 0:
                 ret_string += f'No'
             else:
-                ret_string += f'{round_num(newSoil, 0, avoid_zero=True)}'
+                ret_string += f'{round_num(issued_soil, 0, avoid_zero=True)}'
             ret_string += f' Soil in Field'
-            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
+            ret_string += f'\n🌤 {round_num(current_season_stats.temperature, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
 
             # Barn.
@@ -428,10 +428,10 @@ class SeasonsMonitor(Monitor):
             # for asset in current_season_stats.pre_assets:
             #     token = self._web3.toChecksumAddress(asset['token'])
             #     token_name, token_symbol, decimals = get_erc20_info(token, web3=self._web3)
-            #     silo_bdv += bean_to_float(asset['totalDepositedBDV'])
+            #     silo_bdv += bean_to_float(asset['depositedBDV'])
             # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
             ret_string += f'\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods'
-            ret_string += f'\n🌤 {round_num(current_season_stats.weather, 0)}% Temperature'
+            ret_string += f'\n🌤 {round_num(current_season_stats.temperature, 0)}% Temperature'
             ret_string += f'\n🧮 {round_num(pod_rate, 0)}% Pod Rate'
         return ret_string
 
