@@ -1411,7 +1411,7 @@ class BettingMonitor(Monitor):
                 winner_str += f' {team["name"]}'
             event_str += f'🏁 Pool Graded - {pool["eventName"]}: {winner_str}'
         elif event_log.event == 'WinningsClaimed':
-            event_str += f'💰 Winnings Claimed - {amount} Root from {pool["eventName"]}'
+            event_str += f'💰 Winnings Claimed - {round_num(amount, 0)} Root from {pool["eventName"]}'
         else:
             logging.warning(
                 f'Unexpected event log seen in {self.name} Monitor ({event_log.event}). Ignoring.')
