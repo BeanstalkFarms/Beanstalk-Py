@@ -7,7 +7,7 @@ import time
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-from data_access.eth_chain import bean_to_float, token_to_float
+from data_access.eth_chain import bean_to_float, pods_to_float, soil_to_float, token_to_float
 
 # Reduce log spam from the gql package.
 from gql.transport.aiohttp import log as requests_logger
@@ -283,7 +283,7 @@ class BeanstalkSqlClient(object):
                     harvestablePods
                     unharvestablePods
                     issuedSoil
-                    sownBeans
+                    deltaSownBeans
                 }}
             """
         query_str += '}'
@@ -365,9 +365,9 @@ class SeasonStats():
             logging.info(f'self.pre_assets: {self.pre_assets}')
         if 'fieldHourlySnapshots' in graph_seasons_response:
             self.temperature = float(graph_seasons_response['fieldHourlySnapshots'][season_index]['temperature'])
-            self.total_pods = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['harvestablePods'] + graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods'])
-            self.issued_soil = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['issuedSoil'])
-            self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['sownBeans'])
+            self.total_pods = pods_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['harvestablePods'] + graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods'])
+            self.issued_soil = soil_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['issuedSoil'])
+            self.sown_beans = bean_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]['deltaSownBeans'])
 
 class AssetChanges():
     """Class representing change in state of an asset across seasons."""
