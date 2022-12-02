@@ -1013,22 +1013,18 @@ class MarketMonitor(Monitor):
                     transaction_receipt, errors=DISCARD)
                 logging.info(f'Transfer log(s):\n{transfer_logs}')
                 # There should be exactly one transfer log of Beans.
-                beans_paid = 0
-                price_per_pod = bean_to_float(cost_in_beans/amount)
-                beans_paid = bean_to_float(
-                    event_log.args.get('amount')) * price_per_pod
+                price_per_pod = cost_in_beans/amount
                 event_str += f'{amount_str} Pods Listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
-                    event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * beans_paid)})'
-                    event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
+                    event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * cost_in_beans)})'
+                    event_str += f'\n{value_to_emojis(bean_price * cost_in_beans)}'
             elif event_log.event == 'PodOrderFilled':
                 # Get price from original order creation.
-                price_per_pod = bean_to_float(cost_in_beans/amount)
-                beans_paid = price_per_pod * amount
+                price_per_pod = cost_in_beans/amount
                 event_str += f'{amount_str} Pods Ordered at ' \
                     f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \
-                    f'Beans/Pod (${round_num(bean_price * beans_paid)})'
-                event_str += f'\n{value_to_emojis(bean_price * beans_paid)}'
+                    f'Beans/Pod (${round_num(bean_price * cost_in_beans)})'
+                event_str += f'\n{value_to_emojis(bean_price * cost_in_beans)}'
         return event_str
 
 
