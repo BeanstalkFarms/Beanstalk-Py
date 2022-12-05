@@ -87,11 +87,17 @@ class RootTwitterBot(TwitterBot):
             self.send_msg, prod=prod, dry_run=False)
         self.uniswap_monitor.start()
 
+        # TEMP until Paradox bot account unlocked.
+        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.betting_monitor.start()
+
     def stop(self):
         self.token_monitor.stop()
         self.uniswap_monitor.stop()
+        # TEMP
+        self.betting_monitor.stop()
 
-
+# STUCK ON TWITTER LOCKOUT.
 class ParadoxTwitterBot(TwitterBot):
     def __init__(self, prod=False):
         if prod:
@@ -139,11 +145,11 @@ if __name__ == '__main__':
 
     beanstalk_bot = BeanstalkTwitterBot(prod=prod)
     root_bot = RootTwitterBot(prod=prod)
-    paradox_bot = ParadoxTwitterBot(prod=prod)
+    # paradox_bot = ParadoxTwitterBot(prod=prod)
     try:
         infinity_polling()
     except (KeyboardInterrupt, SystemExit):
         pass
     beanstalk_bot.stop()
     root_bot.stop()
-    paradox_bot.stop()
+    # paradox_bot.stop()
