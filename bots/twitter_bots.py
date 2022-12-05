@@ -83,8 +83,13 @@ class RootTwitterBot(TwitterBot):
         self.token_monitor = util.RootMonitor(self.send_msg, prod=prod, dry_run=False)
         self.token_monitor.start()
 
+        self.uniswap_monitor = util.RootUniswapMonitor(
+            self.send_msg_exchange, prod=prod, dry_run=False)
+        self.uniswap_monitor.start()
+
     def stop(self):
         self.token_monitor.stop()
+        self.uniswap_monitor.stop()
 
 
 class ParadoxTwitterBot(TwitterBot):
