@@ -110,14 +110,7 @@ class BeanSqlClient(object):
             }
         """
         # Create gql query and execute.
-        try:
-            return execute(self._client, query_str)['crosses']
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Bean subgraph...')
-            sys.exit(0)
-
+        return execute(self._client, query_str)['crosses']
 
 class BeanstalkSqlClient(object):
 
@@ -145,13 +138,7 @@ class BeanstalkSqlClient(object):
             }}
         """
         # Create gql query and execute.
-        try:
-            return execute(self._client, query_str)['podListing']
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
+        return execute(self._client, query_str)['podListing']
 
     def get_pod_order(self, id):
         """Get a single pod order based on id.
@@ -173,13 +160,7 @@ class BeanstalkSqlClient(object):
             }}
         """
         # Create gql query and execute.
-        try:
-            return execute(self._client, query_str)['podOrder']
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
+        return execute(self._client, query_str)['podOrder']
 
     def get_fertilizer_bought(self):
         query_str = """
@@ -190,13 +171,7 @@ class BeanstalkSqlClient(object):
             }
         """
         # Create gql query and execute.
-        try:
-            return float(execute(self._client, query_str)['fertilizers'][0]['supply'])
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
+        return float(execute(self._client, query_str)['fertilizers'][0]['supply'])
 
     def silo_assets_seasonal_changes(self, current_silo_assets=None, previous_silo_assets=None):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
@@ -289,13 +264,7 @@ class BeanstalkSqlClient(object):
         query_str += '}'
 
         # Create gql query and execute.
-        try:
-            result = execute(self._client, query_str)
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
+        result = execute(self._client, query_str)
 
         # Return list of SeasonStats class instances
         return [SeasonStats(result, i) for i in range(num_seasons)]
@@ -319,13 +288,7 @@ class BeanstalkSqlClient(object):
         """
 
         # Create gql query and execute.
-        try:
-            result = execute(self._client, query_str)
-        except GraphAccessException as e:
-            logging.exception(e)
-            logging.error(
-                'Killing all processes due to inability to access Beanstalk subgraph...')
-            sys.exit(0)
+        result = execute(self._client, query_str)
 
         # Return number of assets matching filters.
         return len(result['silo']['assets'])
@@ -388,7 +351,7 @@ class AssetChanges():
 
 
 class GraphAccessException(Exception):
-    """Failed to access the graph."""
+    """Sustained failure to access the graph."""
 
 def string_inject_fields(string, fields):
     """Modify string by replacing fields placeholder with stringified array of fields."""
