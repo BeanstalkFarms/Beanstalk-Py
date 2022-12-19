@@ -842,7 +842,6 @@ class EthEventsClient():
             new_entries = []
             for filter in filters:
                 new_entries.extend(self.safe_get_new_entries(filter, get_all=get_all))
-                logging.warning(new_entries)
         else:
             new_entries = get_test_entries()
             time.sleep(3)
