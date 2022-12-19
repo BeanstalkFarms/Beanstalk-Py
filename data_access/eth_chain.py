@@ -11,7 +11,6 @@ import websockets
 
 # NOTE(funderberker): LOCAL TESTING
 from web3 import Web3, HTTPProvider, WebsocketProvider
-from web3.middleware import local_filter_middleware
 from web3.logs import DISCARD
 
 from constants.addresses import *
@@ -19,17 +18,17 @@ import tools.util
 
 # Alchemy node key.
 try:
-    ALCHEMY_ETH_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
-    ALCHEMY_ARB_KEY =  os.environ['ALCHEMY_ARB_API_KEY_PROD']
+    API_KEY = os.environ['ALCHEMY_ETH_API_KEY_PROD']
 except KeyError:
-    ALCHEMY_ETH_KEY = os.environ['ALCHEMY_ETH_API_KEY']
-    ALCHEMY_ARB_KEY =  os.environ['ALCHEMY_ARB_API_KEY']
+    API_KEY = os.environ['ALCHEMY_ETH_API_KEY']
 
 
 # # Local node testing address for foundry anvil node using https.
 # LOCAL_TESTING_URL = 'http://localhost:8545/'
-URL_ETH = 'wss://eth-mainnet.g.alchemy.com/v2/' + ALCHEMY_ETH_KEY
-URL_ARBITRUM = 'wss://arb-mainnet.g.alchemy.com/v2/' + ALCHEMY_ARB_KEY
+# # Goerli testing address.
+# GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
+# URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
+URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -299,11 +298,7 @@ def get_web3_instance():
     # return Web3(HTTPProvider(LOCAL_TESTING_URL))
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
-    return Web3(WebsocketProvider(URL_ETH, websocket_timeout=60))
-
-def get_web3_arbitrum_instance():
-    """Get an instance of web3 lib pointing at Arbitrum chain."""
-    return Web3(WebsocketProvider(URL_ARBITRUM, websocket_timeout=60))
+    return Web3(WebsocketProvider(URL, websocket_timeout=60))
 
 def get_uniswap_v3_contract(address, web3):
     """Get a web.eth.contract object for arbitrary Uniswap v3 pool. Contract is not thread safe."""
@@ -720,12 +715,6 @@ def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
     return eth_price * (eth_out / bean_in)
 
 
-class ContractData():
-    def __init__(self, web3, contract, address):
-        self.web3 = web3
-        self.contract = contract
-        self.address = address
-
 
 class EventClientType(IntEnum):
     BEANSTALK = 0
@@ -741,51 +730,47 @@ class EthEventsClient():
     def __init__(self, event_client_type):
         # Track recently seen txns to avoid processing same txn multiple times.
         self._recent_processed_txns = OrderedDict()
-        eth_web3 = get_web3_instance()
-        # Will need multiple web3 objects in monitoring on multiple chains.
-        self._web3s = [eth_web3]
+        self._web3 = get_web3_instance()
         self._event_client_type = event_client_type
         if self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
-            self._contracts_data = [ContractData(self._web3s[0], get_bean_3crv_pool_contract(self._web3s[0]), CURVE_BEAN_3CRV_ADDR)]
+            self._contracts = [get_bean_3crv_pool_contract(self._web3)]
+            self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.UNI_V3_ROOT_BEAN_POOL:
-            self._contracts_data = [ContractData(self._web3s[0], get_uniswap_v3_contract(UNI_V3_ROOT_BEAN_ADDR, self._web3s[0]), UNI_V3_ROOT_BEAN_ADDR)]
+            self._contracts = [get_uniswap_v3_contract(UNI_V3_ROOT_BEAN_ADDR, self._web3)]
+            self._contract_addresses = [UNI_V3_ROOT_BEAN_ADDR]
             self._events_dict = UNISWAP_V3_POOL_EVENT_MAP
             self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
-            self._contracts_data = [ContractData(self._web3s[0], get_beanstalk_contract(self._web3s[0]), BEANSTALK_ADDR)]
+            self._contracts = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.MARKET:
-            self._contracts_data = [ContractData(self._web3s[0], get_beanstalk_contract(self._web3s[0]), BEANSTALK_ADDR)]
+            self._contracts = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.BARN_RAISE:
-            self._contracts_data = [ContractData(self._web3s[0], get_fertilizer_contract(self._web3s[0]), FERTILIZER_ADDR)]
+            self._contracts = [get_fertilizer_contract(self._web3)]
+            self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.ROOT_TOKEN:
-            self._contracts_data = [ContractData(self._web3s[0], get_root_contract(self._web3s[0]), ROOT_ADDR)]
+            self._contracts = [get_root_contract(self._web3)]
+            self._contract_addresses = [ROOT_ADDR]
             self._events_dict = ROOT_EVENT_MAP
             self._signature_list = ROOT_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.BETTING:
-            self._web3s.append(get_web3_arbitrum_instance())
-            # https://github.com/ethereum/web3.py/issues/2084
-            self._web3s[1].middleware_onion.inject(local_filter_middleware, layer=0)
-            self._contracts_data = [ContractData(self._web3s[0], get_betting_admin_contract(
-                                        self._web3s[0]), BETTING_ADMIN_ADDR),
-                                    ContractData(self._web3s[0], get_betting_contract(
-                                        self._web3s[0]), BETTING_ADDR),
-                                    ContractData(self._web3s[1], get_betting_contract(
-                                        self._web3s[1]), BETTING_ADDR_ARBITRUM)]
-            # Assumes events and signatures are same on all chains.
+            self._contracts = [get_betting_admin_contract(self._web3), get_betting_contract(self._web3)]
+            self._contract_addresses = [BETTING_ADMIN_ADDR, BETTING_ADDR]
             self._events_dict = BETTING_EVENT_MAP
             self._signature_list = BETTING_SIGNATURES_LIST
             self._set_filters()
@@ -797,10 +782,10 @@ class EthEventsClient():
     def _set_filters(self):
         """This is located in a method so it can be reset on the fly."""
         self._event_filters = []
-        for contract_data in self._contracts_data:
+        for address in self._contract_addresses:
             self._event_filters.append(
-                safe_create_filter(contract_data.web3,
-                    address=contract_data.address,
+                safe_create_filter(self._web3,
+                    address=address,
                     topics=[self._signature_list],
                     # from_block=10581687, # Use this to search for old events. # Rinkeby
                     # from_block=14205000, # Use this to search for old events. # Mainnet
@@ -811,10 +796,10 @@ class EthEventsClient():
 
     def get_log_range(self, from_block, to_block='latest'):
         filters = []
-        for contract_data in self._contracts_data:
+        for address in self._contract_addresses:
             filters.append(
-                safe_create_filter(contract_data.web3,
-                    address=contract_data.address,
+                safe_create_filter(self._web3,
+                    address=address,
                     topics=[self._signature_list],
                     from_block=from_block,
                     to_block=to_block
@@ -842,7 +827,6 @@ class EthEventsClient():
             new_entries = []
             for filter in filters:
                 new_entries.extend(self.safe_get_new_entries(filter, get_all=get_all))
-                logging.warning(new_entries)
         else:
             new_entries = get_test_entries()
             time.sleep(3)
@@ -879,14 +863,14 @@ class EthEventsClient():
                 f'{self._event_client_type.name} processing {txn_hash.hex()} logs.')
 
             # Retrieve the full txn and txn receipt.
-            receipt = tools.util.get_txn_receipt_or_wait_multi_chain(self._web3s, txn_hash)
+            receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
 
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
-                for contract_data in self._contracts_data:
+                for contract in self._contracts:
                     try:
-                        decoded_logs.extend(contract_data.contract.events[
+                        decoded_logs.extend(contract.events[
                             self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
                     except Exception:
                         # Try next contract if cannot decode from this contract.

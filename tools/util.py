@@ -106,21 +106,6 @@ def get_txn_receipt_or_wait(web3, txn_hash):
     """
     return web3.eth.get_transaction_receipt(txn_hash)
 
-# This is pretty inefficient.
-@web3_call_with_retries
-def get_txn_receipt_or_wait_multi_chain(web3s, txn_hash):
-    """Get the transaction receipt and handle errors and block delays cleanly.
-    
-    Returns:
-        AttributeDict containing a single txn receipt.
-    """
-    for web3 in web3s:
-        try:
-            return web3.eth.get_transaction_receipt(txn_hash)
-        except web3.exceptions.TransactionNotFound:
-            continue
-    # If all web3s failed, bubble up exception.
-    raise web3.exceptions.TransactionNotFound
 
 def load_contract_from_abi(abi_path):
     with open(abi_path) as abi_file:
