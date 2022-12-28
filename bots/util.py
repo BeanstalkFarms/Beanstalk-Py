@@ -1717,6 +1717,8 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
             active_pools = self.betting_client.get_active_pools()
 
             if len(active_pools) == 0:
+                self.name_function('No active Pools')
+                self.status_function('')
                 time.sleep(60)
                 continue
             self.active_pool_index = (self.active_pool_index + 1) % len(active_pools)
