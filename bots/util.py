@@ -1036,9 +1036,9 @@ class BarnRaiseMonitor(Monitor):
         self.EMOJI_RANKS = ['🥇', '🥈', '🥉']
         self.report_events = report_events
         self.report_summaries = report_summaries
+        self.bean_client = BeanClient()
         self.barn_raise_client = BarnRaiseClient()
-        self._eth_event_client = EthEventsClient(
-            EventClientType.BARN_RAISE)
+        self._eth_event_client = EthEventsClient(EventClientType.BARN_RAISE)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.last_total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
@@ -1102,15 +1102,15 @@ class BarnRaiseMonitor(Monitor):
 
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
-        usdc_amount = None
         # Mint single.
-        if event_log.event == 'TransferSingle' and event_log.args['from'] == NULL_ADDR:
-            usdc_amount = int(event_log.args.value)
-        # Mint batch.   <- is this even possible???
-        elif event_log.event == 'TransferBatch' and event_log.args['from'] == NULL_ADDR:
-            usdc_amount = sum([int(value) for value in event_log.args.values])
+        if (event_log.event in ['TransferSingle', 'TransferBatch'] and 
+            event_log.args['from'] == NULL_ADDR):
+            if event_log.event == 'TransferSingle':
+                usdc_amount = int(event_log.args.value)
+            # Mint batch.   <- is this even possible???
+            elif event_log.event == 'TransferBatch':
+                usdc_amount = sum([int(value) for value in event_log.args.values])
 
-        if usdc_amount is not None:
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity'
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
@@ -1123,10 +1123,17 @@ class BarnRaiseMonitor(Monitor):
             event_str += f' - Total sold: {round_num(self.last_total_bought, 0)}'
             # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
-            event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
-            # Empty line that does not get stripped.
-            event_str += '\n_ _'
-            self.message_function(event_str)
+
+        elif event_log.event == 'ClaimFertilizer':
+            bean_price = self.bean_client.avg_bean_price()
+            bean_amount = bean_to_float(event_log.args.beans)
+            event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts (${round_num(bean_amount * bean_price, 0)})'
+            event_str += f'\n{value_to_emojis(bean_amount)}'
+
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # Empty line that does not get stripped.
+        event_str += '\n_ _'
+        self.message_function(event_str)
 
 
 class RootMonitor(Monitor):

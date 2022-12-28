@@ -29,12 +29,18 @@
         "inputs": [
             {
                 "indexed": false,
-                "internalType": "uint8",
-                "name": "version",
-                "type": "uint8"
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "beans",
+                "type": "uint256"
             }
         ],
-        "name": "Initialized",
+        "name": "ClaimFertilizer",
         "type": "event"
     },
     {
@@ -150,32 +156,6 @@
         "type": "event"
     },
     {
-        "inputs": [],
-        "name": "USDC",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "WETH",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
         "inputs": [
             {
                 "internalType": "address",
@@ -226,14 +206,106 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            }
+        ],
+        "name": "balanceOfFertilized",
+        "outputs": [
+            {
                 "internalType": "uint256",
-                "name": "buyAmount",
+                "name": "beans",
                 "type": "uint256"
             }
         ],
-        "name": "buyAndMint",
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            }
+        ],
+        "name": "balanceOfUnfertilized",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "beans",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint128",
+                "name": "amount",
+                "type": "uint128"
+            },
+            {
+                "internalType": "uint128",
+                "name": "bpf",
+                "type": "uint128"
+            }
+        ],
+        "name": "beanstalkMint",
         "outputs": [],
-        "stateMutability": "payable",
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint128",
+                "name": "bpf",
+                "type": "uint128"
+            }
+        ],
+        "name": "beanstalkUpdate",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
@@ -247,56 +319,6 @@
             }
         ],
         "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "ethAmount",
-                "type": "uint256"
-            }
-        ],
-        "name": "getUsdcOut",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "ethAmount",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "slippage",
-                "type": "uint256"
-            }
-        ],
-        "name": "getUsdcOutWithSlippage",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "initialize",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
@@ -351,7 +373,7 @@
                         "type": "uint128"
                     }
                 ],
-                "internalType": "struct PreFertilizer.Balance",
+                "internalType": "struct Internalizer.Balance",
                 "name": "",
                 "type": "tuple"
             }
@@ -362,14 +384,37 @@
     {
         "inputs": [
             {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
             }
         ],
-        "name": "mint",
-        "outputs": [],
-        "stateMutability": "payable",
+        "name": "lastBalanceOfBatch",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint128",
+                        "name": "amount",
+                        "type": "uint128"
+                    },
+                    {
+                        "internalType": "uint128",
+                        "name": "lastBpf",
+                        "type": "uint128"
+                    }
+                ],
+                "internalType": "struct Internalizer.Balance[]",
+                "name": "balances",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -564,7 +609,7 @@
         "inputs": [
             {
                 "internalType": "uint256",
-                "name": "",
+                "name": "_id",
                 "type": "uint256"
             }
         ],
