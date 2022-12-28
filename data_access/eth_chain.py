@@ -946,7 +946,7 @@ class EthEventsClient():
         # Filters rely on server state and may be arbitrarily uninstalled by server.
         # https://github.com/ethereum/web3.py/issues/551
         # If we are failing too much recreate the filter.
-        self._set_filter()
+        self._set_filters()
         logging.error('Failed to get new event entries. Passing.')
         return []
 
