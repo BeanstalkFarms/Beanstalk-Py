@@ -925,17 +925,15 @@ class MarketMonitor(Monitor):
         Uses events from Beanstalk contract.
         """
         event_str = ''
-        # Pull args from event logs. Not all will be populated.
-        # Amount of pods being listed/ordered.
-        # In orders, amount == Bean amount.
-        if 'PodOrder' in event_log.event:
+
+        price_per_pod = pods_to_float(event_log.args.get('pricePerPod'))
+        cost_in_beans = bean_to_float(event_log.args.get('costInBeans'))
+        if price_per_pod:
             bean_amount = bean_to_float(event_log.args.get('amount'))
-            price_per_pod = pods_to_float(event_log.args.get('pricePerPod'))
             pod_amount = bean_amount / price_per_pod
-        # In listings, amount == Pod amount.
-        elif 'PodListing' in event_log.event:
+        elif cost_in_beans:
             pod_amount = bean_to_float(event_log.args.get('amount'))
-            bean_amount = bean_to_float(event_log.args.get('costInBeans'))
+            bean_amount = cost_in_beans
             price_per_pod = bean_amount / pod_amount
 
         # Index of the plot (place in line of first pod of the plot).
@@ -962,7 +960,6 @@ class MarketMonitor(Monitor):
             event_log.args.get('maxPlaceInLine'))
 
         bean_price = self.bean_client.avg_bean_price()
-        pod_amount_str = round_num(pod_amount, 0)
         start_place_in_line_str = round_num(start_place_in_line, 0)
         order_max_place_in_line_str = round_num(order_max_place_in_line, 0)
 
@@ -998,7 +995,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods re-Listed'
             else:
                 event_str += f'✏ Pods Listed'
-            event_str += f' - {pod_amount_str} Pods Listed at {start_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(pod_amount * bean_price * price_per_pod)})'
+            event_str += f' - {round_num(pod_amount, 0)} Pods Listed at {start_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(pod_amount * bean_price * price_per_pod)})'
         # If a new order or reorder.
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
@@ -1006,18 +1003,18 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods re-Ordered'
             else:
                 event_str += f'🖌 Pods Ordered'
-            event_str += f' - {pod_amount_str} Pods Ordered before {order_max_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(pod_amount * bean_price * price_per_pod)})'
+            event_str += f' - {round_num(pod_amount, 0)} Pods Ordered before {order_max_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(pod_amount * bean_price * price_per_pod)})'
         # If a fill.
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             event_str += f'💰 Pods Exchanged - '
             # Pull the Bean Transfer log to find cost.
             if event_log.event == 'PodListingFilled':
-                event_str += f'{pod_amount_str} Pods Listed at {start_place_in_line_str} in Line Filled'
+                event_str += f'{round_num(pod_amount, 0)} Pods Listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
                     event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * bean_amount)})'
                     event_str += f'\n{value_to_emojis(bean_price * bean_amount)}'
             elif event_log.event == 'PodOrderFilled':
-                event_str += f'{pod_amount_str} Pods Ordered at ' \
+                event_str += f'{round_num(pod_amount, 0)} Pods Ordered at ' \
                     f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \
                     f'Beans/Pod (${round_num(bean_price * bean_amount)})'
                 event_str += f'\n{value_to_emojis(bean_price * bean_amount)}'
