@@ -921,15 +921,23 @@ class MarketMonitor(Monitor):
         Uses events from Beanstalk contract.
         """
         event_str = ''
-
+        bean_amount = None
+        pod_amount = None
+        if 'PodListing' in event_log.event:
+            pod_amount = bean_to_float(event_log.args.get('amount'))
+        elif 'PodOrder' in event_log.event:
+            bean_amount = bean_to_float(event_log.args.get('amount'))
+        
         price_per_pod = pods_to_float(event_log.args.get('pricePerPod'))
         cost_in_beans = bean_to_float(event_log.args.get('costInBeans'))
-        if price_per_pod:
-            bean_amount = bean_to_float(event_log.args.get('amount'))
-            pod_amount = bean_amount / price_per_pod
-        elif cost_in_beans:
-            pod_amount = bean_to_float(event_log.args.get('amount'))
+        if cost_in_beans:
             bean_amount = cost_in_beans
+        
+        if not bean_amount:
+            bean_amount = pod_amount * price_per_pod
+        if not pod_amount and price_per_pod:
+            pod_amount = bean_amount / price_per_pod
+        if not price_per_pod and pod_amount:
             price_per_pod = bean_amount / pod_amount
 
         # Index of the plot (place in line of first pod of the plot).
