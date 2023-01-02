@@ -1122,6 +1122,9 @@ class BarnRaiseMonitor(Monitor):
             bean_amount = bean_to_float(event_log.args.beans)
             event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts (${round_num(bean_amount * bean_price, 0)})'
             event_str += f'\n{value_to_emojis(bean_amount)}'
+        # Transfer or some other uninteresting transaction.
+        else:
+            return
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
         # Empty line that does not get stripped.
