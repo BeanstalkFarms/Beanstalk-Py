@@ -1282,25 +1282,25 @@ def monitor_betting_events():
     # while True:
     #     events = client.get_new_logs(dry_run=False)
     #     time.sleep(5)
-    web3 = get_web3_instance()
+    web3 = get_web3_arbitrum_instance()
     filter = safe_create_filter(web3,
-        address=BETTING_ADMIN_ADDR,
+        address=BETTING_ADDR_ARBITRUM,
         topics=[BETTING_SIGNATURES_LIST],
         # from_block=10581687, # Use this to search for old events. # Rinkeby
         # from_block=14205000, # Use this to search for old events. # Mainnet
-        from_block=7931434,
+        from_block=45862794,
         to_block='latest'
     )
     entries = filter.get_all_entries()
     for entry in entries:
         logging.warning(entry)
 
-    client = RootClient(web3)
-    client.get_total_supply()
-    client.get_root_token_bdv()
+    # client = RootClient(web3)
+    # client.get_total_supply()
+    # client.get_root_token_bdv()
 
-    client = BettingClient(web3)
-    logging.info(client.get_active_pools())
+    # client = BettingClient(web3)
+    # logging.info(client.get_active_pools())
 
 
 if __name__ == '__main__':
