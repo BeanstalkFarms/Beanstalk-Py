@@ -990,7 +990,7 @@ class MarketMonitor(Monitor):
                 price_per_pod_str = round_num(
                     bean_to_float(pod_order['pricePerPod']), 3)
                 event_str += f'❌ Pod Order Cancelled'
-                event_str += f' - {pod_amount_str} Pods Ordered before {max_place_str} @ {price_per_pod_str} Beans/Pod'
+                # event_str += f' - {pod_amount_str} Pods Ordered before {max_place_str} @ {price_per_pod_str} Beans/Pod'
         # If a new listing or relisting.
         elif event_log.event == 'PodListingCreated':
             # Check if this was a relist, if so send relist message.
