@@ -132,7 +132,7 @@ class BeanstalkSqlClient(object):
                     status
                     pricePerPod
                     amount
-                    filledAmount
+                    filled
                     index
                     start
                 }}
@@ -155,8 +155,8 @@ class BeanstalkSqlClient(object):
                     maxPlaceInLine
                     id
                     pricePerPod
-                    amount
-                    filledAmount
+                    podAmount
+                    podAmountFilled
                 }}
             }}
         """

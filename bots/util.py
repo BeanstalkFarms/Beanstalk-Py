@@ -921,8 +921,8 @@ class MarketMonitor(Monitor):
         Uses events from Beanstalk contract.
         """
         event_str = ''
-        bean_amount = None
-        pod_amount = None
+        bean_amount = 0
+        pod_amount = 0
         if 'PodListing' in event_log.event:
             pod_amount = bean_to_float(event_log.args.get('amount'))
         elif 'PodOrder' in event_log.event:
@@ -975,17 +975,16 @@ class MarketMonitor(Monitor):
                     'account').lower() + '-' + str(event_log.args.get('index'))
                 pod_listing = self.beanstalk_graph_client.get_pod_listing(
                     listing_graph_id)
+                pod_amount_str = round_num(int(pod_listing['amount']) - int(pod_order['filled']), 0)
                 start_place_in_line_str = round_num(pods_to_float(
                     pod_listing['index']) + pods_to_float(pod_listing['start']) - pods_harvested, 0)
                 price_per_pod_str = round_num(
                     bean_to_float(pod_listing['pricePerPod']), 3)
-                # bean_amount_str = round_num(bean_to_float(
-                #     int(pod_listing['amount']) - int(pod_listing['filledAmount'])), 0)
                 event_str += f'❌ Pod Listing Cancelled'
-                event_str += f' - {amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
+                event_str += f' - {pod_amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
             else:
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
-                pod_amount_str = round_num(pod_amount - int(pod_order['filledAmount']), 0)
+                pod_amount_str = round_num(int(pod_order['podAmount']) - int(pod_order['podAmountFilled']), 0)
                 max_place_str = round_num(
                     pods_to_float(pod_order['maxPlaceInLine']), 0)
                 price_per_pod_str = round_num(
