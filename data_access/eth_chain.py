@@ -165,6 +165,9 @@ add_event_to_dict('Plant(address,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Pick(address,address,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+# On Fertilizer contract.
+add_event_to_dict('ClaimFertilizer(uint256[],uint256)',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
@@ -189,8 +192,6 @@ FERTILIZER_SIGNATURES_LIST = []
 add_event_to_dict('TransferSingle(address,address,address,uint256,uint256)',
                   FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
 add_event_to_dict('TransferBatch(address,address,address,uint256[],uint256[])',
-                  FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
-add_event_to_dict('ClaimFertilizer(uint256[],uint256)',
                   FERTILIZER_EVENT_MAP, FERTILIZER_SIGNATURES_LIST)
 
 
@@ -747,7 +748,7 @@ class EthEventsClient():
             self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
-            self._contracts = [get_beanstalk_contract(self._web3)]
+            self._contracts = [get_beanstalk_contract(self._web3), get_fertilizer_contract(self._web3)]
             self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST

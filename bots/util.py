@@ -823,6 +823,13 @@ class BeanstalkMonitor(Monitor):
                 event_str += f' (${round_num(underlying_value, 0)})'
                 event_str += f'\n{value_to_emojis(underlying_value)}'
 
+        # Rinse Sprouts (Fertilizer contract).
+        elif event_log.event == 'ClaimFertilizer':
+            bean_price = self.bean_client.avg_bean_price()
+            bean_amount = bean_to_float(event_log.args.beans)
+            event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts (${round_num(bean_amount * bean_price, 0)})'
+            event_str += f'\n{value_to_emojis(bean_amount * bean_price)}'
+
         # Unknown event type.
         else:
             logging.warning(
@@ -1123,12 +1130,6 @@ class BarnRaiseMonitor(Monitor):
             event_str += f' - Total sold: {round_num(self.last_total_bought, 0)}'
             # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
-
-        elif event_log.event == 'ClaimFertilizer':
-            bean_price = self.bean_client.avg_bean_price()
-            bean_amount = bean_to_float(event_log.args.beans)
-            event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts (${round_num(bean_amount * bean_price, 0)})'
-            event_str += f'\n{value_to_emojis(bean_amount)}'
         # Transfer or some other uninteresting transaction.
         else:
             return
