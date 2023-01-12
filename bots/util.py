@@ -1778,8 +1778,8 @@ class SnapshotPreviewMonitor(PreviewMonitor):
 
             active_proposals = self.snapshot_client.get_active_proposals()
             if len(active_proposals) == 0:
-                self.name_function('PR: 0 active')
-                self.status_function(f'{DAO_SNAPSHOT_NAME}')
+                self.name_function('DAO: 0 active')
+                self.status_function(f'snapshot.org/#/beanstalkfarms.eth')
                 time.sleep(60)
                 continue
 
@@ -1791,7 +1791,7 @@ class SnapshotPreviewMonitor(PreviewMonitor):
 
                 # self.status_function(proposal['title'])
 
-                self.name_function(f'PR: {proposal["title"]}')
+                self.name_function(f'DAO: {proposal["title"]}')
                 self.status_function(f'Votes: {round_num(proposal["scores_total"], 0)}')
                 self.wait_for_next_cycle()
                 for i in range(len(proposal['choices'])):
