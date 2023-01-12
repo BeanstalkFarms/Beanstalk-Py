@@ -220,14 +220,9 @@ class DiscordClient(discord.ext.commands.Bot):
 
     @tasks.loop(seconds=10, reconnect=True)
     async def _update_naming(self):
-        emoji_accent = util.holiday_emoji()
-        next_name = emoji_accent + 'BeanBot' + emoji_accent
-        if self.nickname != next_name:
-            for guild in self.current_guilds:
-                logging.info(f'Attempting to set nickname in guild with id {guild.id}')
-                await guild.me.edit(nick=next_name)
-                logging.info(f'Bot nickname changed to {next_name} in guild with id {guild.id}')
-            self.nickname = next_name
+        if not self.nickname:
+            self.nickname = await util.update_discord_bot_name('BeanBot', self)
+            # NOTE(funderberker): will not update with holiday emojis.
 
     @_update_naming.before_loop
     async def before__update_naming_loop(self):

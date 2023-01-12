@@ -17,7 +17,7 @@ import websockets
 from web3 import eth
 
 from constants.addresses import *
-from data_access.graphs import BeanSqlClient, BeanstalkSqlClient
+from data_access.graphs import BeanSqlClient, BeanstalkSqlClient, SnapshotClient, DAO_SNAPSHOT_NAME
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
 from data_access.coin_gecko import get_token_price, ETHEREUM_CG_ID
@@ -59,6 +59,13 @@ ONE_HUNDRED_MEGABYTES = 100**6
 RESET_MONITOR_DELAY_INIT = 15  # seconds
 # Timestamp for start of Barn Raise.
 BARN_RAISE_START_TIME = 1652112000  # seconds
+# # Governance quorum percentages.
+# BIP_QUORUM_RATIO = 0.5
+# BOP_QUORUM_RATIO = 0.35
+# SUNRISE_TIME_PRE_EXPLOIT = 1650196819
+# SUNRISE_TIME_POST_EXPLOIT = 1659762014
+
+DISCORD_NICKNAME_LIMIT = 32
 
 GENESIS_SLUG = "beanft-genesis"
 WINTER_SLUG = "beanft-winter"
@@ -1434,6 +1441,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
 
         self.nickname = ''
+        self.last_nickname = ''
         self.status_text = ''
 
         # Try to avoid hitting Discord API rate limit when all bots starting together.
@@ -1481,14 +1489,8 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
     @tasks.loop(seconds=1, reconnect=True)
     async def _update_naming(self):
         if self.nickname:
-            # Note(funderberker): Is this rate limited?
-            for guild in self.current_guilds:
-                logging.info(
-                    f'Attempting to set nickname in guild with id {guild.id}')
-                await guild.me.edit(nick=self.nickname)
-                logging.info(
-                    f'Bot nickname changed to {self.nickname} in guild with id {guild.id}')
-            self.nickname = ''
+            await update_discord_bot_name(self.nickname, self)
+        self.nickname = ''
         if self.status_text:
             await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
                                                                  name=self.status_text))
@@ -1500,6 +1502,20 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
 
+async def update_discord_bot_name(name, bot):
+    emoji_accent = holiday_emoji()
+    next_name = emoji_accent + name + emoji_accent
+    # Discord character limit
+    if len(next_name) > DISCORD_NICKNAME_LIMIT:
+        pruned_name = next_name[:DISCORD_NICKNAME_LIMIT-3] + '...'
+        logging.info(f'Pruning nickname from {next_name} to {pruned_name}')
+        next_name = pruned_name
+    # Note(funderberker): Is this rate limited?s
+    for guild in bot.current_guilds:
+        logging.info(f'Attempting to set nickname in guild with id {guild.id}')
+        await guild.me.edit(nick=next_name)
+        logging.info(f'Bot nickname changed to {next_name} in guild with id {guild.id}')
+    return next_name
 
 class PreviewMonitor(Monitor):
     """Base class for Discord Sidebar monitors. Do not use directly.
@@ -1747,6 +1763,44 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
                     self.name_function(name_str)
                     self.wait_for_next_cycle()
 
+
+class SnapshotPreviewMonitor(PreviewMonitor):
+    """Monitor active Snapshots and display via discord nickname/status."""
+    def __init__(self, name_function, status_function):
+        super().__init__('Snapshot', name_function, status_function, 1, check_period=PREVIEW_CHECK_PERIOD)
+        self.last_name = ''
+        self.last_status = ''
+    
+    def _monitor_method(self):
+        self.snapshot_client = SnapshotClient()
+        self.beanstalk_graph_client = BeanstalkSqlClient()
+        while self._thread_active:
+
+            active_proposals = self.snapshot_client.get_active_proposals()
+            if len(active_proposals) == 0:
+                self.name_function('PR: 0 active')
+                self.status_function(f'{DAO_SNAPSHOT_NAME}')
+                time.sleep(60)
+                continue
+
+            # Rotate data and update status.
+            for proposal in active_proposals:
+                votable_stalk = stalk_to_float(
+                    self.beanstalk_graph_client.get_start_stalk_by_season(
+                    self.beanstalk_graph_client.get_season_id_by_timestamp(proposal['start'])))
+
+                # self.status_function(proposal['title'])
+
+                self.name_function(f'PR: {proposal["title"]}')
+                self.status_function(f'Votes: {round_num(proposal["scores_total"], 0)}')
+                self.wait_for_next_cycle()
+                for i in range(len(proposal['choices'])):
+                    try:
+                        self.status_function(f'{round_num(proposal["scores"][i] / votable_stalk,2)}% - {proposal["choices"][i]}')
+                    except IndexError:
+                        # Unkown if Snapshot guarantees parity between these arrays.
+                        break
+                    self.wait_for_next_cycle()
 
 
 class MsgHandler(logging.Handler):

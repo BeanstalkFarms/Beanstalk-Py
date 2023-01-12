@@ -37,6 +37,7 @@ MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
 NEWLINE_CHAR = '\n'
 
 SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
+DAO_SNAPSHOT_NAME = 'beanstalkfarms.eth'
 
 # BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
 #     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
@@ -48,6 +49,7 @@ BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
 BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-dev'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-testing'
+SNAPSHOT_GRAPH_ENDPOINT = 'https://hub.snapshot.org/graphql'
 
 
 class BeanSqlClient(object):
@@ -174,6 +176,24 @@ class BeanstalkSqlClient(object):
         # Create gql query and execute.
         return float(execute(self._client, query_str)['fertilizers'][0]['supply'])
 
+    def get_start_stalk_by_season(self, season):
+        if season <= 1:
+            return 0
+        query_str = f"""
+        query MyQuery {{
+            siloHourlySnapshots(
+                orderDirection: desc
+                first: 1
+                where: {{season: {season - 1}}}
+            ) {{
+                season
+                stalk
+            }}
+        }}
+        """
+        # Create gql query and execute.
+        return float(execute(self._client, query_str)['siloHourlySnapshots'][0]['stalk'])
+
     def silo_assets_seasonal_changes(self, current_silo_assets=None, previous_silo_assets=None):
         """Get address, delta balance, and delta BDV of all silo assets across last season.
 
@@ -293,7 +313,69 @@ class BeanstalkSqlClient(object):
 
         # Return number of assets matching filters.
         return len(result['silo']['assets'])
+
+    # NOTE(funderberker): Hour to season conversion is imperfect. Unsure why.
+    # Perhaps due to paused hours. Or subgraph data is different than expectations.
+    # WARNING(funderberker): This is a very slow call on non-recent seasons.
+    def get_season_id_by_timestamp(self, timestamp):
+        pull_size = 500
+        pulled_seasons = 0
+        while True:
+            query_str = f"""
+                query {{
+                    seasons(first: {pull_size}, skip: {pulled_seasons}, orderBy: season, orderDirection: desc) {{
+                        id
+                        createdAt
+                    }}
+                }}
+            """
+            seasons = execute(self._client, query_str)['seasons']
+            pulled_seasons += pull_size
+            if timestamp < int(seasons[-1]['createdAt']):
+                continue
+            # Assumes pulling in descending order.
+            if timestamp > int(seasons[0]['createdAt']):
+                return int(seasons[0]['id'])
+            for i in range(len(seasons) - 1):
+                if timestamp < int(seasons[i]['createdAt']) and timestamp >= int(seasons[i+1]['createdAt']):
+                    return int(seasons[i+1]['id'])
+
     
+class SnapshotClient():
+    def __init__(self):
+        transport = AIOHTTPTransport(url=SNAPSHOT_GRAPH_ENDPOINT)
+        self._client = Client(
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
+
+    # def _get_proposal_quorum(start_time, quorum_ratio):
+
+
+    def get_active_proposals(self):
+        """Returns list of active proposals for Beanstalk DAO."""
+        query_str = f"""  
+            query get_active_proposals {{
+            proposals(
+                first: 20,
+                skip: 0,
+                where: {{
+                    space_in: ["{DAO_SNAPSHOT_NAME}"],
+                    state: "active"
+                }},
+                orderBy: "created",
+                orderDirection: desc
+            ) {{
+                title
+                choices
+                scores
+                scores_total
+                start
+                end
+            }}
+            }}
+        """
+        # Create gql query and execute.
+        return execute(self._client, query_str)['proposals']
+ 
 
 class SeasonStats():
     """Standard object containing fields for all fields of interest for a single season.
@@ -422,6 +504,8 @@ if __name__ == '__main__':
     beanstalk_client = BeanstalkSqlClient()
     print(
         f'\nCurrent and previous Season Stats:\n{beanstalk_client.seasons_stats()}')
+    timestamp = 1628299400  
+    print(f'season at time {timestamp} = {beanstalk_client.get_season_id_by_timestamp(timestamp)}')
 
-    snapshot_sql_client = SnapshotSqlClient()
-    print(f'Voted: {snapshot_sql_client.percent_of_stalk_voted()}%')
+    # snapshot_sql_client = SnapshotClient()
+    # print(f'Voted: {snapshot_sql_client.percent_of_stalk_voted()}%')
