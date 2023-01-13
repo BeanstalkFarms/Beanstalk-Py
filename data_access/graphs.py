@@ -37,7 +37,8 @@ MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
 NEWLINE_CHAR = '\n'
 
 SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
-DAO_SNAPSHOT_NAME = 'beanstalkfarms.eth'
+# DAO_SNAPSHOT_NAME = 'snapshot.dcl.eth'
+DAO_SNAPSHOT_NAME = 'beanstalkdao.eth'
 
 # BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
 #     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
@@ -370,6 +371,9 @@ class SnapshotClient():
                 scores_total
                 start
                 end
+                space {{
+                    id
+                }}
             }}
             }}
         """

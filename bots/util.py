@@ -1779,12 +1779,16 @@ class SnapshotPreviewMonitor(PreviewMonitor):
             active_proposals = self.snapshot_client.get_active_proposals()
             if len(active_proposals) == 0:
                 self.name_function('DAO: 0 active')
-                self.status_function(f'snapshot.org/#/beanstalkfarms.eth')
+                self.status_function(f'snapshot.org/#/' + DAO_SNAPSHOT_NAME)
                 time.sleep(60)
                 continue
 
             # Rotate data and update status.
             for proposal in active_proposals:
+                # Skip BFC votes:
+                if proposal['space']['id'] == 'beanstalkfarms.eth':
+                    logging.info('Ignoring BFC snapshot')
+                    continue
                 votable_stalk = stalk_to_float(
                     self.beanstalk_graph_client.get_start_stalk_by_season(
                     self.beanstalk_graph_client.get_season_id_by_timestamp(proposal['start'])))
