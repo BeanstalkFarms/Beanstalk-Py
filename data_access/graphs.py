@@ -36,16 +36,11 @@ MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
 # Newline character to get around limits of f-strings.
 NEWLINE_CHAR = '\n'
 
-SUBGRAPH_API_KEY = os.environ["SUBGRAPH_API_KEY"]
 # DAO_SNAPSHOT_NAME = 'snapshot.dcl.eth'
 DAO_SNAPSHOT_NAME = 'beanstalkdao.eth'
 
-# BEAN_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
-#     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-1'
 # BEAN_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/bean'
 BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
-# BEANSTALK_GRAPH_ENDPOINT = f'https://gateway.thegraph.com/api/{SUBGRAPH_API_KEY}/' \
-#     'subgraphs/id/0x925753106fcdb6d2f30c3db295328a0a1c5fd1d1-0'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
 BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-dev'

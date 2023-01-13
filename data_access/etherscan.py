@@ -2,13 +2,12 @@ import logging
 import os
 from data_access.util import get_with_retries
 
-ETHERSCAN_API_KEY = os.environ["ETHERSCAN_TOKEN"]
 ETHERSCAN_API_URL = 'https://api.etherscan.io/api?module={module}&action={action}&{payload}&apikey={key}'
 
 def get_gas_base_fee():
     """Returns the base fee of the next block as a float. Retrieved from etherscan API."""
     request_url = ETHERSCAN_API_URL.format(
-        module='gastracker', action='gasoracle', payload='', key=ETHERSCAN_API_KEY)
+        module='gastracker', action='gasoracle', payload='', key=os.environ["ETHERSCAN_TOKEN"])
     result = get_with_retries(request_url)
     if int(result['status']) == 0:
         raise Exception(f'Request rejected by etherscan:\n{result["result"]}')
@@ -18,7 +17,7 @@ def get_gas_base_fee():
 def get_erc20_price(erc20_address):
     """Returns the price of an erc20 token in USD. Retrieved from etherscan API."""
     request_url = ETHERSCAN_API_URL.format(
-        module='token', action='tokeninfo', payload=f'contractaddress={erc20_address}', key=ETHERSCAN_API_KEY)
+        module='token', action='tokeninfo', payload=f'contractaddress={erc20_address}', key=os.environ["ETHERSCAN_TOKEN"])
     result = get_with_retries(request_url)['result']
     if int(result['status']) == 0:
         raise Exception(f'Request rejected by etherscan:\n{result["result"]}')
