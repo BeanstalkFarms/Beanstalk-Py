@@ -989,7 +989,7 @@ class MarketMonitor(Monitor):
                     'account').lower() + '-' + str(event_log.args.get('index'))
                 pod_listing = self.beanstalk_graph_client.get_pod_listing(
                     listing_graph_id)
-                pod_amount_str = round_num(int(pod_listing['amount']) - int(pod_order['filled']), 0)
+                pod_amount_str = round_num(int(pod_listing['amount']) - int(pod_listing['filled']), 0)
                 start_place_in_line_str = round_num(pods_to_float(
                     pod_listing['index']) + pods_to_float(pod_listing['start']) - pods_harvested, 0)
                 price_per_pod_str = round_num(
