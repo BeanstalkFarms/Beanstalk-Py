@@ -68,4 +68,4 @@ if __name__ == '__main__':
         else:
             print(f'args:')
             for arg_name, value in decoded_txn[1].items():
-                print(f'    arg_name: {value}')
+                print(f'    {arg_name}: {value}')

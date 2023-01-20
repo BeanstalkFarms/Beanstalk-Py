@@ -43,7 +43,7 @@ DAO_SNAPSHOT_NAME = 'beanstalkdao.eth'
 BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
-BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-dev'
+BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-testing'
 SNAPSHOT_GRAPH_ENDPOINT = 'https://hub.snapshot.org/graphql'
 

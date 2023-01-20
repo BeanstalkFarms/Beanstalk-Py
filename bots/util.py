@@ -937,13 +937,15 @@ class MarketMonitor(Monitor):
         event_str = ''
         bean_amount = 0
         pod_amount = 0
-        if 'PodListing' in event_log.event:
-            pod_amount = bean_to_float(event_log.args.get('amount'))
-        elif 'PodOrder' in event_log.event:
+
+        cost_in_beans = bean_to_float(event_log.args.get('costInBeans'))
+        
+        if cost_in_beans or event_log.event == 'PodListingCreated':
+            pod_amount = pods_to_float(event_log.args.get('amount'))
+        else:
             bean_amount = bean_to_float(event_log.args.get('amount'))
         
         price_per_pod = pods_to_float(event_log.args.get('pricePerPod'))
-        cost_in_beans = bean_to_float(event_log.args.get('costInBeans'))
         if cost_in_beans:
             bean_amount = cost_in_beans
         
@@ -982,29 +984,33 @@ class MarketMonitor(Monitor):
         order_max_place_in_line_str = round_num(order_max_place_in_line, 0)
 
         # If this was a pure cancel (not relist or reorder).
-        if ((event_log.event == 'PodListingCancelled' and not self.beanstalk_contract.events['PodListingCreated']().processReceipt(transaction_receipt, errors=DISCARD)) or
-                (event_log.event == 'PodOrderCancelled' and not self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=DISCARD))):
+        if ((event_log.event == 'PodListingCancelled' and not self.beanstalk_contract.events['PodListingCreated']().processReceipt(transaction_receipt, errors=DISCARD) and not self.beanstalk_contract.events['PodOrderFilled']().processReceipt(transaction_receipt, errors=DISCARD)) or
+            (event_log.event == 'PodOrderCancelled' and not self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=DISCARD) and not self.beanstalk_contract.events['PodListingFilled']().processReceipt(transaction_receipt, errors=DISCARD))):
             if event_log.event == 'PodListingCancelled':
-                listing_graph_id = event_log.args.get(
-                    'account').lower() + '-' + str(event_log.args.get('index'))
-                pod_listing = self.beanstalk_graph_client.get_pod_listing(
-                    listing_graph_id)
-                pod_amount_str = round_num(int(pod_listing['amount']) - int(pod_listing['filled']), 0)
-                start_place_in_line_str = round_num(pods_to_float(
-                    pod_listing['index']) + pods_to_float(pod_listing['start']) - pods_harvested, 0)
+                listing_graph_id = event_log.args.get('account').lower() + '-' + str(event_log.args.get('index'))
+                pod_listing = self.beanstalk_graph_client.get_pod_listing(listing_graph_id)
+                # If this listing did not exist, ignore cancellation.
+                if pod_listing is None:
+                    logging.info(f'Ignoring null listing cancel with graph id {listing_graph_id} and txn hash {event_log.transactionHash.hex()}')
+                    return ''
+                pod_amount_str = round_num(pods_to_float(int(pod_listing['amount']) - int(pod_listing['filled'])), 0)
+                start_place_in_line_str = round_num(pods_to_float(int(
+                    pod_listing['index']) + int(pod_listing['start'])) - pods_harvested, 0)
                 price_per_pod_str = round_num(
                     bean_to_float(pod_listing['pricePerPod']), 3)
                 event_str += f'❌ Pod Listing Cancelled'
                 event_str += f' - {pod_amount_str} Pods Listed at {start_place_in_line_str} @ {price_per_pod_str} Beans/Pod'
             else:
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
-                pod_amount_str = round_num(int(pod_order['podAmount']) - int(pod_order['podAmountFilled']), 0)
-                max_place_str = round_num(
-                    pods_to_float(pod_order['maxPlaceInLine']), 0)
-                price_per_pod_str = round_num(
-                    bean_to_float(pod_order['pricePerPod']), 3)
+                # If this order did not exist, ignore cancellation.
+                if pod_order is None:
+                    logging.info(f'Ignoring null order cancel with graph id {order_id} and txn hash {event_log.transactionHash.hex()}')
+                    return ''
+                pod_amount = pods_to_float(int(pod_order['podAmount']) - int(pod_order['podAmountFilled']))
+                max_place = pods_to_float(pod_order['maxPlaceInLine'])
+                price_per_pod = bean_to_float(pod_order['pricePerPod'])
                 event_str += f'❌ Pod Order Cancelled'
-                # event_str += f' - {pod_amount_str} Pods Ordered before {max_place_str} @ {price_per_pod_str} Beans/Pod'
+                event_str += f' - {round_num(pod_amount,0)} Pods Ordered before {round_num(max_place,0)} @ {round_num(price_per_pod,3)} Beans/Pod'
         # If a new listing or relisting.
         elif event_log.event == 'PodListingCreated':
             # Check if this was a relist, if so send relist message.
