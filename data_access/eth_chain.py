@@ -1066,8 +1066,8 @@ def bean_to_float(bean_long):
 def soil_to_float(soil_long):
     return token_to_float(soil_long, SOIL_DECIMALS)
 
-def stalk_to_float(soil_long):
-    return token_to_float(soil_long, STALK_DECIMALS)
+def stalk_to_float(stalk_long):
+    return token_to_float(stalk_long, STALK_DECIMALS)
 
 def seeds_to_float(soil_long):
     return token_to_float(soil_long, SEED_DECIMALS)

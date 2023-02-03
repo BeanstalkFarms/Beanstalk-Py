@@ -7,6 +7,7 @@ import time
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
+from constants.addresses import BEANSTALK_ADDR
 from data_access.eth_chain import bean_to_float, pods_to_float, soil_to_float, token_to_float
 
 # Reduce log spam from the gql package.
@@ -36,7 +37,7 @@ MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
 # Newline character to get around limits of f-strings.
 NEWLINE_CHAR = '\n'
 
-# DAO_SNAPSHOT_NAME = 'snapshot.dcl.eth'
+# DAO_SNAPSHOT_NAME = 'beanstalkfarmscommittee.eth'
 DAO_SNAPSHOT_NAME = 'beanstalkdao.eth'
 
 # BEAN_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/bean'
@@ -180,7 +181,7 @@ class BeanstalkSqlClient(object):
             siloHourlySnapshots(
                 orderDirection: desc
                 first: 1
-                where: {{season: {season - 1}}}
+                where: {{season: {season - 1}  silo: "{BEANSTALK_ADDR.lower()}"}}
             ) {{
                 season
                 stalk

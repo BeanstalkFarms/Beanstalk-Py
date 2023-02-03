@@ -1798,6 +1798,7 @@ class SnapshotPreviewMonitor(PreviewMonitor):
                 votable_stalk = stalk_to_float(
                     self.beanstalk_graph_client.get_start_stalk_by_season(
                     self.beanstalk_graph_client.get_season_id_by_timestamp(proposal['start'])))
+                logging.info(f'votable_stalk = {votable_stalk}')
 
                 # self.status_function(proposal['title'])
 
@@ -1806,7 +1807,7 @@ class SnapshotPreviewMonitor(PreviewMonitor):
                 self.wait_for_next_cycle()
                 for i in range(len(proposal['choices'])):
                     try:
-                        self.status_function(f'{round_num(proposal["scores"][i] / votable_stalk,2)}% - {proposal["choices"][i]}')
+                        self.status_function(f'{round_num(100 * proposal["scores"][i] / votable_stalk,2)}% - {proposal["choices"][i]}')
                     except IndexError:
                         # Unkown if Snapshot guarantees parity between these arrays.
                         break
