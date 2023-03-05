@@ -53,8 +53,8 @@ POOL_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
 BEANSTALK_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
 # How long to wait between checks for fert purchases.
 BARN_RAISE_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
-# Bytes in 50 megabytes.
-ONE_HUNDRED_MEGABYTES = 100**6
+# Bytes in 100 megabytes.
+ONE_HUNDRED_MEGABYTES = 100 * 1000000
 # Initial time to wait before reseting dead monitor.
 RESET_MONITOR_DELAY_INIT = 15  # seconds
 # Timestamp for start of Barn Raise.
