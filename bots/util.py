@@ -834,6 +834,9 @@ class BeanstalkMonitor(Monitor):
         elif event_log.event == 'ClaimFertilizer':
             bean_price = self.bean_client.avg_bean_price()
             bean_amount = bean_to_float(event_log.args.beans)
+            # Ignore rinses with essentially no beans bc they are clutter, especially on transfers.
+            if (bean_amount < 1):
+                return ''
             event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts (${round_num(bean_amount * bean_price, 0)})'
             event_str += f'\n{value_to_emojis(bean_amount * bean_price)}'
 
