@@ -39,6 +39,7 @@ NEWLINE_CHAR = '\n'
 
 # DAO_SNAPSHOT_NAME = 'beanstalkfarmscommittee.eth'
 DAO_SNAPSHOT_NAME = 'beanstalkdao.eth'
+FARMS_SNAPSHOT_NAME = 'beanstalkfarms.eth'
 
 # BEAN_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/bean'
 BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
@@ -355,7 +356,7 @@ class SnapshotClient():
                 first: 20,
                 skip: 0,
                 where: {{
-                    space_in: ["{DAO_SNAPSHOT_NAME}"],
+                    space_in: ["{DAO_SNAPSHOT_NAME}", "{FARMS_SNAPSHOT_NAME}"],
                     state: "active"
                 }},
                 orderBy: "created",
