@@ -4,6 +4,7 @@ import os
 import signal
 
 import telebot
+from telebot import apihelper
 
 from bots import util
 from data_access.eth_chain import EventClientType
@@ -23,6 +24,7 @@ class TelegramBot(object):
             self._chat_id = TELE_CHAT_ID_STAGING
             logging.info('Configured as a staging instance.')
 
+        apihelper.SESSION_TIME_TO_LIVE = 5 * 60
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
 
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
