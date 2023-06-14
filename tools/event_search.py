@@ -13,6 +13,7 @@ from web3 import Web3, WebsocketProvider
 
 logging.basicConfig(level=logging.WARNING)
 
+MAX_BLOCK_PULL_SIZE = 500
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -20,7 +21,8 @@ if __name__ == '__main__':
     parser.add_argument('event_definition', type=str,
                         help='the str of the event contract definition. ex)  RemoveDeposit(address,address,uint32,uint256)')
     # parser.add_argument('-l', '--list', action='store_true', help='list beanstalk event definitions')
-    parser.add_argument('-e', '--show_entries', action='store_true', help='show event entries')
+    parser.add_argument('-e', '--show_entries',
+                        action='store_true', help='show event entries')
     parser.add_argument('-n', '--num_txns', type=int, default=1,
                         help='the max number of matching txns to return')
     parser.add_argument('-a', '--address', type=str,
@@ -46,13 +48,14 @@ if __name__ == '__main__':
     event_signature_hash = Web3.keccak(text=args.event_definition).hex()
 
     latest_searched_block = web3.eth.get_block('latest').number
-    blocks_to_check = 1000
+    blocks_to_check = MAX_BLOCK_PULL_SIZE if latest_searched_block - \
+        args.max_block > MAX_BLOCK_PULL_SIZE else latest_searched_block - args.max_block
     entry_matches = []
     while len(entry_matches) < args.num_txns and latest_searched_block > args.max_block:
         from_block = latest_searched_block - blocks_to_check
         to_block = latest_searched_block - 1
         filter = web3.eth.filter({
-            "address": args.address,
+            "address": Web3.to_checksum_address(args.address),
             "topics": [event_signature_hash],
             "fromBlock": from_block,
             "toBlock": to_block

@@ -26,7 +26,8 @@ DISCORD_CHANNEL_ID_REPORT = 943711736391933972
 DISCORD_CHANNEL_ID_BARN_RAISE = 969594841455558717
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 TELEGRAM_FWD_CHAT_ID_TEST = "-1001655547288"  # Beanstalk Bot Testing channel
-TELEGRAM_FWD_CHAT_ID_PRODUCTION = "@beanstalkUSD"  # Beanstalk Announcements channel ("-1001544001982")
+# Beanstalk Announcements channel ("-1001544001982")
+TELEGRAM_FWD_CHAT_ID_PRODUCTION = "@beanstalkUSD"
 BUCKET_NAME = 'bots_data_8723748'
 PROD_BLOB_NAME = 'prod_channel_to_wallets'
 STAGE_BLOB_NAME = 'stage_channel_to_wallets'
@@ -35,6 +36,7 @@ WALLET_WATCH_LIMIT = 10
 DISCORD_CHANNEL_ID_ANNOUNCEMENTS = 880500642546851850
 DISCORD_CHANNEL_ID_WEEKLY_UPDATES = 1025448845594861718
 DISCORD_CHANNEL_ID_SNAPSHOTS = 975498149223366786
+
 
 class Channel(Enum):
     PEG = 0
@@ -102,7 +104,8 @@ class DiscordClient(discord.ext.commands.Bot):
         # self.channels_to_fwd = [DISCORD_CHANNEL_ID_TEST_BOT]
         self.tele_bot = None
         if telegram_token is not None:
-            self.tele_bot = telebot.TeleBot(telegram_token, parse_mode='Markdown')
+            self.tele_bot = telebot.TeleBot(
+                telegram_token, parse_mode='Markdown')
 
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
@@ -122,29 +125,29 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)
         self.curve_bean_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg_beanstalk, prod=prod, dry_run=False)
+        self.beanstalk_monitor = util.BeanstalkMonitor(
+            self.send_msg_beanstalk, prod=prod, dry_run=True)
         self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
+        self.market_monitor = util.MarketMonitor(
+            self.send_msg_market, prod=prod, dry_run=False)
         self.market_monitor.start()
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
             self.send_msg_barn_raise, report_events=True, report_summaries=False, prod=prod, dry_run=False)
         self.barn_raise_monitor.start()
 
-
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         # Ignore base class, because we always want to reconnect.
         # https://discordpy.readthedocs.io/en/latest/api.html#discord.ClientUser.edit
         # https://discordpy.readthedocs.io/en/latest/api.html#exceptions
         self._update_naming.add_exception_type(discord.DiscordException)
-        
+
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         self.send_queued_messages.add_exception_type(
             discord.errors.DiscordServerError)
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
-
 
     def stop(self):
         # self.upload_channel_to_wallets()
@@ -217,7 +220,6 @@ class DiscordClient(discord.ext.commands.Bot):
             cwd=os.path.dirname(os.path.realpath(__file__))
         ).decode('ascii').strip())
 
-
     @tasks.loop(seconds=10, reconnect=True)
     async def _update_naming(self):
         if not self.nickname:
@@ -279,9 +281,11 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_barn_raise.send(msg)
                 elif channel is Channel.TELEGRAM_FWD:
                     if self.tele_bot is not None:
-                        self.tele_bot.send_message(chat_id=self._chat_id_telegram_fwd, text=msg)
+                        self.tele_bot.send_message(
+                            chat_id=self._chat_id_telegram_fwd, text=msg)
                     else:
-                        logging.warning('Discord tele_bot not configured to forward. Ignoring...')
+                        logging.warning(
+                            'Discord tele_bot not configured to forward. Ignoring...')
                 # If channel is a channel_id string.
                 elif type(channel) == str:
                     await self.send_dm(channel, msg)

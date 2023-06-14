@@ -97,7 +97,8 @@ class Monitor():
         # Time to wait before restarting monitor after an unhandled exception. Exponential backoff.
         self.monitor_reset_delay = RESET_MONITOR_DELAY_INIT
         self._thread_active = False
-        self._thread_wrapper = threading.Thread(target=self._thread_wrapper_method)
+        self._thread_wrapper = threading.Thread(
+            target=self._thread_wrapper_method)
 
     @abstractmethod
     def _monitor_method(self):
@@ -157,6 +158,7 @@ class Monitor():
             else:
                 self.monitor_reset_delay *= 2
             retry_time = time.time() + self.monitor_reset_delay
+        logging.warning('Thread wrapper returned.')
 
 
 class PegCrossMonitor(Monitor):
@@ -682,8 +684,7 @@ class BeanstalkMonitor(Monitor):
         super().__init__('Beanstalk', message_function,
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._web3 = get_web3_instance()
-        self._eth_event_client = EthEventsClient(
-            EventClientType.BEANSTALK)
+        self._eth_event_client = EthEventsClient(EventClientType.BEANSTALK)
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()
 
@@ -942,16 +943,16 @@ class MarketMonitor(Monitor):
         pod_amount = 0
 
         cost_in_beans = bean_to_float(event_log.args.get('costInBeans'))
-        
+
         if cost_in_beans or event_log.event == 'PodListingCreated':
             pod_amount = pods_to_float(event_log.args.get('amount'))
         else:
             bean_amount = bean_to_float(event_log.args.get('amount'))
-        
+
         price_per_pod = pods_to_float(event_log.args.get('pricePerPod'))
         if cost_in_beans:
             bean_amount = cost_in_beans
-        
+
         if not bean_amount:
             bean_amount = pod_amount * price_per_pod
         if not pod_amount and price_per_pod:
@@ -988,15 +989,19 @@ class MarketMonitor(Monitor):
 
         # If this was a pure cancel (not relist or reorder).
         if ((event_log.event == 'PodListingCancelled' and not self.beanstalk_contract.events['PodListingCreated']().processReceipt(transaction_receipt, errors=DISCARD) and not self.beanstalk_contract.events['PodOrderFilled']().processReceipt(transaction_receipt, errors=DISCARD)) or
-            (event_log.event == 'PodOrderCancelled' and not self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=DISCARD) and not self.beanstalk_contract.events['PodListingFilled']().processReceipt(transaction_receipt, errors=DISCARD))):
+                (event_log.event == 'PodOrderCancelled' and not self.beanstalk_contract.events['PodOrderCreated']().processReceipt(transaction_receipt, errors=DISCARD) and not self.beanstalk_contract.events['PodListingFilled']().processReceipt(transaction_receipt, errors=DISCARD))):
             if event_log.event == 'PodListingCancelled':
-                listing_graph_id = event_log.args.get('account').lower() + '-' + str(event_log.args.get('index'))
-                pod_listing = self.beanstalk_graph_client.get_pod_listing(listing_graph_id)
+                listing_graph_id = event_log.args.get(
+                    'account').lower() + '-' + str(event_log.args.get('index'))
+                pod_listing = self.beanstalk_graph_client.get_pod_listing(
+                    listing_graph_id)
                 # If this listing did not exist, ignore cancellation.
                 if pod_listing is None:
-                    logging.info(f'Ignoring null listing cancel with graph id {listing_graph_id} and txn hash {event_log.transactionHash.hex()}')
+                    logging.info(
+                        f'Ignoring null listing cancel with graph id {listing_graph_id} and txn hash {event_log.transactionHash.hex()}')
                     return ''
-                pod_amount_str = round_num(pods_to_float(int(pod_listing['amount']) - int(pod_listing['filled'])), 0)
+                pod_amount_str = round_num(pods_to_float(
+                    int(pod_listing['amount']) - int(pod_listing['filled'])), 0)
                 start_place_in_line_str = round_num(pods_to_float(int(
                     pod_listing['index']) + int(pod_listing['start'])) - pods_harvested, 0)
                 price_per_pod_str = round_num(
@@ -1007,9 +1012,11 @@ class MarketMonitor(Monitor):
                 pod_order = self.beanstalk_graph_client.get_pod_order(order_id)
                 # If this order did not exist, ignore cancellation.
                 if pod_order is None:
-                    logging.info(f'Ignoring null order cancel with graph id {order_id} and txn hash {event_log.transactionHash.hex()}')
+                    logging.info(
+                        f'Ignoring null order cancel with graph id {order_id} and txn hash {event_log.transactionHash.hex()}')
                     return ''
-                pod_amount = pods_to_float(int(pod_order['podAmount']) - int(pod_order['podAmountFilled']))
+                pod_amount = pods_to_float(
+                    int(pod_order['podAmount']) - int(pod_order['podAmountFilled']))
                 max_place = pods_to_float(pod_order['maxPlaceInLine'])
                 price_per_pod = bean_to_float(pod_order['pricePerPod'])
                 event_str += f'❌ Pod Order Cancelled'
@@ -1126,13 +1133,14 @@ class BarnRaiseMonitor(Monitor):
     def _handle_event_log(self, event_log):
         """Process a single event log for the Barn Raise."""
         # Mint single.
-        if (event_log.event in ['TransferSingle', 'TransferBatch'] and 
-            event_log.args['from'] == NULL_ADDR):
+        if (event_log.event in ['TransferSingle', 'TransferBatch'] and
+                event_log.args['from'] == NULL_ADDR):
             if event_log.event == 'TransferSingle':
                 usdc_amount = int(event_log.args.value)
             # Mint batch.   <- is this even possible???
             elif event_log.event == 'TransferBatch':
-                usdc_amount = sum([int(value) for value in event_log.args.values])
+                usdc_amount = sum([int(value)
+                                  for value in event_log.args.values])
 
             event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity'
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
@@ -1190,7 +1198,8 @@ class RootMonitor(Monitor):
     def any_event_str(self, event_log, root_bdv):
         event_str = ''
         if event_log.address != ROOT_ADDR:
-            logging.warning(f'Ignoring non-Root token events (i.e. transfers of other tokens). {event_log.address}')
+            logging.warning(
+                f'Ignoring non-Root token events (i.e. transfers of other tokens). {event_log.address}')
             return ''
         # # Parse possible values of interest from the event log.
         # account = event_log.args.get('account')
@@ -1204,7 +1213,7 @@ class RootMonitor(Monitor):
 
         if event_log.event == 'Transfer':
             amount = root_to_float(event_log.args.value)
-            value_bdv = root_bdv * amount # is this always the same as event arg 'bdv' ?
+            value_bdv = root_bdv * amount  # is this always the same as event arg 'bdv' ?
             value_usd = value_bdv * bean_usd
 
             # if event_log.event == 'Mint':
@@ -1235,15 +1244,16 @@ class RootMonitor(Monitor):
         return event_str
 
 
-
 class RootUniswapMonitor(Monitor):
     """Monitor the Root:Bean Uniswap V3 pool for events."""
 
     def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__('Root:Bean Uniswap V3 Pool', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._eth_event_client = EthEventsClient(EventClientType.UNI_V3_ROOT_BEAN_POOL)
-        self.uniswap_client = UniswapV3Client(UNI_V3_ROOT_BEAN_ADDR, ROOT_DECIMALS, BEAN_DECIMALS)
+        self._eth_event_client = EthEventsClient(
+            EventClientType.UNI_V3_ROOT_BEAN_POOL)
+        self.uniswap_client = UniswapV3Client(
+            UNI_V3_ROOT_BEAN_ADDR, ROOT_DECIMALS, BEAN_DECIMALS)
         self.bean_client = BeanClient()
         self.root_client = RootClient()
 
@@ -1281,7 +1291,7 @@ class RootUniswapMonitor(Monitor):
         root_buy = True if root_amount < 0 else False
         root_amount = abs(root_amount)
         bean_amount = abs(bean_amount)
-        
+
         bean_price = self.bean_client.avg_bean_price()
 
         if event_log.event in ['Mint', 'Burn']:
@@ -1295,9 +1305,9 @@ class RootUniswapMonitor(Monitor):
             event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             swap_value = bean_amount * bean_price
-            if root_buy: # Root leaving pool
+            if root_buy:  # Root leaving pool
                 event_str += f'📘 {round_num(root_amount, 0)} Root bought for {round_num(bean_amount, 0)} Beans'
-            else: # Bean leaving pool
+            else:  # Bean leaving pool
                 event_str += f'📙 {round_num(root_amount, 0)} Root sold for {round_num(bean_amount, 0)} Beans'
 
             event_str += f' @ {round_num(bean_amount/root_amount, 4)} BDV'
@@ -1335,7 +1345,6 @@ class RootUniswapMonitor(Monitor):
         return event_str
 
 
-
 class BettingMonitor(Monitor):
     """Monitor the Root Betting contract(s)."""
 
@@ -1347,7 +1356,8 @@ class BettingMonitor(Monitor):
         self._web3 = get_web3_instance()
         self.root_client = RootClient(self._web3)
         self.betting_client = BettingClient(self._web3)
-        self.pool_status_thread = threading.Thread(target=self._pool_status_thread_method)
+        self.pool_status_thread = threading.Thread(
+            target=self._pool_status_thread_method)
 
     def start(self):
         super().start()
@@ -1376,12 +1386,11 @@ class BettingMonitor(Monitor):
             pools = self.betting_client.get_all_pools()
             end_time_range = time.time()
             for pool in pools:
-                if pool['status'] == 1: # Betting phase or currently playing
+                if pool['status'] == 1:  # Betting phase or currently playing
                     # If pool has started since last check (no more betting).
                     if pool['startTime'] >= start_time_range and pool['startTime'] < end_time_range:
-                        self.message_function(f'📣 Pool Started - {pool["eventName"]}')
-
-
+                        self.message_function(
+                            f'📣 Pool Started - {pool["eventName"]}')
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the root event logs for a single txn.
@@ -1414,13 +1423,15 @@ class BettingMonitor(Monitor):
             event_str += f'🎲 Bet Placed - {round_num(amount, 0)} Roots'
             if pool['numberOfTeams'] > 0:
                 team = self.betting_client.get_pool_team(pool_id, team_id)
-                event_str +=  f' on {team["name"]}'
-                american_odds = get_american_odds(pool["totalAmount"], team["totalAmount"])
+                event_str += f' on {team["name"]}'
+                american_odds = get_american_odds(
+                    pool["totalAmount"], team["totalAmount"])
                 if american_odds:
-                    event_str +=  f' ({american_odds})'
+                    event_str += f' ({american_odds})'
             event_str += f' for {pool["eventName"]}'
         elif event_log.event == 'PoolCreated':
-            event_str += f'🪧 Pool Created - {pool["eventName"]}' # (start: <t:{start_time}>)
+            # (start: <t:{start_time}>)
+            event_str += f'🪧 Pool Created - {pool["eventName"]}'
         # elif event_log.event == 'PoolStarted':
         #     event_str += f'📣 Pool Started - {pool["eventName"]}'
         elif event_log.event == 'PoolGraded':
@@ -1441,7 +1452,6 @@ class BettingMonitor(Monitor):
         # Empty line that does not get stripped.
         event_str += '\n_ _'
         return event_str
-
 
 
 class DiscordSidebarClient(discord.ext.commands.Bot):
@@ -1511,6 +1521,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         """Wait until the bot logs in."""
         await self.wait_until_ready()
 
+
 async def update_discord_bot_name(name, bot):
     emoji_accent = holiday_emoji()
     next_name = emoji_accent + name + emoji_accent
@@ -1523,19 +1534,22 @@ async def update_discord_bot_name(name, bot):
     for guild in bot.current_guilds:
         logging.info(f'Attempting to set nickname in guild with id {guild.id}')
         await guild.me.edit(nick=next_name)
-        logging.info(f'Bot nickname changed to {next_name} in guild with id {guild.id}')
+        logging.info(
+            f'Bot nickname changed to {next_name} in guild with id {guild.id}')
     return next_name
+
 
 class PreviewMonitor(Monitor):
     """Base class for Discord Sidebar monitors. Do not use directly.
-    
+
     Discord bot applications permissions needed: Change Nickname
     """
 
     def __init__(self, name, name_function, status_function, display_count=0, check_period=PREVIEW_CHECK_PERIOD):
         super().__init__(name, lambda s: None, check_period, prod=True)
         self.name = name
-        self.display_count = display_count # can be changed on the fly by subclass.
+        # can be changed on the fly by subclass.
+        self.display_count = display_count
         self.name_function = name_function
         self.status_function = status_function
         self.check_period = check_period
@@ -1700,7 +1714,8 @@ class EthPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             gas_base_fee = get_gas_base_fee()
             eth_price = get_token_price(ETHEREUM_CG_ID)
-            self.name_function(f'{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei')
+            self.name_function(
+                f'{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei')
             self.status_function(f'ETH: ${round_num(eth_price)}')
 
 
@@ -1726,14 +1741,16 @@ class RootValuePreviewMonitor(PreviewMonitor):
 
             # Rotate data and update status.
             if self.display_index == 0:
-                self.status_function(f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
+                self.status_function(
+                    f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):
     """Monitor data that offers view into live Paradox Pools via discord nickname/status."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('Betting', name_function, status_function, 2, check_period=PREVIEW_CHECK_PERIOD)
+        super().__init__('Betting', name_function, status_function,
+                         2, check_period=PREVIEW_CHECK_PERIOD)
         self.last_name = ''
         self.betting_client = None
         self.active_pool_index = 0
@@ -1750,7 +1767,8 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
                 self.status_function('')
                 time.sleep(60)
                 continue
-            self.active_pool_index = (self.active_pool_index + 1) % len(active_pools)
+            self.active_pool_index = (
+                self.active_pool_index + 1) % len(active_pools)
             pool = active_pools[self.active_pool_index]
 
             # Rotate data and update status.
@@ -1759,14 +1777,17 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
             # Rotate data and update status.
             # Pot Size.
             if self.display_index == 0:
-                self.name_function(f'Pot: {round_num(pool["totalAmount"], 0)} Roots')
+                self.name_function(
+                    f'Pot: {round_num(pool["totalAmount"], 0)} Roots')
                 self.wait_for_next_cycle()
             # Single outcome odds.
             elif self.display_index == 1:
                 for team_id in range(pool['numberOfTeams']):
-                    team = self.betting_client.get_pool_team(pool['id'], team_id)
+                    team = self.betting_client.get_pool_team(
+                        pool['id'], team_id)
                     name_str = f'{team["name"]}'
-                    american_odds = get_american_odds(pool["totalAmount"], team["totalAmount"])
+                    american_odds = get_american_odds(
+                        pool["totalAmount"], team["totalAmount"])
                     if american_odds:
                         name_str += f': {american_odds}'
                     self.name_function(name_str)
@@ -1775,11 +1796,13 @@ class ParadoxPoolsPreviewMonitor(PreviewMonitor):
 
 class SnapshotPreviewMonitor(PreviewMonitor):
     """Monitor active Snapshots and display via discord nickname/status."""
+
     def __init__(self, name_function, status_function):
-        super().__init__('Snapshot', name_function, status_function, 1, check_period=PREVIEW_CHECK_PERIOD)
+        super().__init__('Snapshot', name_function,
+                         status_function, 1, check_period=PREVIEW_CHECK_PERIOD)
         self.last_name = ''
         self.last_status = ''
-    
+
     def _monitor_method(self):
         self.snapshot_client = SnapshotClient()
         self.beanstalk_graph_client = BeanstalkSqlClient()
@@ -1796,17 +1819,19 @@ class SnapshotPreviewMonitor(PreviewMonitor):
             for proposal in active_proposals:
                 votable_stalk = stalk_to_float(
                     self.beanstalk_graph_client.get_start_stalk_by_season(
-                    self.beanstalk_graph_client.get_season_id_by_timestamp(proposal['start'])))
+                        self.beanstalk_graph_client.get_season_id_by_timestamp(proposal['start'])))
                 logging.info(f'votable_stalk = {votable_stalk}')
 
                 # self.status_function(proposal['title'])
 
                 self.name_function(f'DAO: {proposal["title"]}')
-                self.status_function(f'Votes: {round_num(proposal["scores_total"], 0)}')
+                self.status_function(
+                    f'Votes: {round_num(proposal["scores_total"], 0)}')
                 self.wait_for_next_cycle()
                 for i in range(len(proposal['choices'])):
                     try:
-                        self.status_function(f'{round_num(100 * proposal["scores"][i] / votable_stalk,2)}% - {proposal["choices"][i]}')
+                        self.status_function(
+                            f'{round_num(100 * proposal["scores"][i] / votable_stalk,2)}% - {proposal["choices"][i]}')
                     except IndexError:
                         # Unkown if Snapshot guarantees parity between these arrays.
                         break
@@ -1919,9 +1944,11 @@ def value_to_emojis(value):
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
+
 def value_to_emojis_root(value):
     """Convert a rounded dollar value to a string of emojis. Smaller values for betting."""
     return value_to_emojis(value*10)
+
 
 def number_to_emoji(n):
     """Take an int as a string or int and return the corresponding # emoji. Above 10 returns '#'."""
@@ -1972,9 +1999,11 @@ def holiday_emoji():
             return emoji
     return ''
 
+
 def get_implied_odds(pool_amount, team_amount):
     """Calculate implied odds from pool and team amounts (float)."""
     return team_amount/pool_amount
+
 
 def get_american_odds(pool_amount, team_amount):
     """Calculate American odds (str)."""
@@ -1995,10 +2024,12 @@ def get_american_odds(pool_amount, team_amount):
     else:
         return f'-{round_num(100/profit, 0)}'
 
+
 def msg_includes_embedded_links(msg):
     """Attempt to detect if there are embedded links in this message. Not an exact system."""
     if msg.count(']('):
         return True
+
 
 def strip_custom_discord_emojis(text):
     """Remove custom discord emojis using regex."""
@@ -2008,6 +2039,7 @@ def strip_custom_discord_emojis(text):
     # Unclear if this second type will come in normal workflow.
     stripped_type_1 = re.sub(r':[0-z]+:', ' ', text)
     return stripped_type_1
+
 
 def handle_sigterm(signal_number, stack_frame):
     """Process a sigterm with a python exception for clean exiting."""
