@@ -14,6 +14,7 @@ import discord
 from discord.ext import tasks, commands
 
 from bots import util
+from constants.addresses import *
 from data_access.eth_chain import EventClientType, is_valid_wallet_address
 
 
@@ -26,6 +27,8 @@ DISCORD_CHANNEL_ID_REPORT = 943711736391933972
 DISCORD_CHANNEL_ID_BARN_RAISE = 969594841455558717
 DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
 TELEGRAM_FWD_CHAT_ID_TEST = "-1001655547288"  # Beanstalk Bot Testing channel
+
+
 # Beanstalk Announcements channel ("-1001544001982")
 TELEGRAM_FWD_CHAT_ID_PRODUCTION = "@beanstalkUSD"
 BUCKET_NAME = 'bots_data_8723748'
@@ -120,6 +123,10 @@ class DiscordClient(discord.ext.commands.Bot):
         self.sunrise_monitor = util.SeasonsMonitor(
             self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod, dry_run=False)
         self.sunrise_monitor.start()
+
+        self.well_monitor = util.WellMonitor(
+            self.send_msg_pool, BEAN_ETH_WELL_ADDR, ignore_converts=True, prod=prod, dry_run=False)
+        self.well_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)

@@ -499,6 +499,182 @@ class SeasonsMonitor(Monitor):
 '''
 
 
+class BasinPeriodicMonitor(Monitor):
+    """Periodically summarized and report Basin status."""
+
+    def __init__(self, message_function, ignore_converts=False, prod=False, dry_run=False):
+        super().__init__(f'basin', message_function,
+                         POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self.pool_type = EventClientType.AQUIFER
+        self._eth_event_client = EthEventsClient(self.pool_type, AQUIFER_ADDR)
+        self.well_client = WellClient(BEAN_ETH_WELL_ADDR)
+        self.ignore_converts = ignore_converts
+        self.update_ref_time = 1687960800 # timestamp to check period against
+        self.update_period = 60 * 60 * 24
+        self.last_update = time.time()
+
+    def _monitor_method(self):
+        while self._thread_active:
+            self._wait_until_update_time()
+            self.message_function(self.period_string())
+
+    def _wait_until_update_time(self):
+        if self._dry_run:
+            time.sleep(5)
+            return
+        
+        # Avoid double updates.
+        if self.last_update > time.time() - 30:
+            time.sleep(30)
+
+        seconds_until_next_update = self.update_period - time.time() % self.update_period
+        timestamp_next_update = time.time() + seconds_until_next_update
+        loop_count = 0
+        while self._thread_active and time.time() < timestamp_next_update:
+            if loop_count % 60 == 0:
+                logging.info(f'Blindly waiting {int((timestamp_next_update - time.time())/60)} '
+                             'more minutes until expected update.')
+            loop_count += 1
+            time.sleep(10)
+        
+    def period_string(self):
+
+        return "PERIOD UPDATE PLACEHOLDER"
+
+        well_addresses = []
+        # Collect all Wells that have been created.
+        for txn_hash, event_logs in self._eth_event_client.get_log_range(17578511).items():
+            for event_log in event_logs:
+                if event_log.event == 'BoreWell':
+                    well_addresses.append(event_log.args.get('well'))
+
+        
+        
+        # # NOTE Ignore non-bean wells for now, since there is no clear way to value them.
+        # total_bdv = 0
+        # well_count = 0
+        # for well_address in well_addresses:
+        #     well = WellClient(well_address)
+        #     if BEAN_ADDR not in well.tokens():
+        #         continue
+
+
+
+# NOTE arguments for doing 1 monitor for all wells and 1 monitor per well. In first pass wells will each get their
+#      own discord channel, which will require human intervention in this code anyway, so going to go for 1 chanel
+#      per well for now.
+class WellMonitor(Monitor):
+    """Monitor Wells for events.
+    
+    NOTE assumption that all wells contain Bean. Valuation is done in BDV using the bean side of the trade to 
+         directly determine value.
+    """
+
+    def __init__(self, message_function, ignore_converts=False, prod=False, dry_run=False):
+        super().__init__(f'wells', message_function,
+                         POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self.pool_type = EventClientType.WELL
+        self._eth_event_client = EthEventsClient(self.pool_type, BEAN_ETH_WELL_ADDR)
+        self.well_client = WellClient(BEAN_ETH_WELL_ADDR)
+        self.ignore_converts = ignore_converts
+
+    def _monitor_method(self):
+        last_check_time = 0
+        while self._thread_active:
+            if time.time() < last_check_time + POOL_CHECK_RATE:
+                time.sleep(0.5)
+                continue
+            last_check_time = time.time()
+            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
+                self._handle_txn_logs(txn_hash, event_logs)
+
+    def _handle_txn_logs(self, txn_hash, event_logs):
+        """Process the well event logs for a single txn."""
+        # Partly ignore Silo Convert txns, which will be handled by the Beanstalk monitor.
+        if self.ignore_converts and event_sig_in_txn(BEANSTALK_EVENT_MAP['Convert'], txn_hash):
+            logging.info('Ignoring well txn, reporting as convert instead.')
+            return
+
+        for event_log in event_logs:
+            event_str = self.any_event_str(event_log)
+            if event_str:
+                self.message_function(event_str)
+
+    def any_event_str(self, event_log):
+        # value = None
+        event_str = ''
+        # Parse possible values of interest from the event log. Not all will be populated.
+        fromToken = event_log.args.get('fromToken')
+        toToken = event_log.args.get('toToken')
+        amountIn = event_log.args.get('amountIn')
+        amountOut = event_log.args.get('amountOut')
+        # recipient = event_log.args.get('recipient')
+        tokenAmountsIn = event_log.args.get('tokenAmountsIn')  # int[]
+        # lpAmountOut = event_log.args.get('lpAmountOut')  # int
+        # lpAmountIn = event_log.args.get('lpAmountIn')
+        tokenOut = event_log.args.get('tokenOut')
+        tokenAmountOut = event_log.args.get('tokenAmountOut')
+        tokenAmountsOut = event_log.args.get('tokenAmountsOut')
+        #  = event_log.args.get('reserves')
+        minAmountOut = event_log.args.get('minAmountOut')
+
+        tokens = self.well_client.tokens()
+
+        # for i in len(tokens):
+        #     erc20_info = get_erc20_info(tokens[i])
+        #     if tokenAmountsIn:
+
+        # lp_value =
+
+        if event_log.event == 'AddLiquidity':
+            event_str += f'📥 LP added - '
+            # value = lpAmountOut * lp_value
+            for i in range(0, len(tokenAmountsIn)):
+                if i > 0:
+                    event_str += f', '
+                erc20_info = get_erc20_info(tokens[i])
+                event_str += f'{round_num(token_to_float(tokenAmountsIn[i], erc20_info[2]), 2)} {erc20_info[0]}'
+        elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityOneToken':
+            event_str += f'📤 LP removed - '
+            # value = lpAmountIn * / lp_value
+            if event_log.event == 'RemoveLiquidityOneToken':
+                erc20_info = get_erc20_info(tokenOut)
+                event_str += f'{round_num(token_to_float(tokenAmountOut, erc20_info[2]), 2)} {erc20_info[0]}'
+            else:
+                for i in range(0, len(tokenAmountsOut)):
+                    if i > 0:
+                        event_str += f', '
+                erc20_info = get_erc20_info(tokens[i])
+                event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[0]}'
+        elif event_log.event == 'Swap':
+            # value = lpAmountIn * lp_value
+            erc20_info_in = get_erc20_info(fromToken)
+            erc20_info_out = get_erc20_info(toToken)
+            event_str += f'📗 {round_num(token_to_float(amountIn, erc20_info_in[2]), 2)} {erc20_info_in[0]} swapped ' \
+                         f'for {round_num(token_to_float(amountOut, erc20_info_out[2]), 2)} {erc20_info_out[0]}'
+            if fromToken == BEAN_ADDR:
+                value = amountIn
+            elif toToken == BEAN_ADDR:
+                value = amountOut
+        elif event_log.event == 'Shift':
+            erc20_info = get_erc20_info(toToken)
+            event_str += f'📗 Shifted {round_num(token_to_float(minAmountOut, erc20_info[2]), 2)} {erc20_info[0]}'
+        # elif event_log.event == 'Sync':
+        else:
+            logging.warning(
+                f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
+            return ''
+
+        if value is not None:
+        #     event_str += f'(${round_num(value, 0)})'
+            event_str += f'\n{value_to_emojis(value)}'
+
+        event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
+        # Empty line that does not get stripped.
+        event_str += '\n_ _'
+        return event_str
+
+
 class CurvePoolMonitor(Monitor):
     """Monitor a Curve pool for events."""
 
@@ -1743,6 +1919,32 @@ class RootValuePreviewMonitor(PreviewMonitor):
             if self.display_index == 0:
                 self.status_function(
                     f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
+
+
+class BasinStatusPreviewMonitor(PreviewMonitor):
+    """Monitor data that offers view into current Basin token status via discord nickname/status."""
+
+    def __init__(self, name_function, status_function):
+        super().__init__('BasinStatus', name_function, status_function, 1)
+        self.last_name = ''
+        self.basin_client = None
+
+    def _monitor_method(self):
+        self.basin_client = BasinClient()
+        while self._thread_active:
+            self.wait_for_next_cycle()
+            self.iterate_display_index()
+
+            # root_bdv = self.root_client.get_root_token_bdv()
+            # name_str = f'ROOT: {round_num(root_bdv, 3)} BDV'
+            # if name_str != self.last_name:
+            #     self.name_function(name_str)
+            #     self.last_name = name_str
+
+            # # Rotate data and update status.
+            # if self.display_index == 0:
+            #     self.status_function(
+            #         f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):
