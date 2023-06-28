@@ -161,12 +161,9 @@ add_event_to_dict('Sow(address,uint256,uint256,uint256)',
 add_event_to_dict('Harvest(address,uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 # Depositing an asset => AddDeposit()
-# Withdrawing an asset => AddWithdrawal() & RemoveDeposit() 
+# Withdrawing an asset => RemoveDeposit() 
 # Claiming an asset => RemoveWithdrawal()
-# AddWithdrawal and RemoveDeposit are separate because Converting emits a RemoveDeposit but not an AddWithdrawal
-add_event_to_dict('AddDeposit(address,address,uint32,uint256,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('AddWithdrawal(address,address,uint32,uint256)',
+add_event_to_dict('AddDeposit(address,address,int96,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveWithdrawal(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
@@ -176,10 +173,10 @@ add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveDeposits(address,address,uint32[],uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('RemoveDeposits(address,address,int96[],uint256[],uint256,uint256[])',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Convert(address,address,address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-# add_event_to_dict('SeedsBalanceChanged(address,int256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 # add_event_to_dict('StalkBalanceChanged(address,int256,int256)',
 #                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Chop(address,address,uint256,uint256)',
@@ -541,7 +538,7 @@ class BeanClient(ChainClient):
             price_dict['pool_infos'][pool_dict['pool']] = pool_dict
         return price_dict
 
-    def get_lp_token_value(self, token_address, decimals, liquidity_long=None):
+    def get_curve_lp_token_value(self, token_address, decimals, liquidity_long=None):
         """Return the $/LP token value of an LP token at address as a float."""
         if liquidity_long is None:
             try:

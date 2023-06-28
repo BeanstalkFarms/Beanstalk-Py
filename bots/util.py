@@ -929,16 +929,18 @@ class BeanstalkMonitor(Monitor):
         bean_price = self.bean_client.avg_bean_price()
 
         # Ignore these events. They are uninteresting clutter.
-        if event_log.event in ['RemoveWithdrawal', 'RemoveWithdrawals', 'RemoveDeposit', 'RemoveDeposits', 'Plant', 'Pick']:
+        if event_log.event in ['RemoveWithdrawal', 'RemoveWithdrawals' 'Plant', 'Pick']:
             return ''
 
         # Deposit & Withdraw events.
-        elif event_log.event in ['AddDeposit', 'AddWithdrawal']:
+        elif event_log.event in ['AddDeposit', 'RemoveDeposit', 'RemoveDeposits']:
             # Pull args from the event log.
             token_address = event_log.args.get('token')
-            token_amount_long = event_log.args.get(
-                'amount')  # AddDeposit, AddWithdrawal
+            token_amount_long = event_log.args.get('amount')  # AddDeposit, AddWithdrawal
             bdv = bean_to_float(event_log.args.get('bdv'))
+
+            if not bdv:
+                bdv = sum(event_log.args.get('bdvs'))
 
             token_name, token_symbol, decimals = get_erc20_info(
                 token_address, web3=self._web3)
@@ -947,16 +949,6 @@ class BeanstalkMonitor(Monitor):
 
             if bdv:
                 value = bdv * bean_price
-            elif token_address == BEAN_ADDR:
-                value = amount * bean_price
-            # Value is not known for withdrawals, so it must be calculated here.
-            else:
-                token_value = self.bean_client.get_lp_token_value(
-                    token_address, decimals)
-                if token_value is not None:
-                    value = amount * token_value
-                else:
-                    value = None
 
             if event_log.event in ['AddDeposit']:
                 event_str += f'📥 Silo Deposit'
@@ -999,7 +991,7 @@ class BeanstalkMonitor(Monitor):
             # If underlying assets are Bean-based LP represented in price aggregator.
             # If not in aggregator, will return none and not display value.
             else:
-                underlying_token_value = self.bean_client.get_lp_token_value(
+                underlying_token_value = self.bean_client.get_curve_lp_token_value(
                     underlying, underlying_decimals)
             event_str += f'⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}'
             if underlying_token_value is not None:
