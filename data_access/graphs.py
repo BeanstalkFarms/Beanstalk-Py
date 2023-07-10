@@ -428,8 +428,9 @@ class SeasonStats():
         if 'fieldHourlySnapshots' in graph_seasons_response:
             self.temperature = float(
                 graph_seasons_response['fieldHourlySnapshots'][season_index]['temperature'])
-            self.total_pods = pods_to_float(graph_seasons_response['fieldHourlySnapshots'][season_index]
-                                            ['harvestablePods'] + graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods'])
+            self.total_pods = pods_to_float(
+                                int(graph_seasons_response['fieldHourlySnapshots'][season_index]['harvestablePods']) + \
+                                int(graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods']))
             self.issued_soil = soil_to_float(
                 graph_seasons_response['fieldHourlySnapshots'][season_index]['issuedSoil'])
             self.sown_beans = bean_to_float(
