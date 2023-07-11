@@ -1028,19 +1028,24 @@ class BeanstalkMonitor(Monitor):
         """
         bean_price = self.bean_client.avg_bean_price()
         # Find the relevant logs, should contain one RemoveDeposit and one AddDeposit.
+        print(event_logs)
+        # in silo v3 AddDeposit event will always be present and these will always get set
+        bdv_float = 0 
+        value = 0
         for event_log in event_logs:
-            if event_log.event in ['RemoveDeposit', 'RemoveDeposits']:
-                remove_token_name, remove_token_symbol, remove_decimals = get_erc20_info(
-                    event_log.args.get('token'), web3=self._web3)
-                remove_float = token_to_float(
-                    event_log.args.get('amount'), remove_decimals)
-            elif event_log.event == 'AddDeposit':
-                add_token_name, add_token_symbol, add_decimals = get_erc20_info(
-                    event_log.args.get('token'), web3=self._web3)
-                add_float = token_to_float(
-                    event_log.args.get('amount'), add_decimals)
+            if event_log.event == 'AddDeposit':
                 bdv_float = bean_to_float(event_log.args.get('bdv'))
                 value = bdv_float * bean_price
+            elif event_log.event == 'Convert':
+                remove_token_name, remove_token_symbol, remove_decimals = get_erc20_info(
+                    event_log.args.get('fromToken'), web3=self._web3)
+                add_token_name, add_token_symbol, add_decimals = get_erc20_info(
+                    event_log.args.get('toToken'), web3=self._web3)
+                remove_float = token_to_float(
+                    event_log.args.get('fromAmount'), remove_decimals)
+                add_float = token_to_float(
+                    event_log.args.get('toAmount'), add_decimals)
+
 
         event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
                     f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
