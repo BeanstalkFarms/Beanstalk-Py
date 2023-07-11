@@ -937,7 +937,7 @@ class BeanstalkMonitor(Monitor):
             token_amount_long = event_log.args.get('amount')  # AddDeposit, AddWithdrawal
             bdv = bean_to_float(event_log.args.get('bdv'))
 
-            if not bdv:
+            if bdv is None:
                 bdv = sum(event_log.args.get('bdvs'))
 
             token_name, token_symbol, decimals = get_erc20_info(
@@ -945,7 +945,8 @@ class BeanstalkMonitor(Monitor):
             amount = token_to_float(
                 token_amount_long, decimals)
 
-            if bdv:
+            value = None
+            if bdv is not None:
                 value = bdv * bean_price
 
             if event_log.event in ['AddDeposit']:
@@ -953,7 +954,7 @@ class BeanstalkMonitor(Monitor):
             elif event_log.event in ['AddWithdrawal']:
                 event_str += f'📭 Silo Withdrawal'
             event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
-            if value:
+            if value is not None:
                 event_str += f' (${round_num(value, 0)})'
                 event_str += f'\n{value_to_emojis(value)}'
 
