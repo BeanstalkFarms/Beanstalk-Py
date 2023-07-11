@@ -908,8 +908,7 @@ class BeanstalkMonitor(Monitor):
 
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
-            self.message_function(self.silo_conversion_str(
-                event_logs))
+            self.message_function(self.silo_conversion_str(event_logs))
         # Handle txn logs individually using default strings.
         else:
             for event_log in event_logs:
