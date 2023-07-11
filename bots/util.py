@@ -953,8 +953,9 @@ class BeanstalkMonitor(Monitor):
                 event_str += f'📥 Silo Deposit'
                 # TEMP IGNORE DEPOSITS FOR V3 MIGRATION SANITY
                 return ''
-            elif event_log.event in ['AddWithdrawal']:
+            elif event_log.event in ['RemoveDeposit', 'RemoveDeposits']:
                 event_str += f'📭 Silo Withdrawal'
+            
             event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
             if value is not None:
                 event_str += f' (${round_num(value, 0)})'
