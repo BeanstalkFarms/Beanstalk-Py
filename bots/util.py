@@ -951,6 +951,8 @@ class BeanstalkMonitor(Monitor):
 
             if event_log.event in ['AddDeposit']:
                 event_str += f'📥 Silo Deposit'
+                # TEMP IGNORE DEPOSITS FOR V3 MIGRATION SANITY
+                return ''
             elif event_log.event in ['AddWithdrawal']:
                 event_str += f'📭 Silo Withdrawal'
             event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
