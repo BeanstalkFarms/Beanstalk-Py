@@ -935,18 +935,17 @@ class BeanstalkMonitor(Monitor):
             # Pull args from the event log.
             token_address = event_log.args.get('token')
             token_amount_long = event_log.args.get('amount')  # AddDeposit, AddWithdrawal
-            bdv = bean_to_float(event_log.args.get('bdv'))
+            bdv = None
+            if event_log.args.get('bdvs') is not None:
+                bdv = bean_to_float(sum(event_log.args.get('bdvs')))
+            else:
+                bdv = bean_to_float(event_log.args.get('bdv'))
 
-            if bdv is None:
-                bdv = sum(event_log.args.get('bdvs'))
-
-            token_name, token_symbol, decimals = get_erc20_info(
-                token_address, web3=self._web3)
-            amount = token_to_float(
-                token_amount_long, decimals)
+            token_name, token_symbol, decimals = get_erc20_info(token_address, web3=self._web3)
+            amount = token_to_float(token_amount_long, decimals)
 
             value = None
-            if bdv is not None:
+            if bdv > 0:
                 value = bdv * bean_price
 
             if event_log.event in ['AddDeposit']:
@@ -955,9 +954,12 @@ class BeanstalkMonitor(Monitor):
                 return ''
             elif event_log.event in ['RemoveDeposit', 'RemoveDeposits']:
                 event_str += f'📭 Silo Withdrawal'
+            else:
+                return ''
             
             event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
-            if value is not None:
+            # Some legacy events may not set BDV, skip valuation. Also do not value unripe assets.
+            if value is not None and not token_address.starts_with(UNRIPE_TOKEN_PREFIX):
                 event_str += f' (${round_num(value, 0)})'
                 event_str += f'\n{value_to_emojis(value)}'
 
@@ -1041,8 +1043,9 @@ class BeanstalkMonitor(Monitor):
                 bdv_float = bean_to_float(event_log.args.get('bdv'))
                 value = bdv_float * bean_price
             elif event_log.event == 'Convert':
+                remove_token_addr = event_log.args.get('fromToken')
                 remove_token_name, remove_token_symbol, remove_decimals = get_erc20_info(
-                    event_log.args.get('fromToken'), web3=self._web3)
+                    remove_token_addr, web3=self._web3)
                 add_token_name, add_token_symbol, add_decimals = get_erc20_info(
                     event_log.args.get('toToken'), web3=self._web3)
                 remove_float = token_to_float(
@@ -1052,11 +1055,12 @@ class BeanstalkMonitor(Monitor):
 
 
         event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
-                    f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} ' \
-                    f'({round_num(bdv_float, 0)} BDV)'
-
+                    f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol}'
+        if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
+            event_str += f'({round_num(bdv_float, 0)} BDV)'
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
-        event_str += f'\n{value_to_emojis(value)}'
+        if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
+            event_str += f'\n{value_to_emojis(value)}'
         event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
         # Empty line that does not get stripped.
         event_str += '\n_ _'

@@ -542,8 +542,7 @@ class BeanClient(ChainClient):
         """Return the $/LP token value of an LP token at address as a float."""
         if liquidity_long is None:
             try:
-                liquidity_long = self.get_price_info(
-                )['pool_infos'][token_address]['liquidity']
+                liquidity_long = self.get_price_info()['pool_infos'][token_address]['liquidity']
             # If the LP is not in the price aggregator, we do not know its value.
             except KeyError:
                 return None
