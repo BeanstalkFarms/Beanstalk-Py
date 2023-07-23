@@ -892,7 +892,7 @@ class BeanstalkMonitor(Monitor):
                     event_logs.remove(deposit_event_log)
                     # At most allow 1 match.
                     logging.info(
-                        f'Ignoring a {earn_event_log.event} AddDeposit event')
+                        f'Ignoring a {earn_event_log.event} AddDeposit event {txn_hash}')
                     break
         # Prune *transfer* deposit logs. They are uninteresting clutter.
         # Note that this assumes that a transfer event never includes a novel deposit.
@@ -902,9 +902,12 @@ class BeanstalkMonitor(Monitor):
                     # and deposit_event_log.args.get('amount') == \
                     # (remove_event_log.args.get('amount'))):
                     # Remove event log from event logs
+                    try:
+                        event_logs.remove(remove_event_log)
+                    except ValueError:
+                        pass
                     event_logs.remove(deposit_event_log)
-                    logging.info(
-                        f'Ignoring a Transfer action AddDeposit RemoveDeposit pair')
+                    logging.info(f'Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash}, possible transfer or silo migration')
 
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
@@ -950,8 +953,6 @@ class BeanstalkMonitor(Monitor):
 
             if event_log.event in ['AddDeposit']:
                 event_str += f'📥 Silo Deposit'
-                # TEMP IGNORE DEPOSITS FOR V3 MIGRATION SANITY
-                return ''
             elif event_log.event in ['RemoveDeposit', 'RemoveDeposits']:
                 event_str += f'📭 Silo Withdrawal'
             else:
@@ -959,7 +960,7 @@ class BeanstalkMonitor(Monitor):
             
             event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
             # Some legacy events may not set BDV, skip valuation. Also do not value unripe assets.
-            if value is not None and not token_address.starts_with(UNRIPE_TOKEN_PREFIX):
+            if value is not None and not token_address.startswith(UNRIPE_TOKEN_PREFIX):
                 event_str += f' (${round_num(value, 0)})'
                 event_str += f'\n{value_to_emojis(value)}'
 
@@ -1034,7 +1035,7 @@ class BeanstalkMonitor(Monitor):
         """
         bean_price = self.bean_client.avg_bean_price()
         # Find the relevant logs, should contain one RemoveDeposit and one AddDeposit.
-        print(event_logs)
+        # print(event_logs)
         # in silo v3 AddDeposit event will always be present and these will always get set
         bdv_float = 0 
         value = 0

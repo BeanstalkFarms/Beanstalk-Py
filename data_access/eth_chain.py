@@ -95,6 +95,7 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     sig_dict[event_name] = event_signature_hash
     sig_dict[event_signature_hash] = event_name
     sig_list.append(event_signature_hash)
+    logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
 
 
 AQUIFER_EVENT_MAP = {}
@@ -171,8 +172,6 @@ add_event_to_dict('RemoveWithdrawals(address,address,uint32[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('RemoveDeposits(address,address,uint32[],uint256[],uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveDeposits(address,address,int96[],uint256[],uint256,uint256[])',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Convert(address,address,address,uint256,uint256)',
@@ -188,6 +187,8 @@ add_event_to_dict('Pick(address,address,uint256)',
 # On Fertilizer contract.
 add_event_to_dict('ClaimFertilizer(uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+
+# SILO_V2_REMOVE_DEPOSITS_SIG=Web3.keccak(text='RemoveDeposits(address,address,uint32[],uint256[],uint256)').hex()
 
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
@@ -417,7 +418,7 @@ def get_erc20_contract(web3, address):
     # Ignore checksum requirement.
     address = web3.toChecksumAddress(address.lower())
     return web3.eth.contract(address=address, abi=erc20_abi)
-
+    
 
 class ChainClient():
     """Base class for clients of Eth chain data."""
@@ -1356,7 +1357,8 @@ def get_test_entries():
         AttributeDict({'address': '0x11DD6f9e1a7Bb35A61FAda4AEc645F603050783e', 'blockHash': HexBytes('0x138dbd24b73906520fbdb2cf6103ce69044082bb77a9aae65f3ebd12fe5e1d6d'), 'blockNumber': 16035594, 'data': '0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe8800000000000000000000000000000000000000000000000059e3ee9cd1e035cd0000000000000000000000000000000000000000000009e883a26e5ec7f7fb110000000000000000000000000000000000000000000000000000000ba43b7400', 'logIndex': 80,
                       'removed': False, 'topics': [HexBytes('0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde'), HexBytes('0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe88'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc800'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc92c')], 'transactionHash': HexBytes('0xf36947e2f14eb33a249001dbd87e8ae4141e8d4585deb1c51e06e922f8d7b495'), 'transactionIndex': 39}),
         # Silo v3
-        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xf7ff744a758627228155647af1390c1f9fba4e1a098d74073bf3e0c33265f571'), 'blockNumber': 17672099, 'data': '0x00000000000000000000000000000000000000000000000000000000000037140000000000000000000000000000000000000000000000000000000006bdc3cc', 'logIndex': 166, 'removed': False, 'topics': [HexBytes('0x7dfe6babf78bb003d6561ed598a241a0b419a1f3acbb7ee153888fb60a4c8aa8'), HexBytes('0x000000000000000000000000cba1a275e2d858ecffaf7a87f606f74b719a8a93'), HexBytes('0x000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab')], 'transactionHash': HexBytes('0xb2d981d10c076c521092d4724713a22c76e1e231a38224f79b373728660c24b6'), 'transactionIndex': 28})
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xf7ff744a758627228155647af1390c1f9fba4e1a098d74073bf3e0c33265f571'), 'blockNumber': 17672099, 'data': '0x00000000000000000000000000000000000000000000000000000000000037140000000000000000000000000000000000000000000000000000000006bdc3cc', 'logIndex': 166, 'removed': False, 'topics': [HexBytes('0x7dfe6babf78bb003d6561ed598a241a0b419a1f3acbb7ee153888fb60a4c8aa8'), HexBytes('0x000000000000000000000000cba1a275e2d858ecffaf7a87f606f74b719a8a93'), HexBytes('0x000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab')], 'transactionHash': HexBytes('0xb2d981d10c076c521092d4724713a22c76e1e231a38224f79b373728660c24b6'), 'transactionIndex': 28}),
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0ba822a9893dd09e3cc226e0a5a60e57cbc06dd297b376540ee60fd3f38c5930'), 'blockNumber': 17745936, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0700000000000000000000000000000000000000000000000000000000002208bbe000000000000000000000000000000000000000000000000000000000079656f', 'logIndex': 387, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000005dfbb2344727462039eb18845a911c3396d91cf2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0x570a6a2cd9d9440c017d5cc3eac17bc56bc94e76fd8423399b1f648c83cf50fd'), 'transactionIndex': 135})
     ]
     return entries
 

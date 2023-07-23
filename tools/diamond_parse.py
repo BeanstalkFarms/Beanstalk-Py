@@ -41,8 +41,7 @@ if __name__ == '__main__':
     txn = tools.util.get_txn_or_wait(web3, args.txn_hash)
     # logging.info('\ntxn:\n{txn}')
 
-    decoded_txn = contract.decode_function_input(
-        txn.input)  # returns tuple (function object, args)
+    decoded_txn = contract.decode_function_input(txn.input)  # returns tuple (function object, args)
     logging.info(f'decoded txn: {decoded_txn}')
 
     # If no args

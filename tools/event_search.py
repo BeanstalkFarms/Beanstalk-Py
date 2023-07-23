@@ -46,6 +46,7 @@ if __name__ == '__main__':
     web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
 
     event_signature_hash = Web3.keccak(text=args.event_definition).hex()
+    print(f'event signature: {event_signature_hash}')
 
     latest_searched_block = web3.eth.get_block('latest').number
     blocks_to_check = MAX_BLOCK_PULL_SIZE if latest_searched_block - \
