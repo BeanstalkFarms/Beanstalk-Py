@@ -11,6 +11,7 @@ import websockets
 
 # NOTE(funderberker): LOCAL TESTING
 from web3 import Web3, HTTPProvider, WebsocketProvider
+from web3 import exceptions as web3_exceptions
 from web3.logs import DISCARD
 
 from constants.addresses import *
@@ -164,15 +165,17 @@ add_event_to_dict('Harvest(address,uint256[],uint256)',
 # Depositing an asset => AddDeposit()
 # Withdrawing an asset => RemoveDeposit() 
 # Claiming an asset => RemoveWithdrawal()
+# add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)', # SILO V2
+#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('RemoveDeposit(address,address,int96,uint256,uint256)', # SILO v3
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict('RemoveDeposits(address,address,int96[],uint256[],uint256,uint256[])',
+                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('AddDeposit(address,address,int96,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveWithdrawal(address,address,uint32,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('RemoveWithdrawals(address,address,uint32[],uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)',
-                  BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-add_event_to_dict('RemoveDeposits(address,address,int96[],uint256[],uint256,uint256[])',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict('Convert(address,address,address,uint256,uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
@@ -187,8 +190,6 @@ add_event_to_dict('Pick(address,address,uint256)',
 # On Fertilizer contract.
 add_event_to_dict('ClaimFertilizer(uint256[],uint256)',
                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
-
-# SILO_V2_REMOVE_DEPOSITS_SIG=Web3.keccak(text='RemoveDeposits(address,address,uint32[],uint256[],uint256)').hex()
 
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
@@ -307,6 +308,9 @@ with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/beanstalk_abi.json')) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
+                       '../constants/abi/beanstalk_abi_silo_v2.json')) as beanstalk_abi_file_silo_v2:
+    beanstalk_v2_abi = json.load(beanstalk_abi_file_silo_v2)
+with open(os.path.join(os.path.dirname(__file__),
                        '../constants/abi/bean_price_abi.json')) as bean_price_abi_file:
     bean_price_abi = json.load(bean_price_abi_file)
 with open(os.path.join(os.path.dirname(__file__),
@@ -379,26 +383,25 @@ def get_unripe_lp_contract(web3):
 
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=BEANSTALK_ADDR, abi=beanstalk_abi)
+    return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_abi)
 
+def get_beanstalk_v2_contract(web3):
+    """Get a web.eth.contract object for the Beanstalk contract ft Silo v2. Contract is not thread safe."""
+    return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_v2_abi)
 
 def get_bean_price_contract(web3):
     """Get a web.eth.contract object for the Bean price oracle contract. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
+    return web3.eth.contract(address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
 
 
 def get_fertilizer_contract(web3):
     """Get a web.eth.contract object for the Barn Raise Fertilizer contract. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=FERTILIZER_ADDR, abi=fertilizer_abi)
+    return web3.eth.contract(address=FERTILIZER_ADDR, abi=fertilizer_abi)
 
 
 def get_root_contract(web3):
     """Get a web.eth.contract object for the Root Token contract. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=ROOT_ADDR, abi=root_abi)
+    return web3.eth.contract(address=ROOT_ADDR, abi=root_abi)
 
 
 def get_betting_admin_contract(web3):
@@ -409,8 +412,7 @@ def get_betting_admin_contract(web3):
 
 def get_betting_contract(web3):
     """Get a web.eth.contract object for the betting bets contract. Contract is not thread safe."""
-    return web3.eth.contract(
-        address=BETTING_ADDR, abi=betting_abi)
+    return web3.eth.contract(address=BETTING_ADDR, abi=betting_abi)
 
 
 def get_erc20_contract(web3, address):
@@ -820,8 +822,9 @@ class EthEventsClient():
             self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
             self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
-            self._contracts = [get_beanstalk_contract(
-                self._web3), get_fertilizer_contract(self._web3)]
+            self._contracts = [
+                get_beanstalk_contract(self._web3),
+                get_fertilizer_contract(self._web3)]
             self._contract_addresses = [BEANSTALK_ADDR, FERTILIZER_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
@@ -941,17 +944,24 @@ class EthEventsClient():
             # Retrieve the full txn and txn receipt.
             receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
 
+            # If any removeDeposit events from Silo V2, ignore the entire txn. It is likely a migration.
+            # This is a bit hacky, but none of this infrastructure was designed to manage implementations of
+            # same event at same address.
+            silo_v2_contract = get_beanstalk_v2_contract(self._web3)
+            decoded_type_logs = silo_v2_contract.events['RemoveDeposit']().processReceipt(receipt)
+            if len(decoded_type_logs) > 0:
+                logging.warning('Skipping entry with Silo v2 RemoveDeposit')
+                return {}
+
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
                 for contract in self._contracts:
                     try:
-                        decoded_logs.extend(contract.events[
-                            self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD))
-                    except Exception:
-                        # Try next contract if cannot decode from this contract.
+                        decoded_type_logs = contract.events[self._events_dict[signature]]().processReceipt(receipt, errors=DISCARD)
+                    except web3_exceptions.ABIEventFunctionNotFound:
                         continue
-            logging.info(f'Decoded logs:\n{decoded_logs}')
+                    decoded_logs.extend(decoded_type_logs)
 
             # Prune unrelated logs - logs that are of the same event types we watch, but are
             # not related to Beanstalk (i.e. swaps of non-Bean tokens).
@@ -1358,7 +1368,8 @@ def get_test_entries():
                       'removed': False, 'topics': [HexBytes('0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde'), HexBytes('0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe88'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc800'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc92c')], 'transactionHash': HexBytes('0xf36947e2f14eb33a249001dbd87e8ae4141e8d4585deb1c51e06e922f8d7b495'), 'transactionIndex': 39}),
         # Silo v3
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xf7ff744a758627228155647af1390c1f9fba4e1a098d74073bf3e0c33265f571'), 'blockNumber': 17672099, 'data': '0x00000000000000000000000000000000000000000000000000000000000037140000000000000000000000000000000000000000000000000000000006bdc3cc', 'logIndex': 166, 'removed': False, 'topics': [HexBytes('0x7dfe6babf78bb003d6561ed598a241a0b419a1f3acbb7ee153888fb60a4c8aa8'), HexBytes('0x000000000000000000000000cba1a275e2d858ecffaf7a87f606f74b719a8a93'), HexBytes('0x000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab')], 'transactionHash': HexBytes('0xb2d981d10c076c521092d4724713a22c76e1e231a38224f79b373728660c24b6'), 'transactionIndex': 28}),
-        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0ba822a9893dd09e3cc226e0a5a60e57cbc06dd297b376540ee60fd3f38c5930'), 'blockNumber': 17745936, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0700000000000000000000000000000000000000000000000000000000002208bbe000000000000000000000000000000000000000000000000000000000079656f', 'logIndex': 387, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000005dfbb2344727462039eb18845a911c3396d91cf2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0x570a6a2cd9d9440c017d5cc3eac17bc56bc94e76fd8423399b1f648c83cf50fd'), 'transactionIndex': 135})
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0ba822a9893dd09e3cc226e0a5a60e57cbc06dd297b376540ee60fd3f38c5930'), 'blockNumber': 17745936, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0700000000000000000000000000000000000000000000000000000000002208bbe000000000000000000000000000000000000000000000000000000000079656f', 'logIndex': 387, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000005dfbb2344727462039eb18845a911c3396d91cf2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0x570a6a2cd9d9440c017d5cc3eac17bc56bc94e76fd8423399b1f648c83cf50fd'), 'transactionIndex': 135}),
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc36aa33c44228e18966f4d0c0716e3b7af9e89613e0c5c96767d05849ff292e4'), 'blockNumber': 17758086, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc01c000000000000000000000000000000000000000000000000000000007e7b462f000000000000000000000000000000000000000000000000000000001c27349e', 'logIndex': 395, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000004a2d3c5b9b6dd06541cae017f9957b0515cd65e2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0xf46619fd06d15f5619952f9fe051a47d08b573d77291c655180d172f568486d6'), 'transactionIndex': 133})
     ]
     return entries
 

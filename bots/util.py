@@ -878,6 +878,7 @@ class BeanstalkMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
+        # logging.warning(event_logs)
         # Prune *plant* deposit logs. They are uninteresting clutter.
         # Prune *pick* deposit logs. They are uninteresting clutter.
         # For each earn (plant/pick) event log remove a corresponding AddDeposit log.
@@ -892,12 +893,14 @@ class BeanstalkMonitor(Monitor):
                     event_logs.remove(deposit_event_log)
                     # At most allow 1 match.
                     logging.info(
-                        f'Ignoring a {earn_event_log.event} AddDeposit event {txn_hash}')
+                        f'Ignoring a {earn_event_log.event} AddDeposit event {txn_hash.hex()}')
                     break
         # Prune *transfer* deposit logs. They are uninteresting clutter.
         # Note that this assumes that a transfer event never includes a novel deposit.
-        for remove_event_log in get_logs_by_names(['RemoveDeposit'], event_logs) + get_logs_by_names(['RemoveDeposits'], event_logs):
-            for deposit_event_log in get_logs_by_names('AddDeposit', event_logs):
+        remove_event_logs = get_logs_by_names(['RemoveDeposit', 'RemoveDeposits'], event_logs)
+        deposit_event_logs =  get_logs_by_names('AddDeposit', event_logs)
+        for remove_event_log in remove_event_logs:
+            for deposit_event_log in deposit_event_logs:
                 if (deposit_event_log.args.get('token') == remove_event_log.args.get('token')):
                     # and deposit_event_log.args.get('amount') == \
                     # (remove_event_log.args.get('amount'))):
@@ -907,7 +910,7 @@ class BeanstalkMonitor(Monitor):
                     except ValueError:
                         pass
                     event_logs.remove(deposit_event_log)
-                    logging.info(f'Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash}, possible transfer or silo migration')
+                    logging.info(f'Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash.hex()}, possible transfer or silo migration')
 
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
