@@ -96,7 +96,8 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     sig_dict[event_name] = event_signature_hash
     sig_dict[event_signature_hash] = event_name
     sig_list.append(event_signature_hash)
-    logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
+    # NOTE ERROR logging here silently breaks all logging. very cool python feature.
+    # logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
 
 
 AQUIFER_EVENT_MAP = {}
