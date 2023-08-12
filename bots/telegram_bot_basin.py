@@ -40,7 +40,7 @@ class TelegramBasinBot(object):
         if not msg:
             return
         # Remove URL pointy brackets used by md formatting to suppress link previews.
-        msg = msg.replace('<', '').replace('>', '')
+        msg = msg.replace('<http', 'http').replace('>', '')
         # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
         self.tele_bot.send_message(
             chat_id=self._chat_id, text=msg, disable_web_page_preview=True)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # Automatically detect if this is a production environment.
     try:
-        token = os.environ["TELEGRAM_BOT_TOKEN_PROD"]
+        token = os.environ["TELEGRAM_BASIN_BOT_TOKEN_PROD"]
         prod = True
     except KeyError:
         token = os.environ["TELEGRAM_BOT_TOKEN"]

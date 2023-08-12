@@ -17,7 +17,7 @@ from constants.addresses import *
 from data_access.graphs import BeanSqlClient, BeanstalkSqlClient, SnapshotClient, DAO_SNAPSHOT_NAME
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
-from data_access.coin_gecko import get_token_price, ETHEREUM_CG_ID
+from data_access.coin_gecko import get_eth_price
 from tools.util import get_txn_receipt_or_wait
 
 # Strongly encourage Python 3.8+.
@@ -533,6 +533,7 @@ class WellMonitor(Monitor):
         self.pool_type = EventClientType.WELL
         self._eth_event_client = EthEventsClient(self.pool_type, address)
         self.well_client = WellClient(address)
+        self.bean_client = BeanClient()
         self.ignore_converts = ignore_converts
 
     def _monitor_method(self):
@@ -558,7 +559,7 @@ class WellMonitor(Monitor):
                 self.message_function(event_str)
 
     def any_event_str(self, event_log):
-        value = None
+        bdv = None
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         fromToken = event_log.args.get('fromToken')
@@ -608,36 +609,42 @@ class WellMonitor(Monitor):
             erc20_info_in = get_erc20_info(fromToken)
             erc20_info_out = get_erc20_info(toToken)
             event_str += f'📗 {round_num(token_to_float(amountIn, erc20_info_in[2]), 2)} {erc20_info_in[0]} swapped ' \
-                         f'for {round_num(token_to_float(amountOut, erc20_info_out[2]), 2)} {erc20_info_out[0]}'
+                         f'for {round_num(token_to_float(amountOut, erc20_info_out[2]), 2)} {erc20_info_out[0]} '
             if fromToken == BEAN_ADDR:
-                value = amountIn
+                bdv = bean_to_float(amountIn)
             elif toToken == BEAN_ADDR:
-                value = amountOut
+                bdv = bean_to_float(amountOut)
         elif event_log.event == 'Shift':
             erc20_info_out = get_erc20_info(toToken)
             event_str += f'📗 '
 
             amount_in = None
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
+                bdv = bean_to_float(minAmountOut)
                 erc20_info_in = get_erc20_info(WRAPPED_ETH)
                 amount_in = round_num(eth_to_float(self.well_client.get_eth_sent(event_log.transactionHash)), 3)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
-                amount_in = round_num(bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash)))
+                amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
+                bdv = amount_in_float
+                amount_in = round_num(amount_in_float)
             if amount_in is not None:
                 event_str += f'{amount_in} {erc20_info_in[1]} '
             else:
                 event_str += f'Assets '
             
-            event_str += f'Shifted to {round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]}'
+            event_str += f'Shifted to {round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} '
         # elif event_log.event == 'Sync':
         else:
             logging.warning(
                 f'Unexpected event log seen in Well ({event_log.event}). Ignoring.')
             return ''
 
-        if value is not None:
-        #     event_str += f'(${round_num(value, 0)})'
+        EthPreviewMonitor.eth_price()
+
+        if bdv is not None:
+            value = bdv * self.bean_client.avg_bean_price()
+            event_str += f'({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
             event_str += f'\n{value_to_emojis(value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
@@ -769,9 +776,9 @@ class CurvePoolMonitor(Monitor):
                                                  bean_out=bean_out, bean_in=bean_in,
                                                  stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
-            event_str += f'📥 LP added - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} (${round_num(value, 0)})'
+            event_str += f'📥 LP added - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
-            event_str += f'📤 LP removed - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} (${round_num(value, 0)})'
+            event_str += f'📤 LP removed - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
         elif event_log.event == 'RemoveLiquidityOne':
             event_str += f'📤 LP removed - '
             if self.pool_type == EventClientType.CURVE_BEAN_3CRV_POOL:
@@ -780,7 +787,7 @@ class CurvePoolMonitor(Monitor):
                     event_str += f'{round_num(bean_to_float(coin_amount), 0)} Beans'
                 else:
                     event_str += f'{round_num(crv_to_float(coin_amount), 0)} 3CRV'
-            event_str += f' (${round_num(value, 0)})'
+            event_str += f' ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
         else:
             logging.warning(
                 f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
@@ -815,7 +822,7 @@ class CurvePoolMonitor(Monitor):
             # If this is a sale of Beans for a fertilizer purchase.
             swap_price = stable_out / bean_in
             swap_value = stable_out * stable_price
-        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value, 0)})'
+        event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, 0, avoid_zero=True, incl_dollar=True)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
         # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.
         # if sig_compare(transaction['input'][:9], buy_fert_sigs.values()):
@@ -936,7 +943,7 @@ class BeanstalkMonitor(Monitor):
             event_str += f' - {round_num_auto(amount, min_precision=0)} {token_symbol}'
             # Some legacy events may not set BDV, skip valuation. Also do not value unripe assets.
             if value is not None and not token_address.startswith(UNRIPE_TOKEN_PREFIX):
-                event_str += f' (${round_num(value, 0)})'
+                event_str += f' ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
                 event_str += f'\n{value_to_emojis(value)}'
 
         # Sow event.
@@ -948,10 +955,10 @@ class BeanstalkMonitor(Monitor):
 
             if event_log.event == 'Sow':
                 event_str += f'🚜 {round_num(beans_amount, 0, avoid_zero=True)} Beans Sown for ' \
-                    f'{round_num(pods_amount, 0, avoid_zero=True)} Pods (${round_num(beans_value, 0)})'
+                    f'{round_num(pods_amount, 0, avoid_zero=True)} Pods ({round_num(beans_value, 0, avoid_zero=True, incl_dollar=True)})'
                 event_str += f'\n{value_to_emojis(beans_value)}'
             elif event_log.event == 'Harvest':
-                event_str += f'👩‍🌾 {round_num(beans_amount, 0, avoid_zero=True)} Pods Harvested for Beans (${round_num(beans_value, 0)})'
+                event_str += f'👩‍🌾 {round_num(beans_amount, 0, avoid_zero=True)} Pods Harvested for Beans ({round_num(beans_value, 0, avoid_zero=True, incl_dollar=True)})'
                 event_str += f'\n{value_to_emojis(beans_value)}'
 
         # Chop event.
@@ -976,7 +983,7 @@ class BeanstalkMonitor(Monitor):
             event_str += f'⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}'
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
-                event_str += f' (${round_num(underlying_value, 0)})'
+                event_str += f' ({round_num(underlying_value, 0, avoid_zero=True, incl_dollar=True)})'
                 event_str += f'\n{value_to_emojis(underlying_value)}'
 
         # Rinse Sprouts (Fertilizer contract).
@@ -986,7 +993,7 @@ class BeanstalkMonitor(Monitor):
             # Ignore rinses with essentially no beans bc they are clutter, especially on transfers.
             if (bean_amount < 1):
                 return ''
-            event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts (${round_num(bean_amount * bean_price, 0)})'
+            event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts ({round_num(bean_amount * bean_price, 0, avoid_zero=True, incl_dollar=True)})'
             event_str += f'\n{value_to_emojis(bean_amount * bean_price)}'
 
         # Unknown event type.
@@ -1182,7 +1189,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods re-Listed'
             else:
                 event_str += f'✏ Pods Listed'
-            event_str += f' - {round_num(pod_amount, 0)} Pods Listed at {start_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(pod_amount * bean_price * price_per_pod)})'
+            event_str += f' - {round_num(pod_amount, 0)} Pods Listed at {start_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod ({round_num(pod_amount * bean_price * price_per_pod, avoid_zero=True, incl_dollar=True)})'
         # If a new order or reorder.
         elif event_log.event == 'PodOrderCreated':
             # Check if this was a relist.
@@ -1190,7 +1197,7 @@ class MarketMonitor(Monitor):
                 event_str += f'♻ Pods re-Ordered'
             else:
                 event_str += f'🖌 Pods Ordered'
-            event_str += f' - {round_num(pod_amount, 0)} Pods Ordered before {order_max_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(pod_amount * bean_price * price_per_pod)})'
+            event_str += f' - {round_num(pod_amount, 0)} Pods Ordered before {order_max_place_in_line_str} @ {round_num(price_per_pod, 3)} Beans/Pod ({round_num(pod_amount * bean_price * price_per_pod, avoid_zero=True, incl_dollar=True)})'
         # If a fill.
         elif event_log.event in ['PodListingFilled', 'PodOrderFilled']:
             event_str += f'💰 Pods Exchanged - '
@@ -1198,12 +1205,12 @@ class MarketMonitor(Monitor):
             if event_log.event == 'PodListingFilled':
                 event_str += f'{round_num(pod_amount, 0)} Pods Listed at {start_place_in_line_str} in Line Filled'
                 if price_per_pod:
-                    event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod (${round_num(bean_price * bean_amount)})'
+                    event_str += f' @ {round_num(price_per_pod, 3)} Beans/Pod ({round_num(bean_price * bean_amount, avoid_zero=True, incl_dollar=True)})'
                     event_str += f'\n{value_to_emojis(bean_price * bean_amount)}'
             elif event_log.event == 'PodOrderFilled':
                 event_str += f'{round_num(pod_amount, 0)} Pods Ordered at ' \
                     f'{start_place_in_line_str} in Line Filled @ {round_num(price_per_pod, 3)} ' \
-                    f'Beans/Pod (${round_num(bean_price * bean_amount)})'
+                    f'Beans/Pod ({round_num(bean_price * bean_amount, avoid_zero=True, incl_dollar=True)})'
                 event_str += f'\n{value_to_emojis(bean_price * bean_amount)}'
         return event_str
 
@@ -1306,7 +1313,7 @@ class BarnRaiseMonitor(Monitor):
                 self.last_total_bought = total_bought
 
             event_str += f' - Total sold: {round_num(self.last_total_bought, 0)}'
-            # event_str += f' (${round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
+            # event_str += f' ({round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
             event_str += f'\n{value_to_emojis(usdc_amount)}'
         # Transfer or some other uninteresting transaction.
         else:
@@ -1375,9 +1382,9 @@ class RootMonitor(Monitor):
             # elif event_log.event == 'Redeem':
             #     event_str += f'🪓 {round_num(shares, 2)} Root redeemed for {round_num(bdv, 2)} BDV'
             if event_log.args.get('from') == NULL_ADDR:
-                event_str += f'🌳 {round_num(amount, 2)} Root minted (${round_num(value_usd, 2)})'
+                event_str += f'🌳 {round_num(amount, 2)} Root minted ({round_num(value_usd, 2, avoid_zero=True, incl_dollar=True)})'
             elif event_log.args.get('to') == NULL_ADDR:
-                event_str += f'🪓 {round_num(amount, 2)} Root redeemed (${round_num(value_usd, 2)})'
+                event_str += f'🪓 {round_num(amount, 2)} Root redeemed ({round_num(value_usd, 2, avoid_zero=True, incl_dollar=True)})'
             else:
                 logging.info(
                     f'Transfer of Root tokens, not mint or redeem. Ignoring.')
@@ -1455,7 +1462,7 @@ class RootUniswapMonitor(Monitor):
                 event_str += f'📤 LP removed - {round_num(root_amount, 0)} Roots and {round_num(bean_amount, 0)} Beans'
             root_bean_equivalent = root_amount * self.root_client.get_root_token_bdv()
             lp_value = (root_bean_equivalent + bean_amount) * bean_price
-            event_str += f' (${round_num(lp_value)})'
+            event_str += f' ({round_num(lp_value, avoid_zero=True, incl_dollar=True)})'
             event_str += f'\n{value_to_emojis(lp_value)}'
         elif event_log.event == 'Swap':
             swap_value = bean_amount * bean_price
@@ -1493,7 +1500,7 @@ class RootUniswapMonitor(Monitor):
             swap_price = avg_bean_to_eth_swap_price(
                 bean_in, eth_out, eth_price)
             swap_value = swap_price * bean_in
-        event_str += f' @ ${round_num(swap_price, 4)} (${round_num(swap_value)})'
+        event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, avoid_zero=True, incl_dollar=True)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
@@ -1867,10 +1874,14 @@ class EthPreviewMonitor(PreviewMonitor):
         while self._thread_active:
             self.wait_for_next_cycle()
             gas_base_fee = get_gas_base_fee()
-            eth_price = get_token_price(ETHEREUM_CG_ID)
+            eth_price = EthPreviewMonitor.eth_price()
             self.name_function(
                 f'{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei')
             self.status_function(f'ETH: ${round_num(eth_price)}')
+
+    @staticmethod
+    def eth_price():
+        return get_eth_price()
 
 
 class RootValuePreviewMonitor(PreviewMonitor):
@@ -2092,11 +2103,13 @@ def sig_compare(signature, signatures):
     return False
 
 
-def round_num(number, precision=2, avoid_zero=False):
+def round_num(number, precision=2, avoid_zero=False, incl_dollar=False):
     """Round a string or float to requested precision and return as a string."""
     if avoid_zero and number > 0 and number < 1:
-        return '<1'
-    return f'{float(number):,.{precision}f}'
+        return '<$1' if incl_dollar else '<1'
+    ret_string = '$' if incl_dollar else ''
+    ret_string += f'{float(number):,.{precision}f}'
+    return ret_string
 
 
 def round_num_auto(number, sig_fig_min=3, min_precision=2):
