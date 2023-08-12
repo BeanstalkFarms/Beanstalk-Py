@@ -6,6 +6,7 @@ import time
 import tweepy
 
 from bots import util
+from constants.addresses import *
 
 
 class TwitterBot(object):
@@ -112,6 +113,29 @@ class ParadoxTwitterBot(TwitterBot):
         self.betting_monitor.stop()
 
 
+class BasinTwitterBot(TwitterBot):
+    def __init__(self, prod=False):
+        if prod:
+            self.api_key = os.environ["TWITTER_BASIN_BOT_API_KEY_PROD"]
+            self.api_key_secret = os.environ["TWITTER_BASIN_BOT_API_KEY_SECRET_PROD"]
+            self.access_token = os.environ["TWITTER_BASIN_BOT_ACCESS_TOKEN_PROD"]
+            self.access_token_secret = os.environ["TWITTER_BASIN_BOT_ACCESS_TOKEN_SECRET_PROD"]
+            logging.info('BasinTwitterBot configured as a production instance.')
+        else:
+            self.set_keys_staging()
+            logging.info('BasinTwitterBot configured as a staging instance.')
+        self.set_client()
+
+        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.betting_monitor.start()
+
+        self.well_monitor_bean_eth = util.WellMonitor(
+            self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
+        self.well_monitor_bean_eth.start()
+
+    def stop(self):
+        self.well_monitor_bean_eth.stop()
+
 
 def infinity_polling():
     """Sleep forever while monitors run on background threads. Exit via interrupt."""
@@ -140,6 +164,7 @@ if __name__ == '__main__':
     beanstalk_bot = BeanstalkTwitterBot(prod=prod)
     root_bot = RootTwitterBot(prod=prod)
     paradox_bot = ParadoxTwitterBot(prod=prod)
+    basin_bot = BasinTwitterBot(prod=prod)
     try:
         infinity_polling()
     except (KeyboardInterrupt, SystemExit):
@@ -147,3 +172,4 @@ if __name__ == '__main__':
     beanstalk_bot.stop()
     root_bot.stop()
     paradox_bot.stop()
+    basin_bot.stop()
