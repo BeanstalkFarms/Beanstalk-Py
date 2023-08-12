@@ -453,48 +453,6 @@ class SeasonsMonitor(Monitor):
                 'Must specify either delta_deposits or bdv (Bean denominated value)')
         return ret_string
 
-
-# DEPRECATED. WILL NEED REFRESHER BEFORE USING AGAIN.
-'''
-    def update_all_wallet_watchers(self):
-        current_season_stats = self.beanstalk_graph_client.current_season_stats()
-        bean_price = self.bean_client.avg_bean_price()
-        for channel_id, wallets in self.channel_to_wallets.items():
-            # Ignore users with empty watch lists.
-            if not wallets:
-                continue
-            self.message_function(self.wallets_str(
-                wallets, current_season_stats, bean_price), channel_id)
-
-    def wallets_str(self, wallets, current_season_stats, bean_price):
-        ret_str = ''
-        account_id_to_addr = {str.lower(addr): addr for addr in wallets}
-        accounts_status = self.beanstalk_graph_client.wallets_stats(
-            list(account_id_to_addr.keys()))
-        for account_status in accounts_status:
-            ret_str += self.wallet_str(
-                account_id_to_addr[account_status['id']], account_status, current_season_stats, bean_price)
-            ret_str += '\n'
-        return ret_str
-
-    def wallet_str(self, address, account_status, current_season_stats, bean_price):
-        """Create a standard string representing a wallet status.
-
-        address is a string of the wallet address (with standard capitalization).
-        account_stats is a map of data about an account from the subgraph.
-        """
-        deposited_beans = float(account_status["depositedBeans"])
-        lp_eth, lp_beans = 
-
-        ret_string = f'📜 `{address}`\n'
-        # wallet_str += f'Circulating Beans: {account_stats[""]}'
-        ret_string += f'🌱 Deposited Beans: {round_num(deposited_beans)}  (${round_num(deposited_beans*bean_price)})\n'
-        ret_string += f'🌿 Deposited LP: {round_num(lp_eth, 4)} ETH and {round_num(lp_beans)} Beans  (${round_num(2*lp_beans*bean_price)})\n'
-        ret_string += f'🌾 Pods: {round_num(account_status["pods"])}\n'
-        return ret_string
-'''
-
-
 class BasinPeriodicMonitor(Monitor):
     """Periodically summarized and report Basin status."""
 
