@@ -10,8 +10,7 @@ from bots import util
 from constants.addresses import *
 
 TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
-TELE_CHAT_ID_PRODUCTION = "-1001655547288"  # Basin Tracker channel
-
+TELE_CHAT_ID_PRODUCTION = "@basintracker"  # Basin Tracker channel
 
 class TelegramBasinBot(object):
 
