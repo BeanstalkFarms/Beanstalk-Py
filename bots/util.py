@@ -1,9 +1,8 @@
 from abc import abstractmethod
 import asyncio.exceptions
-from collections import OrderedDict
 import discord
 from discord.ext import tasks, commands
-from enum import Enum, IntEnum
+from enum import Enum
 import re
 import logging
 from opensea import OpenseaAPI
@@ -14,14 +13,12 @@ import threading
 import time
 import websockets
 
-from web3 import eth
-
 from constants.addresses import *
 from data_access.graphs import BeanSqlClient, BeanstalkSqlClient, SnapshotClient, DAO_SNAPSHOT_NAME
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
 from data_access.coin_gecko import get_token_price, ETHEREUM_CG_ID
-import tools.util
+from tools.util import get_txn_receipt_or_wait
 
 # Strongly encourage Python 3.8+.
 # If not 3.8+ uncaught exceptions on threads will not be logged.
@@ -560,21 +557,24 @@ class BasinPeriodicMonitor(Monitor):
 
 
 # NOTE arguments for doing 1 monitor for all wells and 1 monitor per well. In first pass wells will each get their
-#      own discord channel, which will require human intervention in this code anyway, so going to go for 1 chanel
+#      own discord channel, which will require human intervention in this code anyway, so going to go for 1 channel
 #      per well for now.
 class WellMonitor(Monitor):
     """Monitor Wells for events.
+
+    This provides events in Beanstalk exchange channel as well as Basin per-well channels.
     
     NOTE assumption that all wells contain Bean. Valuation is done in BDV using the bean side of the trade to 
          directly determine value.
+    ^^ make this assumption less strict, instead only skip valuation if no BDV
     """
 
-    def __init__(self, message_function, ignore_converts=False, prod=False, dry_run=False):
+    def __init__(self, message_function, address, ignore_converts=False, prod=False, dry_run=False):
         super().__init__(f'wells', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
-        self._eth_event_client = EthEventsClient(self.pool_type, BEAN_ETH_WELL_ADDR)
-        self.well_client = WellClient(BEAN_ETH_WELL_ADDR)
+        self._eth_event_client = EthEventsClient(self.pool_type, address)
+        self.well_client = WellClient(address)
         self.ignore_converts = ignore_converts
 
     def _monitor_method(self):
@@ -589,8 +589,8 @@ class WellMonitor(Monitor):
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the well event logs for a single txn."""
-        # Partly ignore Silo Convert txns, which will be handled by the Beanstalk monitor.
-        if self.ignore_converts and event_sig_in_txn(BEANSTALK_EVENT_MAP['Convert'], txn_hash):
+        # Sometimes ignore Silo Convert txns, which will be handled by the Beanstalk monitor.
+        if self.ignore_converts is True and event_sig_in_txn(BEANSTALK_EVENT_MAP['Convert'], txn_hash):
             logging.info('Ignoring well txn, reporting as convert instead.')
             return
 
@@ -600,7 +600,7 @@ class WellMonitor(Monitor):
                 self.message_function(event_str)
 
     def any_event_str(self, event_log):
-        # value = None
+        value = None
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         fromToken = event_log.args.get('fromToken')
@@ -656,12 +656,26 @@ class WellMonitor(Monitor):
             elif toToken == BEAN_ADDR:
                 value = amountOut
         elif event_log.event == 'Shift':
-            erc20_info = get_erc20_info(toToken)
-            event_str += f'📗 Shifted {round_num(token_to_float(minAmountOut, erc20_info[2]), 2)} {erc20_info[0]}'
+            erc20_info_out = get_erc20_info(toToken)
+            event_str += f'📗 '
+
+            amount_in = None
+            if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
+                erc20_info_in = get_erc20_info(WRAPPED_ETH)
+                amount_in = round_num(eth_to_float(self.well_client.get_eth_sent(event_log.transactionHash)), 3)
+            elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
+                erc20_info_in = get_erc20_info(BEAN_ADDR)
+                amount_in = round_num(bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash)))
+            if amount_in is not None:
+                event_str += f'{amount_in} {erc20_info_in[1]} '
+            else:
+                event_str += f'Assets '
+            
+            event_str += f'Shifted to {round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]}'
         # elif event_log.event == 'Sync':
         else:
             logging.warning(
-                f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
+                f'Unexpected event log seen in Well ({event_log.event}). Ignoring.')
             return ''
 
         if value is not None:
@@ -1101,8 +1115,7 @@ class MarketMonitor(Monitor):
         Note that Event Log Object is not the same as Event object.
         """
         # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction_receipt = tools.util.get_txn_receipt_or_wait(
-            self._web3, txn_hash)
+        transaction_receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:

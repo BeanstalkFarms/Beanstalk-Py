@@ -1,8 +1,7 @@
 from abc import abstractmethod
 import asyncio
 from collections import OrderedDict
-import datetime
-from enum import Enum, IntEnum
+from enum import IntEnum
 import logging
 import json
 import os
@@ -26,10 +25,11 @@ except KeyError:
 
 # # Local node testing address for foundry anvil node using https.
 # LOCAL_TESTING_URL = 'http://localhost:8545/'
+LOCAL_TESTING_URL = 'https://anvil1.bean.money:443/'
 # # Goerli testing address.
 # GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
 # URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
-URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
+# URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -71,6 +71,8 @@ NEWLINE_CHAR = '\n'
 # Index of values in tuples returned from web3 contract calls.
 STARTSOIL_INDEX = 0
 
+ERC20_TRANSFER_EVENT_SIG = Web3.keccak(text='Transfer(address,address,uint256)').hex()
+
 # Incomplete of Beanstalk Terming of Tokens for human use.
 TOKEN_SYMBOL_MAP = {
     BEAN_ADDR.lower() : 'BEAN',
@@ -102,25 +104,25 @@ def add_event_to_dict(signature, sig_dict, sig_list):
 
 AQUIFER_EVENT_MAP = {}
 AQUIFER_SIGNATURES_LIST = []
-# Note that IERC20 types will just be addresses.
+# IERC20 types will just be addresses.
 add_event_to_dict("BoreWell(address,address,address[],(address,bytes),(address,bytes)[],bytes)",  # IERC == address
                   AQUIFER_EVENT_MAP, AQUIFER_SIGNATURES_LIST)
 
 
 WELL_EVENT_MAP = {}
 WELL_SIGNATURES_LIST = []
-# Note that IERC20 types will just be addresses.
-add_event_to_dict("Swap(IERC20,IERC20,uint,uint,address)",
+# IERC20 types will just be addresses.
+add_event_to_dict("Swap(address,address,uint256,uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
-add_event_to_dict("AddLiquidity(uint[],uint,address)",
+add_event_to_dict("AddLiquidity(uint256[],uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
-add_event_to_dict("RemoveLiquidity(uint,uint[],address)",
+add_event_to_dict("RemoveLiquidity(uint256,uint256[],address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
-add_event_to_dict("RemoveLiquidityOneToken(uint,IERC20,uint,address)",
+add_event_to_dict("RemoveLiquidityOneToken(uint256,address,uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
-add_event_to_dict("Shift(uint[],IERC20,uint,address)",
+add_event_to_dict("Shift(uint256[],address,uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
-add_event_to_dict("Sync(uint[])",
+add_event_to_dict("Sync(uint256[])",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 
 UNISWAP_V2_POOL_EVENT_MAP = {}
@@ -330,11 +332,11 @@ with open(os.path.join(os.path.dirname(__file__),
 
 def get_web3_instance():
     """Get an instance of web3 lib."""
-    # # NOTE(funderberker): LOCAL TESTING (uses https due to local network constraints).
-    # return Web3(HTTPProvider(LOCAL_TESTING_URL))
+    # # NOTE(funderberker): LOCAL TESTING (uses http due to local network constraints).
+    return Web3(HTTPProvider(LOCAL_TESTING_URL))
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
-    return Web3(WebsocketProvider(URL, websocket_timeout=60))
+    # return Web3(WebsocketProvider(URL, websocket_timeout=60))
 
 
 def get_uniswap_v3_contract(address, web3):
@@ -587,6 +589,40 @@ class BeanClient(ChainClient):
         """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
 
+
+# class AquiferClient(ChainClient):
+#     """Client for interacting with Aquifer contract."""
+
+#     def __init__(self, address, web3=None):
+#         super().__init__(web3)
+#         self.contract = get_aquifer_contract(self._web3)
+
+
+class WellClient(ChainClient):
+    """Client for interacting with well contracts."""
+
+    def __init__(self, address, web3=None):
+        super().__init__(web3)
+        self.address = address
+        self.contract = get_well_contract(self._web3, address)
+
+    def tokens(self, web3=None):
+        """Returns a list of ERC20 tokens supported by the Well."""
+        return call_contract_function_with_retry(self.contract.functions.tokens())
+
+    # def get_price(self):
+    #     return ????
+
+    def get_eth_sent(self, txn_hash):
+        """Return the amount (as a float) of ETH or WETH sent in a transaction"""
+        txn_value = self._web3.eth.get_transaction(txn_hash).value
+        if txn_value != 0:
+            return txn_value
+        return int(get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash).data, 16)
+
+    def get_beans_sent(self, txn_hash):
+        """Return the amount (as a float) of BEAN sent in a transaction"""
+        return int(get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash).data, 16)
 
 class RootClient(ChainClient):
     """Common functionality related to the Root token."""
@@ -949,7 +985,7 @@ class EthEventsClient():
             # This is a bit hacky, but none of this infrastructure was designed to manage implementations of
             # same event at same address.
             silo_v2_contract = get_beanstalk_v2_contract(self._web3)
-            decoded_type_logs = silo_v2_contract.events['RemoveDeposit']().processReceipt(receipt)
+            decoded_type_logs = silo_v2_contract.events['RemoveDeposit']().processReceipt(receipt, errors=DISCARD)
             if len(decoded_type_logs) > 0:
                 logging.warning('Skipping entry with Silo v2 RemoveDeposit')
                 return {}
@@ -1134,6 +1170,21 @@ def call_contract_function_with_retry(function, max_tries=10):
                 logging.error(
                     f'Failed to access "{function.fn_name}" function at contract address "{function.address}" after {max_tries} attempts. Raising exception...')
                 raise (e)
+
+
+def get_erc20_transfer_log_in_txn(address, txn_hash, web3=None):
+    """Return first log matching tranfer signature and address logs from a txn. Else return None."""
+    if not web3:
+        web3 = get_web3_instance()
+    receipt = tools.util.get_txn_receipt_or_wait(web3, txn_hash)
+    for log in receipt.logs:
+        try:
+            if log.address == address and log.topics[0].hex() == ERC20_TRANSFER_EVENT_SIG:
+                return log
+        # Ignore anonymous events (logs without topics).
+        except IndexError:
+            pass
+    return None
 
 
 def token_to_float(token_long, decimals):

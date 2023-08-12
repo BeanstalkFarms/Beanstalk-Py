@@ -12,7 +12,6 @@ from discord.ext import tasks, commands
 from bots import util
 from constants.addresses import *
 
-
 DISCORD_CHANNEL_ID_TEST = 1117767077420339220
 DISCORD_CHANNEL_ID_BEAN_ETH = 1117768417861193819
 DISCORD_CHANNEL_ID_DAILY = 1117768293625888868
@@ -48,14 +47,13 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        self.period_monitor = util.BasinPeriodicMonitor(
-            self.send_msg_daily, prod=prod, dry_run=True)
-        self.period_monitor.start()
+        # self.period_monitor = util.BasinPeriodicMonitor(
+        #     self.send_msg_daily, prod=prod, dry_run=False)
+        # self.period_monitor.start()
 
         self.well_monitor_bean_eth = util.WellMonitor(
-            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=True)
+            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
         self.well_monitor_bean_eth.start()
-
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         # Ignore base class, because we always want to reconnect.
