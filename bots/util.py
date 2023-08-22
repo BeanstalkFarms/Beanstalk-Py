@@ -591,25 +591,25 @@ class WellMonitor(Monitor):
                 if i > 0:
                     event_str += f', '
                 erc20_info = get_erc20_info(tokens[i])
-                event_str += f'{round_num(token_to_float(tokenAmountsIn[i], erc20_info[2]), 2)} {erc20_info[0]}'
+                event_str += f'{round_num(token_to_float(tokenAmountsIn[i], erc20_info[2]), 2)} {erc20_info[1]}'
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityOneToken':
             event_str += f'📤 LP removed - '
             # value = lpAmountIn * / lp_value
             if event_log.event == 'RemoveLiquidityOneToken':
                 erc20_info = get_erc20_info(tokenOut)
-                event_str += f'{round_num(token_to_float(tokenAmountOut, erc20_info[2]), 2)} {erc20_info[0]}'
+                event_str += f'{round_num(token_to_float(tokenAmountOut, erc20_info[2]), 2)} {erc20_info[1]}'
             else:
                 for i in range(0, len(tokenAmountsOut)):
                     if i > 0:
                         event_str += f', '
                 erc20_info = get_erc20_info(tokens[i])
-                event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[0]}'
+                event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[1]}'
         elif event_log.event == 'Swap':
             # value = lpAmountIn * lp_value
             erc20_info_in = get_erc20_info(fromToken)
             erc20_info_out = get_erc20_info(toToken)
-            event_str += f'📗 {round_num(token_to_float(amountIn, erc20_info_in[2]), 2)} {erc20_info_in[0]} swapped ' \
-                         f'for {round_num(token_to_float(amountOut, erc20_info_out[2]), 2)} {erc20_info_out[0]} '
+            event_str += f'📗 {round_num(token_to_float(amountIn, erc20_info_in[2]), 2)} {erc20_info_in[1]} swapped ' \
+                         f'for {round_num(token_to_float(amountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} '
             if fromToken == BEAN_ADDR:
                 bdv = bean_to_float(amountIn)
             elif toToken == BEAN_ADDR:
