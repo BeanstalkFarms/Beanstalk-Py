@@ -164,7 +164,7 @@ if __name__ == '__main__':
     beanstalk_bot = BeanstalkTwitterBot(prod=prod)
     root_bot = RootTwitterBot(prod=prod)
     paradox_bot = ParadoxTwitterBot(prod=prod)
-    basin_bot = BasinTwitterBot(prod=prod)
+    # basin_bot = BasinTwitterBot(prod=prod)
     try:
         infinity_polling()
     except (KeyboardInterrupt, SystemExit):
