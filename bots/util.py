@@ -2108,7 +2108,7 @@ def sig_compare(signature, signatures):
 def round_num(number, precision=2, avoid_zero=False, incl_dollar=False):
     """Round a string or float to requested precision and return as a string."""
     if avoid_zero and number > 0 and number < 1:
-        return '<$1' if incl_dollar else '<1'
+        return '< $1' if incl_dollar else '<1'
     ret_string = '$' if incl_dollar else ''
     ret_string += f'{float(number):,.{precision}f}'
     return ret_string
