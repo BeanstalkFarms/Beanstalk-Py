@@ -25,11 +25,11 @@ except KeyError:
 
 # # Local node testing address for foundry anvil node using https.
 # LOCAL_TESTING_URL = 'http://localhost:8545/'
-LOCAL_TESTING_URL = 'https://anvil1.bean.money:443/'
+# LOCAL_TESTING_URL = 'https://anvil1.bean.money:443/'
 # # Goerli testing address.
 # GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
 # URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
-# URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
+URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -333,10 +333,10 @@ with open(os.path.join(os.path.dirname(__file__),
 def get_web3_instance():
     """Get an instance of web3 lib."""
     # # NOTE(funderberker): LOCAL TESTING (uses http due to local network constraints).
-    return Web3(HTTPProvider(LOCAL_TESTING_URL))
+    # return Web3(HTTPProvider(LOCAL_TESTING_URL))
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
-    # return Web3(WebsocketProvider(URL, websocket_timeout=60))
+    return Web3(WebsocketProvider(URL, websocket_timeout=60))
 
 
 def get_uniswap_v3_contract(address, web3):
