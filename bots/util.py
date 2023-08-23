@@ -577,6 +577,7 @@ class WellMonitor(Monitor):
         minAmountOut = event_log.args.get('minAmountOut')
 
         tokens = self.well_client.tokens()
+        logging.info(f'well tokens: {tokens}')
 
         # for i in len(tokens):
         #     erc20_info = get_erc20_info(tokens[i])
@@ -602,8 +603,8 @@ class WellMonitor(Monitor):
                 for i in range(0, len(tokenAmountsOut)):
                     if i > 0:
                         event_str += f', '
-                erc20_info = get_erc20_info(tokens[i])
-                event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[1]}'
+                    erc20_info = get_erc20_info(tokens[i])
+                    event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[1]}'
         elif event_log.event == 'Swap':
             # value = lpAmountIn * lp_value
             erc20_info_in = get_erc20_info(fromToken)
