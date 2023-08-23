@@ -593,6 +593,8 @@ class WellMonitor(Monitor):
                     event_str += f', '
                 erc20_info = get_erc20_info(tokens[i])
                 event_str += f'{round_num(token_to_float(tokenAmountsIn[i], erc20_info[2]), 2)} {erc20_info[1]}'
+        elif event_log.event == 'Sync':
+            event_str += f'📥 LP added'
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityOneToken':
             event_str += f'📤 LP removed - '
             # value = lpAmountIn * / lp_value
@@ -635,7 +637,6 @@ class WellMonitor(Monitor):
                 event_str += f'Assets '
             
             event_str += f'Shifted to {round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} '
-        # elif event_log.event == 'Sync':
         else:
             logging.warning(
                 f'Unexpected event log seen in Well ({event_log.event}). Ignoring.')
