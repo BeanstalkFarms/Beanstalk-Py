@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import asyncio.exceptions
+import datetime
 import discord
 from discord.ext import tasks, commands
 from enum import Enum
@@ -14,10 +15,10 @@ import time
 import websockets
 
 from constants.addresses import *
-from data_access.graphs import BeanSqlClient, BeanstalkSqlClient, SnapshotClient, DAO_SNAPSHOT_NAME
+from data_access.graphs import BeanSqlClient, BeanstalkSqlClient, BasinSqlClient, SnapshotClient, DAO_SNAPSHOT_NAME
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
-from data_access.coin_gecko import get_eth_price
+from data_access.coin_gecko import get_eth_price, get_token_price
 from tools.util import get_txn_receipt_or_wait
 
 # Strongly encourage Python 3.8+.
@@ -466,6 +467,7 @@ class BasinPeriodicMonitor(Monitor):
         self.update_ref_time = 1687960800 # timestamp to check period against
         self.update_period = 60 * 60 * 24
         self.last_update = time.time()
+        self.basin_graph_client = BasinSqlClient()
 
     def _monitor_method(self):
         while self._thread_active:
@@ -493,16 +495,40 @@ class BasinPeriodicMonitor(Monitor):
         
     def period_string(self):
 
-        return "PERIOD UPDATE PLACEHOLDER"
+        ret_str = f'**🪣 Basin Daily Report {str(datetime.date.today())}**\n'
 
-        well_addresses = []
-        # Collect all Wells that have been created.
-        for txn_hash, event_logs in self._eth_event_client.get_log_range(17578511).items():
-            for event_log in event_logs:
-                if event_log.event == 'BoreWell':
-                    well_addresses.append(event_log.args.get('well'))
+        total_liquidity = 0
+        total_volume = 0
+        wells = self.basin_graph_client.get_latest_well_snapshots()
 
+        per_well_str = ''
+        for well in wells:
+            per_well_str += f'\n- {well["symbol"]} liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
+            total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
+            total_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
+
+        ret_str += f'\n📊 Daily Volume: ${round_num_auto(total_volume/1000, sig_fig_min=2)}k'
+        ret_str += f'\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k'
+
+        ret_str += f'\n\n**Wells**'
+        ret_str += per_well_str
+
+        return ret_str
         
+
+        @abstractmethod
+        def get_well_name(bore_well_log):
+            """Return string representing the name of a well."""
+            name = ''
+            tokens = bore_well_log.args.get('tokens')
+            for i in range(0, len(tokens)):
+                addr = tokens[i]
+                (_, symbol, decimals) = get_erc20_info(addr)
+                if i > 0:
+                    name += ':'
+                name += symbol
+
+
         
         # # NOTE Ignore non-bean wells for now, since there is no clear way to value them.
         # total_bdv = 0

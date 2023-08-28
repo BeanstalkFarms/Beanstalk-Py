@@ -1434,7 +1434,7 @@ def get_test_entries():
 def monitor_uni_v2_pair_events():
     client = EthEventsClient(EventClientType.UNISWAP_POOL)
     while True:
-        events = client.get_new_logs(dry_run=True)
+        events = client.get_new_logs(dry_run=False)
         time.sleep(5)
 
 # For testing purposes.
@@ -1452,7 +1452,7 @@ def monitor_curve_pool_events():
 def monitor_beanstalk_events():
     client = EthEventsClient(EventClientType.BEANSTALK)
     while True:
-        events = client.get_new_logs(dry_run=True)
+        events = client.get_new_logs(dry_run=False)
         time.sleep(5)
 
 

@@ -26,9 +26,9 @@ class TelegramBasinBot(object):
         apihelper.SESSION_TIME_TO_LIVE = 5 * 60
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
 
-        # self.period_monitor = util.BasinPeriodicMonitor(
-        #     self.send_msg_daily, prod=prod, dry_run=False)
-        # self.period_monitor.start()
+        self.period_monitor = util.BasinPeriodicMonitor(
+            self.send_msg_daily, prod=prod, dry_run=False)
+        self.period_monitor.start()
 
         self.well_monitor_bean_eth = util.WellMonitor(
             self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
@@ -46,6 +46,7 @@ class TelegramBasinBot(object):
         logging.info(f'Message sent:\n{msg}\n')
 
     def stop(self):
+        self.period_monitor.stop()
         self.well_monitor_bean_eth.stop()
 
 

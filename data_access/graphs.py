@@ -48,6 +48,7 @@ BEAN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/bean'
 BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
 # BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-testing'
 SNAPSHOT_GRAPH_ENDPOINT = 'https://hub.snapshot.org/graphql'
+BASIN_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/basin'
 
 
 class BeanSqlClient(object):
@@ -340,6 +341,34 @@ class BeanstalkSqlClient(object):
                 if timestamp < int(seasons[i]['createdAt']) and timestamp >= int(seasons[i+1]['createdAt']):
                     return int(seasons[i+1]['id'])
 
+
+class BasinSqlClient(object):
+
+    def __init__(self):
+        transport = AIOHTTPTransport(url=BASIN_GRAPH_ENDPOINT)
+        self._client = Client(
+            transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
+
+    def get_latest_well_snapshots(self):
+        """Get a single well snapshot.
+
+        id is "{lister_address}-{listing_index}"
+        """
+        query_str = f"""
+            query {{
+                wells(orderBy: totalLiquidityUSD, orderDirection: desc, where: {{totalLiquidityUSD_gt: 1000}}) {{
+                    id
+                    name
+                    symbol
+                        dailySnapshots(first: 1, orderBy: day, orderDirection: desc) {{
+                            totalLiquidityUSD
+                            deltaVolumeUSD
+                    }}
+                }}
+            }}
+        """
+        # Create gql query and execute.
+        return execute(self._client, query_str)['wells']
 
 class SnapshotClient():
     def __init__(self):

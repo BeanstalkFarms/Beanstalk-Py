@@ -126,15 +126,17 @@ class BasinTwitterBot(TwitterBot):
             logging.info('BasinTwitterBot configured as a staging instance.')
         self.set_client()
 
-        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
-        self.betting_monitor.start()
+        self.period_monitor = util.BasinPeriodicMonitor(
+            self.send_msg, prod=prod, dry_run=False)
+        self.period_monitor.start()
 
-        self.well_monitor_bean_eth = util.WellMonitor(
-            self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
-        self.well_monitor_bean_eth.start()
+        # self.well_monitor_bean_eth = util.WellMonitor(
+        #     self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
+        # self.well_monitor_bean_eth.start()
 
     def stop(self):
-        self.well_monitor_bean_eth.stop()
+        # self.well_monitor_bean_eth.stop()
+        self.period_monitor.stop()
 
 
 def infinity_polling():
@@ -164,7 +166,7 @@ if __name__ == '__main__':
     beanstalk_bot = BeanstalkTwitterBot(prod=prod)
     root_bot = RootTwitterBot(prod=prod)
     paradox_bot = ParadoxTwitterBot(prod=prod)
-    # basin_bot = BasinTwitterBot(prod=prod)
+    basin_bot = BasinTwitterBot(prod=prod)
     try:
         infinity_polling()
     except (KeyboardInterrupt, SystemExit):
@@ -172,4 +174,4 @@ if __name__ == '__main__':
     beanstalk_bot.stop()
     root_bot.stop()
     paradox_bot.stop()
-    # basin_bot.stop()
+    basin_bot.stop()

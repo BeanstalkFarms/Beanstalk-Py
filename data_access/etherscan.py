@@ -23,6 +23,15 @@ def get_erc20_price(erc20_address):
         raise Exception(f'Request rejected by etherscan:\n{result["result"]}')
     return float(result['result']['tokenPriceUSD'])
 
+def get_block_at_timestamp(timestamp):
+    """Returns the block number at a timestamp. Retrieved from etherscan API."""
+    request_url = ETHERSCAN_API_URL.format(
+        module='block', action='getblocknobytime', payload='timestamp={timestamp}&closest=before', key=os.environ["ETHERSCAN_TOKEN"])
+    result = get_with_retries(request_url)
+    if int(result['status']) == 0:
+        raise Exception(f'Request rejected by etherscan:\n{result["result"]}')
+    return int(result['result'])
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     print(get_gas_base_fee())

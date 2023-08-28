@@ -47,9 +47,9 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        # self.period_monitor = util.BasinPeriodicMonitor(
-        #     self.send_msg_daily, prod=prod, dry_run=False)
-        # self.period_monitor.start()
+        self.period_monitor = util.BasinPeriodicMonitor(
+            self.send_msg_daily, prod=prod, dry_run=False)
+        self.period_monitor.start()
 
         self.well_monitor_bean_eth = util.WellMonitor(
             self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
