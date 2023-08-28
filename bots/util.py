@@ -1944,24 +1944,31 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
     def __init__(self, name_function, status_function):
         super().__init__('BasinStatus', name_function, status_function, 1)
         self.last_name = ''
-        self.basin_client = None
+        self.basin_graph_client = BasinSqlClient()
 
     def _monitor_method(self):
-        self.basin_client = BasinClient()
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
-            # root_bdv = self.root_client.get_root_token_bdv()
-            # name_str = f'ROOT: {round_num(root_bdv, 3)} BDV'
-            # if name_str != self.last_name:
-            #     self.name_function(name_str)
-            #     self.last_name = name_str
 
-            # # Rotate data and update status.
-            # if self.display_index == 0:
-            #     self.status_function(
-            #         f'Supply: {round_num(self.root_client.get_total_supply(), 0)}')
+            current_liquidity = 0
+            cumulative_volume = 0
+            wells = self.basin_graph_client.get_wells_stats()
+
+            for well in wells:
+                current_liquidity += float(well["totalLiquidityUSD"])
+                cumulative_volume += float(well["cumulativeVolumeUSD"])
+
+            # root_bdv = self.root_client.get_root_token_bdv()
+            name_str = f'TVL: ${round_num(current_liquidity, 0)}'
+            if name_str != self.last_name:
+                self.name_function(name_str)
+                self.last_name = name_str
+
+            # Rotate data and update status.
+            if self.display_index == 0:
+                self.status_function(f'Volume: ${round_num(cumulative_volume, 0)}')
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):

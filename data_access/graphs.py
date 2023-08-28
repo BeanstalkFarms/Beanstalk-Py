@@ -351,8 +351,6 @@ class BasinSqlClient(object):
 
     def get_latest_well_snapshots(self):
         """Get a single well snapshot.
-
-        id is "{lister_address}-{listing_index}"
         """
         query_str = f"""
             query {{
@@ -364,6 +362,19 @@ class BasinSqlClient(object):
                             totalLiquidityUSD
                             deltaVolumeUSD
                     }}
+                }}
+            }}
+        """
+        # Create gql query and execute.
+        return execute(self._client, query_str)['wells']
+    
+    def get_wells_stats(self):
+        """Get high level stats of all wells."""
+        query_str = f"""
+            query {{
+                wells(orderBy: totalLiquidityUSD, orderDirection: desc, where: {{totalLiquidityUSD_gt: 1000}}) {{
+                    cumulativeVolumeUSD
+                    totalLiquidityUSD
                 }}
             }}
         """
