@@ -10,7 +10,9 @@ import time
 import websockets
 
 # NOTE(funderberker): LOCAL TESTING
-from web3 import Web3, HTTPProvider, WebsocketProvider
+from web3 import Web3
+# from web3 import HTTPProvider
+from web3 import WebsocketProvider
 from web3 import exceptions as web3_exceptions
 from web3.logs import DISCARD
 
