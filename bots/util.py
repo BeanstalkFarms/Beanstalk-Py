@@ -629,9 +629,9 @@ class WellMonitor(Monitor):
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
+            if amount_in_float is not None:
                 bdv = amount_in_float
                 amount_in = round_num(amount_in_float)
-            if amount_in is not None:
                 event_str += f'{amount_in} {erc20_info_in[1]} '
             else:
                 event_str += f'Assets '

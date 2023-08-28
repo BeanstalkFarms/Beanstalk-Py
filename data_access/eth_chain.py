@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import asyncio
+from attributedict.collections import AttributeDict
 from collections import OrderedDict
 from enum import IntEnum
 import logging
@@ -618,11 +619,11 @@ class WellClient(ChainClient):
         txn_value = self._web3.eth.get_transaction(txn_hash).value
         if txn_value != 0:
             return txn_value
-        return int(get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash).data, 16)
+        return int(get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash).data or '0', 16)
 
     def get_beans_sent(self, txn_hash):
         """Return the amount (as a float) of BEAN sent in a transaction"""
-        return int(get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash).data, 16)
+        return int(get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash).data or '0', 16)
 
 class RootClient(ChainClient):
     """Common functionality related to the Root token."""
@@ -1173,7 +1174,7 @@ def call_contract_function_with_retry(function, max_tries=10):
 
 
 def get_erc20_transfer_log_in_txn(address, txn_hash, web3=None):
-    """Return first log matching tranfer signature and address logs from a txn. Else return None."""
+    """Return first log matching transfer signature and address logs from a txn. Else return None."""
     if not web3:
         web3 = get_web3_instance()
     receipt = tools.util.get_txn_receipt_or_wait(web3, txn_hash)
@@ -1184,7 +1185,7 @@ def get_erc20_transfer_log_in_txn(address, txn_hash, web3=None):
         # Ignore anonymous events (logs without topics).
         except IndexError:
             pass
-    return None
+    return AttributeDict({'data':0})
 
 
 def token_to_float(token_long, decimals):
@@ -1261,7 +1262,6 @@ def uni_v3_sqrtPriceX96_to_float(fixed_point, decimals_0, decimals_1):
 
 def get_test_entries():
     """Get a list of old encoded entries to use for testing."""
-    from attributedict.collections import AttributeDict
     from hexbytes import HexBytes
     time.sleep(1)
     entries = [
@@ -1421,7 +1421,10 @@ def get_test_entries():
         # Silo v3
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xf7ff744a758627228155647af1390c1f9fba4e1a098d74073bf3e0c33265f571'), 'blockNumber': 17672099, 'data': '0x00000000000000000000000000000000000000000000000000000000000037140000000000000000000000000000000000000000000000000000000006bdc3cc', 'logIndex': 166, 'removed': False, 'topics': [HexBytes('0x7dfe6babf78bb003d6561ed598a241a0b419a1f3acbb7ee153888fb60a4c8aa8'), HexBytes('0x000000000000000000000000cba1a275e2d858ecffaf7a87f606f74b719a8a93'), HexBytes('0x000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab')], 'transactionHash': HexBytes('0xb2d981d10c076c521092d4724713a22c76e1e231a38224f79b373728660c24b6'), 'transactionIndex': 28}),
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0ba822a9893dd09e3cc226e0a5a60e57cbc06dd297b376540ee60fd3f38c5930'), 'blockNumber': 17745936, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0700000000000000000000000000000000000000000000000000000000002208bbe000000000000000000000000000000000000000000000000000000000079656f', 'logIndex': 387, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000005dfbb2344727462039eb18845a911c3396d91cf2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0x570a6a2cd9d9440c017d5cc3eac17bc56bc94e76fd8423399b1f648c83cf50fd'), 'transactionIndex': 135}),
-        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc36aa33c44228e18966f4d0c0716e3b7af9e89613e0c5c96767d05849ff292e4'), 'blockNumber': 17758086, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc01c000000000000000000000000000000000000000000000000000000007e7b462f000000000000000000000000000000000000000000000000000000001c27349e', 'logIndex': 395, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000004a2d3c5b9b6dd06541cae017f9957b0515cd65e2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0xf46619fd06d15f5619952f9fe051a47d08b573d77291c655180d172f568486d6'), 'transactionIndex': 133})
+        AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xc36aa33c44228e18966f4d0c0716e3b7af9e89613e0c5c96767d05849ff292e4'), 'blockNumber': 17758086, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc01c000000000000000000000000000000000000000000000000000000007e7b462f000000000000000000000000000000000000000000000000000000001c27349e', 'logIndex': 395, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000004a2d3c5b9b6dd06541cae017f9957b0515cd65e2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0xf46619fd06d15f5619952f9fe051a47d08b573d77291c655180d172f568486d6'), 'transactionIndex': 133}),
+        # Wells
+        # Shift, nothing in.
+        AttributeDict({'address': '0xBEA0e11282e2bB5893bEcE110cF199501e872bAd', 'blockHash': HexBytes('0x996612afe0039f712344a0a3325b0dfe61b8bfd5e5c5474df90ad2d5489efb55'), 'blockNumber': 17981146, 'data': '0x0000000000000000000000000000000000000000000000000000000000000080000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000000000000000000000000000001c9df1aacb8b3500000000000000000000000019a4fe7d0c76490cca77b45580846cdb38b9a406000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000ccc4a4e10000000000000000000000000000000000000000000000001a622f28064fea30', 'logIndex': 59, 'removed': False, 'topics': [HexBytes('0x1ee4a8e2e74af07abadd6b0b5f8f8bd96a54656e3bb7d987c5075a0c8b9f0df5')], 'transactionHash': HexBytes('0x99b458d1cc1d3946d6ab3fa27307bf57efc18fcb5fc6d3b6c852799a91a10586'), 'transactionIndex': 7})
     ]
     return entries
 

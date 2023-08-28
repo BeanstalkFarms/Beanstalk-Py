@@ -127,9 +127,9 @@ class DiscordClient(discord.ext.commands.Bot):
                 if not msg:
                     pass
                 elif channel is Channel.REPORT:
-                    await self._channel_bean_eth.send(msg)
+                    await self._channel_report.send(msg)
                 elif channel is Channel.DAILY:
-                    await self._channel_bean_eth.send(msg)
+                    await self._channel_daily.send(msg)
                 elif channel is Channel.BEAN_ETH:
                     await self._channel_bean_eth.send(msg)
                 else:
