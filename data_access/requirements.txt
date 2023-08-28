@@ -1,4 +1,4 @@
 attributedict
 hexbytes
 gql[aiohttp]==3.0.0b0
-web3==5.*
+web3==5.31.4
