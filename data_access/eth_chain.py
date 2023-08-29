@@ -1,6 +1,5 @@
 from abc import abstractmethod
 import asyncio
-from attributedict.collections import AttributeDict
 from collections import OrderedDict
 from enum import IntEnum
 import logging
@@ -621,11 +620,17 @@ class WellClient(ChainClient):
         txn_value = self._web3.eth.get_transaction(txn_hash).value
         if txn_value != 0:
             return txn_value
-        return int(get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash).data or '0', 16)
+        log = get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash)
+        if log:
+            return int(log.data, 16)
+        return 0
 
     def get_beans_sent(self, txn_hash):
         """Return the amount (as a float) of BEAN sent in a transaction"""
-        return int(get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash).data or '0', 16)
+        log = get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash)
+        if log:
+            return int(log.data, 16)
+        return 0
 
 class RootClient(ChainClient):
     """Common functionality related to the Root token."""
@@ -1187,7 +1192,7 @@ def get_erc20_transfer_log_in_txn(address, txn_hash, web3=None):
         # Ignore anonymous events (logs without topics).
         except IndexError:
             pass
-    return AttributeDict({'data':0})
+    return None
 
 
 def token_to_float(token_long, decimals):
@@ -1264,6 +1269,7 @@ def uni_v3_sqrtPriceX96_to_float(fixed_point, decimals_0, decimals_1):
 
 def get_test_entries():
     """Get a list of old encoded entries to use for testing."""
+    from attributedict.collections import AttributeDict
     from hexbytes import HexBytes
     time.sleep(1)
     entries = [
