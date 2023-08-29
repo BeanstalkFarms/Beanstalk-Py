@@ -1,5 +1,5 @@
 attributedict==0.3.0
-hexbytes
+hexbytes==0.2.3
 gql[aiohttp]==3.0.0b0
 web3==5.31.4
 websockets==9.1
