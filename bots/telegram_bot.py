@@ -7,6 +7,7 @@ import telebot
 from telebot import apihelper
 
 from bots import util
+from constants.addresses import *
 from data_access.eth_chain import EventClientType
 
 TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
@@ -32,6 +33,10 @@ class TelegramBot(object):
 
         self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod)
         self.sunrise_monitor.start()
+
+        self.well_monitor = util.WellMonitor(
+            self.send_msg, BEAN_ETH_WELL_ADDR, ignore_converts=True, prod=prod, dry_run=False)
+        self.well_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
             self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)
@@ -61,6 +66,7 @@ class TelegramBot(object):
     def stop(self):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
+        self.well_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
