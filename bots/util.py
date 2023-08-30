@@ -594,13 +594,14 @@ class WellMonitor(Monitor):
         amountOut = event_log.args.get('amountOut')
         # recipient = event_log.args.get('recipient')
         tokenAmountsIn = event_log.args.get('tokenAmountsIn')  # int[]
-        # lpAmountOut = event_log.args.get('lpAmountOut')  # int
-        # lpAmountIn = event_log.args.get('lpAmountIn')
+        lpAmountOut = event_log.args.get('lpAmountOut')  # int
+        lpAmountIn = event_log.args.get('lpAmountIn')
         tokenOut = event_log.args.get('tokenOut')
         tokenAmountOut = event_log.args.get('tokenAmountOut')
         tokenAmountsOut = event_log.args.get('tokenAmountsOut')
         #  = event_log.args.get('reserves')
         minAmountOut = event_log.args.get('minAmountOut')
+        lpAmountOut = event_log.args.get('lpAmountOut')
 
         tokens = self.well_client.tokens()
         logging.info(f'well tokens: {tokens}')
@@ -621,7 +622,9 @@ class WellMonitor(Monitor):
                 erc20_info = get_erc20_info(tokens[i])
                 event_str += f'{round_num(token_to_float(tokenAmountsIn[i], erc20_info[2]), 2)} {erc20_info[1]}'
         elif event_log.event == 'Sync':
-            event_str += f'📥 LP added'
+            event_str += f'📥 LP added '
+            # lp_info = get_erc20_info(BEAN_ETH_WELL_ADDR)
+            # value = lpAmountOut * get_well_lp_value(BEAN_ETH_WELL_ADDR)
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityOneToken':
             event_str += f'📤 LP removed - '
             # value = lpAmountIn * / lp_value

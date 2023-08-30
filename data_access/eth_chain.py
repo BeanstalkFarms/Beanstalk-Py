@@ -125,7 +125,7 @@ add_event_to_dict("RemoveLiquidityOneToken(uint256,address,uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 add_event_to_dict("Shift(uint256[],address,uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
-add_event_to_dict("Sync(uint256[])",
+add_event_to_dict("Sync(uint256[],uint256,address)",
                   WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 
 UNISWAP_V2_POOL_EVENT_MAP = {}
