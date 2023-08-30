@@ -600,7 +600,6 @@ class WellMonitor(Monitor):
         tokenAmountOut = event_log.args.get('tokenAmountOut')
         tokenAmountsOut = event_log.args.get('tokenAmountsOut')
         #  = event_log.args.get('reserves')
-        minAmountOut = event_log.args.get('minAmountOut')
         lpAmountOut = event_log.args.get('lpAmountOut')
 
         tokens = self.well_client.tokens()
@@ -653,18 +652,18 @@ class WellMonitor(Monitor):
 
             amount_in = None
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
-                bdv = bean_to_float(minAmountOut)
+                bdv = bean_to_float(amountOut)
                 erc20_info_in = get_erc20_info(WRAPPED_ETH)
                 amount_in = round_num(eth_to_float(self.well_client.get_eth_sent(event_log.transactionHash)), 3)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
-                value = token_to_float(minAmountOut, erc20_info_out[2]) * get_token_price('0x0')
+                value = token_to_float(amountOut, erc20_info_out[2]) * get_token_price('0x0')
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
                 if amount_in_float:
                     bdv = amount_in_float
                     amount_in = round_num(amount_in_float)
-            amount_out = round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)
-            if amount_in is not None and float(amount_in) > 0: # not None and not 0, then it is a pseudo swap
+            amount_out = round_num(token_to_float(amountOut, erc20_info_out[2]), 2)
+            if amount_in is not None and float(amount_in.replace(',','')) > 0: # not None and not 0, then it is a pseudo swap
                 is_swapish = True
                 amountIn = amount_in
             else: # one sided shift
