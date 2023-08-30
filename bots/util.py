@@ -585,7 +585,7 @@ class WellMonitor(Monitor):
                 self.message_function(event_str)
 
     def any_event_str(self, event_log):
-        bdv = None
+        bdv = value = None
         event_str = ''
         # Parse possible values of interest from the event log. Not all will be populated.
         fromToken = event_log.args.get('fromToken')
@@ -654,6 +654,7 @@ class WellMonitor(Monitor):
                 erc20_info_in = get_erc20_info(WRAPPED_ETH)
                 amount_in = round_num(eth_to_float(self.well_client.get_eth_sent(event_log.transactionHash)), 3)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
+                value = token_to_float(minAmountOut, erc20_info_out[2]) * get_token_price('0x0')
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
                 if amount_in_float:
@@ -676,6 +677,7 @@ class WellMonitor(Monitor):
 
         if bdv is not None:
             value = bdv * self.bean_client.avg_bean_price()
+        if value is not None:
             event_str += f'({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
             event_str += f'\n{value_to_emojis(value)}'
 
