@@ -645,7 +645,7 @@ class WellMonitor(Monitor):
                 bdv = bean_to_float(amountOut)
         elif event_log.event == 'Shift':
             erc20_info_out = get_erc20_info(toToken)
-            event_str += f'📗 '
+            event_str += f'🔀 '
 
             amount_in = None
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
@@ -655,14 +655,14 @@ class WellMonitor(Monitor):
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
-            if amount_in_float is not None:
-                bdv = amount_in_float
-                amount_in = round_num(amount_in_float)
-                event_str += f'{amount_in} {erc20_info_in[1]} '
+                if amount_in_float is not None:
+                    bdv = amount_in_float
+                    amount_in = round_num(amount_in_float)
+                    event_str += f'{amount_in} {erc20_info_in[1]} '
             else:
                 event_str += f'Assets '
             
-            event_str += f'Shifted to {round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} '
+            event_str += f'{round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} shifted out'
         else:
             logging.warning(
                 f'Unexpected event log seen in Well ({event_log.event}). Ignoring.')
