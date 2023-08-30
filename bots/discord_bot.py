@@ -124,9 +124,9 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_seasons, channel_to_wallets=self.channel_to_wallets, prod=prod, dry_run=False)
         self.sunrise_monitor.start()
 
-        # self.well_monitor = util.WellMonitor(
-        #     self.send_msg_pool, BEAN_ETH_WELL_ADDR, ignore_converts=True, prod=prod, dry_run=False)
-        # self.well_monitor.start()
+        self.well_monitor = util.WellMonitor(
+            self.send_msg_pool, BEAN_ETH_WELL_ADDR, ignore_converts=True, prod=prod, dry_run=False)
+        self.well_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False)
@@ -160,6 +160,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
+        self.well_monitor.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
