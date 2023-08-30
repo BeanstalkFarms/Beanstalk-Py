@@ -610,6 +610,7 @@ class WellMonitor(Monitor):
         #     if tokenAmountsIn:
 
         # lp_value =
+        is_swapish = False
 
         if event_log.event == 'AddLiquidity':
             event_str += f'📥 LP added - '
@@ -634,18 +635,18 @@ class WellMonitor(Monitor):
                     erc20_info = get_erc20_info(tokens[i])
                     event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[1]}'
         elif event_log.event == 'Swap':
+            is_swapish = True
             # value = lpAmountIn * lp_value
             erc20_info_in = get_erc20_info(fromToken)
             erc20_info_out = get_erc20_info(toToken)
-            event_str += f'📗 {round_num(token_to_float(amountIn, erc20_info_in[2]), 2)} {erc20_info_in[1]} swapped ' \
-                         f'for {round_num(token_to_float(amountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} '
+            amount_in = round_num(token_to_float(amountIn, erc20_info_in[2]), 2)
+            amount_out = round_num(token_to_float(amountOut, erc20_info_out[2]), 2)
             if fromToken == BEAN_ADDR:
                 bdv = bean_to_float(amountIn)
             elif toToken == BEAN_ADDR:
                 bdv = bean_to_float(amountOut)
         elif event_log.event == 'Shift':
             erc20_info_out = get_erc20_info(toToken)
-            event_str += f'🔀 '
 
             amount_in = None
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
@@ -655,20 +656,23 @@ class WellMonitor(Monitor):
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
-                if amount_in_float is not None:
+                if amount_in_float:
                     bdv = amount_in_float
                     amount_in = round_num(amount_in_float)
-                    event_str += f'{amount_in} {erc20_info_in[1]} '
-            else:
-                event_str += f'Assets '
-            
-            event_str += f'{round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)} {erc20_info_out[1]} shifted out'
+            amount_out = round_num(token_to_float(minAmountOut, erc20_info_out[2]), 2)
+            if amount_in is not None and float(amount_in) > 0: # not None and not 0, then it is a pseudo swap
+                is_swapish = True
+                amountIn = amount_in
+            else: # one sided shift
+                event_str += f'🔀 {amount_out} {erc20_info_out[1]} shifted out '
         else:
             logging.warning(
                 f'Unexpected event log seen in Well ({event_log.event}). Ignoring.')
             return ''
-
-        EthPreviewMonitor.eth_price()
+        
+        if is_swapish:
+            event_str += f'🔁 {amount_in} {erc20_info_in[1]} swapped ' \
+                         f'for {amount_out} {erc20_info_out[1]} '
 
         if bdv is not None:
             value = bdv * self.bean_client.avg_bean_price()
