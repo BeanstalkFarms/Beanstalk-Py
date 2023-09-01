@@ -27,7 +27,7 @@ class TelegramBasinBot(object):
         self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
 
         self.period_monitor = util.BasinPeriodicMonitor(
-            self.send_msg_daily, prod=prod, dry_run=False)
+            self.send_msg, prod=prod, dry_run=False)
         self.period_monitor.start()
 
         self.well_monitor_bean_eth = util.WellMonitor(
