@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import asyncio.exceptions
-import datetime
+from datetime import datetime, timedelta
 import discord
 from discord.ext import tasks, commands
 from enum import Enum
@@ -464,9 +464,10 @@ class BasinPeriodicMonitor(Monitor):
         self._eth_event_client = EthEventsClient(self.pool_type, AQUIFER_ADDR)
         self.well_client = WellClient(BEAN_ETH_WELL_ADDR)
         self.ignore_converts = ignore_converts
-        self.update_ref_time = 1687960800 # timestamp to check period against
         self.update_period = 60 * 60 * 24
-        self.last_update = time.time()
+        self.update_ref_time = int(0.5 * 60 * 60) # 15 * 60 * 60 # timestamp to check period against (11:00 EST)
+        # updated_secs_ago = time.time() - (time.time() % self.update_period) - self.update_ref_time
+        self.last_update = time.time() # arbitrary init
         self.basin_graph_client = BasinSqlClient()
 
     def _monitor_method(self):
@@ -483,8 +484,12 @@ class BasinPeriodicMonitor(Monitor):
         if self.last_update > time.time() - 30:
             time.sleep(30)
 
-        seconds_until_next_update = self.update_period - time.time() % self.update_period
-        timestamp_next_update = time.time() + seconds_until_next_update
+        clock_epoch_now = time.time() % self.update_period
+        if (self.update_ref_time > clock_epoch_now):
+            secs_until_update = self.update_ref_time - clock_epoch_now
+        else:
+            secs_until_update = self.update_period - time.time() % self.update_period + self.update_ref_time
+        timestamp_next_update = time.time() + secs_until_update
         loop_count = 0
         while self._thread_active and time.time() < timestamp_next_update:
             if loop_count % 60 == 0:
@@ -492,10 +497,11 @@ class BasinPeriodicMonitor(Monitor):
                              'more minutes until expected update.')
             loop_count += 1
             time.sleep(10)
+        self.last_update = time.time()
         
     def period_string(self):
 
-        ret_str = f'**🪣 Basin Daily Report {str(datetime.date.today())}**\n'
+        ret_str = f'🪣 **Basin Daily Report** ({(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")})\n'
 
         total_liquidity = 0
         total_volume = 0
@@ -503,7 +509,7 @@ class BasinPeriodicMonitor(Monitor):
 
         per_well_str = ''
         for well in wells:
-            per_well_str += f'\n- {well["symbol"]} liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
+            per_well_str += f'\n- {TOKEN_SYMBOL_MAP.get(well["id"])} liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
             total_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
 
