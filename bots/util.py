@@ -557,6 +557,7 @@ class WellMonitor(Monitor):
         super().__init__(f'wells', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
+        self._web3 = get_web3_instance()
         self._eth_event_client = EthEventsClient(self.pool_type, address)
         self.well_client = WellClient(address)
         self.bean_client = BeanClient()
@@ -620,10 +621,11 @@ class WellMonitor(Monitor):
                     event_str += f', '
                 erc20_info = get_erc20_info(tokens[i])
                 event_str += f'{round_num(token_to_float(tokenAmountsIn[i], erc20_info[2]), 2)} {erc20_info[1]}'
+            bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
         elif event_log.event == 'Sync':
             event_str += f'📥 LP added '
             # lp_info = get_erc20_info(BEAN_ETH_WELL_ADDR)
-            # value = lpAmountOut * get_well_lp_value(BEAN_ETH_WELL_ADDR)
+            bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityOneToken':
             event_str += f'📤 LP removed - '
             # value = lpAmountIn * / lp_value
@@ -636,6 +638,7 @@ class WellMonitor(Monitor):
                         event_str += f', '
                     erc20_info = get_erc20_info(tokens[i])
                     event_str += f'{round_num(token_to_float(tokenAmountsOut[i], erc20_info[2]), 2)} {erc20_info[1]}'
+            bdv = token_to_float(lpAmountIn, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
         elif event_log.event == 'Swap':
             is_swapish = True
             # value = lpAmountIn * lp_value
