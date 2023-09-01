@@ -37,7 +37,7 @@ ID_KEY = 'id'
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
 # How long to wait between discord preview bot updates.
-PREVIEW_CHECK_PERIOD = 5  # seconds
+PREVIEW_CHECK_PERIOD = 4  # seconds
 # For all check periods there is a built in assumption that we will update at least once per
 # Ethereum block (~13.5 seconds).
 APPROX_BLOCK_TIME = 12  # seconds
