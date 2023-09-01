@@ -16,6 +16,7 @@ from web3 import exceptions as web3_exceptions
 from web3.logs import DISCARD
 
 from constants.addresses import *
+from data_access.coin_gecko import get_token_price
 import tools.util
 
 # Alchemy node key.
@@ -576,10 +577,14 @@ class BeanClient(ChainClient):
             delta_b = self.get_price_info()['delta_b']
         return bean_to_float(delta_b)
 
-    def curve_3crv_price(self):
-        """Current float 3CRV price from Bean:3CRV Pool."""
-        pool_info = self.curve_bean_3crv_pool_info()
-        return (pool_info['liquidity'] - pool_info['balances'][1] * pool_info['price']) / pool_info['balances'][0]
+    # def curve_3crv_price(self):
+    #     """Current float 3CRV price from Bean:3CRV Pool."""
+    #     pool_info = self.curve_bean_3crv_pool_info()
+    #     return (pool_info['liquidity'] - pool_info['balances'][1] * pool_info['price']) / pool_info['balances'][0]
+    
+    # def curve_3crv_price(self):
+    #     """Current 3CRV price in USD as float."""
+    #     return get_token_price(TOKEN_3CRV_ADDR)
     
     def curve_bean_3crv_pool_info(self):
         """Return pool info as list."""
@@ -589,7 +594,7 @@ class BeanClient(ChainClient):
         """Current float Bean price in the Curve Bean:3CRV pool."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['price'])
 
-    def curve_bean_3crv_token_value(self):
+    def curve_bean_3crv_lp_value(self):
         """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
 
@@ -757,8 +762,12 @@ class CurveClient(ChainClient):
         super().__init__(web3)
         self.contract = get_curve_3pool_contract(self._web3)
 
+    # def get_3crv_price(self):
+    #     return crv_to_float(call_contract_function_with_retry(self.contract.functions.get_virtual_price()))
+
     def get_3crv_price(self):
-        return crv_to_float(call_contract_function_with_retry(self.contract.functions.get_virtual_price()))
+        """Current 3CRV price in USD as float."""
+        return get_token_price(TOKEN_3CRV_ADDR)
 
 
 class BarnRaiseClient(ChainClient):
@@ -1438,6 +1447,8 @@ def get_test_entries():
         # Mint - Uni V3 Root:Bean Pool
         AttributeDict({'address': '0x11DD6f9e1a7Bb35A61FAda4AEc645F603050783e', 'blockHash': HexBytes('0x138dbd24b73906520fbdb2cf6103ce69044082bb77a9aae65f3ebd12fe5e1d6d'), 'blockNumber': 16035594, 'data': '0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe8800000000000000000000000000000000000000000000000059e3ee9cd1e035cd0000000000000000000000000000000000000000000009e883a26e5ec7f7fb110000000000000000000000000000000000000000000000000000000ba43b7400', 'logIndex': 80,
                       'removed': False, 'topics': [HexBytes('0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde'), HexBytes('0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe88'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc800'), HexBytes('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc92c')], 'transactionHash': HexBytes('0xf36947e2f14eb33a249001dbd87e8ae4141e8d4585deb1c51e06e922f8d7b495'), 'transactionIndex': 39}),
+        # # Sow
+        # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x86f8c30dda2d2a154d5fad9e373d8d57b16a5879b1088d7caa950f8ee13b4cdf'), 'blockNumber': 18042201, 'data': '0x00000000000000000000000000000000000000000000000000034721352df50000000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000d92', 'logIndex': 190, 'removed': False, 'topics': [HexBytes('0xdd43b982e9a6350577cad86db14e254b658fb741d7864a6860409c4526bcc641'), HexBytes('0x000000000000000000000000b9f14efae1d14b6d06816b6e3a5f6e79c87232fa')], 'transactionHash': HexBytes('0xc7b23a3746a1f4f9a344e4e8bf4071e6b77be7c8dad32864f76f2aede980164b'), 'transactionIndex': 58}),
         # Silo v3
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0xf7ff744a758627228155647af1390c1f9fba4e1a098d74073bf3e0c33265f571'), 'blockNumber': 17672099, 'data': '0x00000000000000000000000000000000000000000000000000000000000037140000000000000000000000000000000000000000000000000000000006bdc3cc', 'logIndex': 166, 'removed': False, 'topics': [HexBytes('0x7dfe6babf78bb003d6561ed598a241a0b419a1f3acbb7ee153888fb60a4c8aa8'), HexBytes('0x000000000000000000000000cba1a275e2d858ecffaf7a87f606f74b719a8a93'), HexBytes('0x000000000000000000000000bea0000029ad1c77d3d5d23ba2d8893db9d1efab')], 'transactionHash': HexBytes('0xb2d981d10c076c521092d4724713a22c76e1e231a38224f79b373728660c24b6'), 'transactionIndex': 28}),
         AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x0ba822a9893dd09e3cc226e0a5a60e57cbc06dd297b376540ee60fd3f38c5930'), 'blockNumber': 17745936, 'data': '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc0700000000000000000000000000000000000000000000000000000000002208bbe000000000000000000000000000000000000000000000000000000000079656f', 'logIndex': 387, 'removed': False, 'topics': [HexBytes('0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55'), HexBytes('0x0000000000000000000000005dfbb2344727462039eb18845a911c3396d91cf2'), HexBytes('0x0000000000000000000000001bea0050e63e05fbb5d8ba2f10cf5800b6224449')], 'transactionHash': HexBytes('0x570a6a2cd9d9440c017d5cc3eac17bc56bc94e76fd8423399b1f648c83cf50fd'), 'transactionIndex': 135}),

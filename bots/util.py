@@ -754,20 +754,20 @@ class CurvePoolMonitor(Monitor):
 
         value = None
         if token_amounts is not None:
-            bean_lp_amount = bean_to_float(
+            bean_amount = bean_to_float(
                 token_amounts[FACTORY_3CRV_INDEX_BEAN])
             if (self.pool_type == EventClientType.CURVE_BEAN_3CRV_POOL):
-                token_lp_amount = crv_to_float(
+                crv_amount = crv_to_float(
                     token_amounts[FACTORY_3CRV_INDEX_3CRV])
-                token_lp_name = '3CRV'
-                token_value = self.bean_client.curve_bean_3crv_token_value()
-            value = bean_lp_amount * bean_price + token_lp_amount * token_value
+                token_name = '3CRV'
+                crv_value = self.three_pool_client.get_3crv_price()
+            value = bean_amount * bean_price + crv_amount * crv_value
         # RemoveLiquidityOne.
         if coin_amount is not None:
             if (self.pool_type == EventClientType.CURVE_BEAN_3CRV_POOL):
-                token_value = self.bean_client.curve_bean_3crv_token_value()
-                amount = token_to_float(token_amount, CRV_DECIMALS)
-            value = amount * token_value
+                lp_value = self.bean_client.curve_bean_3crv_lp_value()
+                lp_amount = token_to_float(token_amount, CRV_DECIMALS)
+            value = lp_amount * lp_value
 
         if event_log.event == 'TokenExchangeUnderlying' or event_log.event == 'TokenExchange':
             # Set the variables of quantity and direction of exchange.
@@ -795,17 +795,17 @@ class CurvePoolMonitor(Monitor):
                 stable_name = 'DAI'
                 stable_in = dai_to_float(stable_in)
                 stable_out = dai_to_float(stable_out)
-                stable_price = 1.0
+                stable_price = get_token_price(DAI)
             elif stable_id == FACTORY_3CRV_UNDERLYING_INDEX_USDC:
                 stable_name = 'USDC'
                 stable_in = usdc_to_float(stable_in)
                 stable_out = usdc_to_float(stable_out)
-                stable_price = 1.0
+                stable_price = get_token_price(USDC)
             elif stable_id == FACTORY_3CRV_UNDERLYING_INDEX_USDT:
                 stable_name = 'USDT'
                 stable_in = usdt_to_float(stable_in)
                 stable_out = usdt_to_float(stable_out)
-                stable_price = 1.0
+                stable_price = get_token_price(USDT)
             else:
                 logging.error(
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
@@ -815,9 +815,9 @@ class CurvePoolMonitor(Monitor):
                                                  bean_out=bean_out, bean_in=bean_in,
                                                  stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
-            event_str += f'📥 LP added - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
+            event_str += f'📥 LP added - {round_num(bean_amount, 0)} Beans and {round_num(crv_amount, 0)} {token_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
-            event_str += f'📤 LP removed - {round_num(bean_lp_amount, 0)} Beans and {round_num(token_lp_amount, 0)} {token_lp_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
+            event_str += f'📤 LP removed - {round_num(bean_amount, 0)} Beans and {round_num(crv_amount, 0)} {token_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
         elif event_log.event == 'RemoveLiquidityOne':
             event_str += f'📤 LP removed - '
             if self.pool_type == EventClientType.CURVE_BEAN_3CRV_POOL:
@@ -840,10 +840,7 @@ class CurvePoolMonitor(Monitor):
         return event_str
 
     def exchange_event_str(self, bean_price, stable_name, stable_price, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
-        """Generate a standard token exchange string.
-
-        Note that we assume all tokens in 3CRV have a value of $1.
-        """
+        """Generate a standard token exchange string."""
         event_str = ''
         if ((not stable_in and not bean_in) or (not stable_out and not bean_out)):
             logging.error(
