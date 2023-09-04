@@ -124,7 +124,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.sunrise_monitor.start()
 
         self.well_monitor = util.WellMonitor(
-            self.send_msg_pool, BEAN_ETH_WELL_ADDR, ignore_converts=True, prod=prod, dry_run=False)
+            self.send_msg_pool, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False)
         self.well_monitor.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(

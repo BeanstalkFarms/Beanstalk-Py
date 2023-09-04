@@ -457,13 +457,12 @@ class SeasonsMonitor(Monitor):
 class BasinPeriodicMonitor(Monitor):
     """Periodically summarized and report Basin status."""
 
-    def __init__(self, message_function, ignore_converts=False, prod=False, dry_run=False):
+    def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__(f'basin', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.AQUIFER
         self._eth_event_client = EthEventsClient(self.pool_type, AQUIFER_ADDR)
         self.well_client = WellClient(BEAN_ETH_WELL_ADDR)
-        self.ignore_converts = ignore_converts
         self.update_period = 60 * 60 * 24
         self.update_ref_time = int(0.5 * 60 * 60) # 15 * 60 * 60 # timestamp to check period against (11:00 EST)
         # updated_secs_ago = time.time() - (time.time() % self.update_period) - self.update_ref_time
@@ -559,7 +558,7 @@ class WellMonitor(Monitor):
     ^^ make this assumption less strict, instead only skip valuation if no BDV
     """
 
-    def __init__(self, message_function, address, ignore_converts=False, prod=False, dry_run=False):
+    def __init__(self, message_function, address, bean_reporting=False, prod=False, dry_run=False):
         super().__init__(f'wells', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
@@ -567,7 +566,7 @@ class WellMonitor(Monitor):
         self._eth_event_client = EthEventsClient(self.pool_type, address)
         self.well_client = WellClient(address)
         self.bean_client = BeanClient()
-        self.ignore_converts = ignore_converts
+        self.bean_reporting = bean_reporting
 
     def _monitor_method(self):
         last_check_time = 0
@@ -582,7 +581,7 @@ class WellMonitor(Monitor):
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the well event logs for a single txn."""
         # Sometimes ignore Silo Convert txns, which will be handled by the Beanstalk monitor.
-        if self.ignore_converts is True and event_sig_in_txn(BEANSTALK_EVENT_MAP['Convert'], txn_hash):
+        if self.bean_reporting is True and event_sig_in_txn(BEANSTALK_EVENT_MAP['Convert'], txn_hash):
             logging.info('Ignoring well txn, reporting as convert instead.')
             return
 
@@ -683,8 +682,13 @@ class WellMonitor(Monitor):
             return ''
         
         if is_swapish:
-            event_str += f'🔁 {amount_in} {erc20_info_in[1]} swapped ' \
-                         f'for {amount_out} {erc20_info_out[1]} '
+            if self.bean_reporting and erc20_info_out[1] == 'BEAN':
+                event_str += f'📗 {amount_out} {erc20_info_out[1]} bought for {amount_in} {erc20_info_in[1]}'
+            elif self.bean_reporting and erc20_info_in[1] == 'BEAN':
+                event_str += f'📕 {amount_in} {erc20_info_in[1]} sold for {amount_out} {erc20_info_out[1]}'
+            else:
+                event_str += f'🔁 {amount_in} {erc20_info_in[1]} swapped ' \
+                            f'for {amount_out} {erc20_info_out[1]} '
 
         if bdv is not None:
             value = bdv * self.bean_client.avg_bean_price()
@@ -856,11 +860,11 @@ class CurvePoolMonitor(Monitor):
             logging.error('Cannot set two inputs or two outputs of swap.')
             return ''
         if stable_in:
-            event_str += f'📗 {round_num(bean_out, 0)} Beans bought for {round_num(stable_in, 0)} {stable_name}'
+            event_str += f'📗 {round_num(bean_out, 0)} {get_erc20_info(BEAN_ADDR)[1]} bought for {round_num(stable_in, 0)} {stable_name}'
             swap_price = stable_in / bean_out
             swap_value = stable_in * stable_price
         elif bean_in:
-            event_str += f'📕 {round_num(bean_in, 0)} Beans sold for {round_num(stable_out, 0)} {stable_name}'
+            event_str += f'📕 {round_num(bean_in, 0)} {get_erc20_info(BEAN_ADDR)[1]} sold for {round_num(stable_out, 0)} {stable_name}'
             # If this is a sale of Beans for a fertilizer purchase.
             swap_price = stable_out / bean_in
             swap_value = stable_out * stable_price
@@ -1080,7 +1084,7 @@ class BeanstalkMonitor(Monitor):
 
 
         event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
-                    f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol}'
+                    f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} '
         if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
             event_str += f'({round_num(bdv_float, 0)} BDV)'
         event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
@@ -1509,9 +1513,9 @@ class RootUniswapMonitor(Monitor):
         elif event_log.event == 'Swap':
             swap_value = bean_amount * bean_price
             if root_buy:  # Root leaving pool
-                event_str += f'📘 {round_num(root_amount, 0)} Root bought for {round_num(bean_amount, 0)} Beans'
+                event_str += f'📘 {round_num(root_amount, 0)} ROOT bought for {round_num(bean_amount, 0)} {get_erc20_info(BEAN_ADDR)[1]}'
             else:  # Bean leaving pool
-                event_str += f'📙 {round_num(root_amount, 0)} Root sold for {round_num(bean_amount, 0)} Beans'
+                event_str += f'📙 {round_num(root_amount, 0)} ROOT sold for {round_num(bean_amount, 0)} {get_erc20_info(BEAN_ADDR)[1]}'
 
             event_str += f' @ {round_num(bean_amount/root_amount, 4)} BDV'
             event_str += f'  -  Current Root BDV in pool is ${round_num(self.uniswap_client.price_ratio(), 4)}'
@@ -1533,12 +1537,12 @@ class RootUniswapMonitor(Monitor):
             logging.error('Cannot set two inputs or two outputs of swap.')
             return ''
         if eth_in:
-            event_str += f'📘 {round_num(bean_out)} Beans bought for {round_num(eth_in, 4)} ETH'
+            event_str += f'📘 {round_num(bean_out)} {get_erc20_info(BEAN_ADDR)[1]} bought for {round_num(eth_in, 4)} ETH'
             swap_price = avg_eth_to_bean_swap_price(
                 eth_in, bean_out, eth_price)
             swap_value = swap_price * bean_out
         elif bean_in:
-            event_str += f'📙 {round_num(bean_in)} Beans sold for {round_num(eth_out, 4)} ETH'
+            event_str += f'📙 {round_num(bean_in)} {get_erc20_info(BEAN_ADDR)[1]} sold for {round_num(eth_out, 4)} ETH'
             swap_price = avg_bean_to_eth_swap_price(
                 bean_in, eth_out, eth_price)
             swap_value = swap_price * bean_in
