@@ -278,8 +278,7 @@ class BeanstalkSqlClient(object):
                     id
                     season
                     temperature
-                    harvestablePods
-                    unharvestablePods
+                    podRate
                     issuedSoil
                     deltaSownBeans
                 }}
@@ -468,11 +467,7 @@ class SeasonStats():
         if 'fieldHourlySnapshots' in graph_seasons_response:
             self.temperature = float(
                 graph_seasons_response['fieldHourlySnapshots'][season_index]['temperature'])
-            self.total_pods = pods_to_float(
-                                int(graph_seasons_response['fieldHourlySnapshots'][season_index]['harvestablePods']) + \
-                                int(graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods']))
-            self.unharvestable_pods = pods_to_float(
-                                int(graph_seasons_response['fieldHourlySnapshots'][season_index]['unharvestablePods']))
+            self.pod_rate = float(graph_seasons_response['fieldHourlySnapshots'][season_index]['podRate'])
             self.issued_soil = soil_to_float(
                 graph_seasons_response['fieldHourlySnapshots'][season_index]['issuedSoil'])
             self.sown_beans = bean_to_float(
