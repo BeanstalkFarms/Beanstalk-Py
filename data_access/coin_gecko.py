@@ -20,7 +20,8 @@ def get_token_price(address):
     if int(address,16) == 0: 
         return get_eth_price()
     request_url = CG_PRICE_ADDR_URL.format(address=address, vs_id=USD_CG_ID)
-    return float(get_with_retries(request_url)[address][USD_CG_ID])
+    response = get_with_retries(request_url)
+    return float(response[address.lower()][USD_CG_ID])
 
 
 if __name__ == '__main__':
