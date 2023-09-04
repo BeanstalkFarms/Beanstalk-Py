@@ -373,7 +373,7 @@ class SeasonsMonitor(Monitor):
 
         # Full string message.
         if not short_str:
-            # ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
+            ret_string += f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
             # Bean Supply stats.
             ret_string += f'\n\n**Supply**'
             ret_string += f'\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted'
