@@ -107,7 +107,7 @@ class BeanSqlClient(object):
         """
         query_str = """
             query get_last_crosses {
-                crosses(first: """ + str(n) + """, orderBy:timestamp, orderDirection: desc)
+                crosses(first: """ + str(n) + """, orderBy:timestamp, orderDirection: desc, where: {overall: true})
                 {timestamp, above, id}
             }
         """

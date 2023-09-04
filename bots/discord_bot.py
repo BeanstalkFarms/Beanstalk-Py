@@ -116,8 +116,7 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        self.peg_cross_monitor = util.PegCrossMonitor(
-            self.send_msg_peg, prod=prod)
+        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg_peg, prod=prod)
         self.peg_cross_monitor.start()
 
         self.sunrise_monitor = util.SeasonsMonitor(
