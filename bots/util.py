@@ -499,7 +499,8 @@ class BasinPeriodicMonitor(Monitor):
         
     def period_string(self):
 
-        ret_str = f'🪣 **Basin Daily Report** ({(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")})\n'
+        # ret_str = f'**Basin Daily Report**\n'
+        ret_str = f'🪣 {(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")}\n'
 
         total_liquidity = 0
         total_volume = 0
@@ -507,12 +508,13 @@ class BasinPeriodicMonitor(Monitor):
 
         per_well_str = ''
         for well in wells:
-            per_well_str += f'\n- {TOKEN_SYMBOL_MAP.get(well["id"])} liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
+            per_well_str += '\n🌱 ' if well["id"] == BEAN_ETH_WELL_ADDR.lower() else '\n💦 '
+            per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
             total_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
 
-        ret_str += f'\n📊 Daily Volume: ${round_num_auto(total_volume/1000, sig_fig_min=2)}k'
-        ret_str += f'\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k'
+        ret_str += f'\n🌊 Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k'
+        ret_str += f'\n📊 24h Volume: ${round_num_auto(total_volume/1000, sig_fig_min=2)}k'
 
         ret_str += f'\n\n**Wells**'
         ret_str += per_well_str
