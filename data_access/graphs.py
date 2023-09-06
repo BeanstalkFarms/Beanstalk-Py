@@ -379,6 +379,25 @@ class BasinSqlClient(object):
         """
         # Create gql query and execute.
         return execute(self._client, query_str)['wells']
+    
+    def try_get_well_deposit_info(self, txn_hash, log_index):
+        """Get deposit tokens. Retry if data not available. Return {} if it does not become available.
+        
+        This is expected to be used for realtime data retrieval, which means the subgraph may not yet have populated
+        the data. Repeated queries give the subgraph a chance to catch up.
+        """
+        query_str = f"""
+            query {{
+                deposit(id: "{txn_hash.hex()}-{str(log_index)}") {{
+                    tokens {{
+                        id
+                    }}
+                    reserves
+                    amountUSD
+                }}
+            }}
+        """
+        return try_execute_with_wait('deposit', self._client, query_str)
 
 class SnapshotClient():
     def __init__(self):
@@ -539,8 +558,25 @@ def execute(client, query_str, max_tries=10):
         time.sleep(retry_delay)
         retry_delay *= 2
         try_count += 1
+    logging.error('Unable to access subgraph data')
     raise GraphAccessException
 
+def try_execute_with_wait(check_key, client, query_str, max_tries=2, max_wait_blocks=5):
+    """Perform execute. Wait a block and try again if return data is empty. Eventually return None if no data.
+    
+    Also do not raise exception on failure, log warning and proceed.
+    """
+    result = None
+    for _ in range(max_wait_blocks):
+        try:
+            result = execute(client, query_str, max_tries=max_tries)[check_key]
+        except GraphAccessException:    
+            pass
+        if result is not None: # null
+            break
+        logging.info("Data not found. Waiting a block, retrying...")
+        time.sleep(15)
+    return result
 
 def client_subgraph_name(client):
     """Return a plain string name of the subgraph for the given gql.Client object."""
@@ -560,14 +596,16 @@ if __name__ == '__main__':
     bean_sql_client = BeanSqlClient()
     print(f'Last peg cross: {bean_sql_client.last_cross()}')
     print(f'Last peg crosses: {bean_sql_client.get_last_crosses(4)}')
-    print(bean_sql_client.get_bean_fields(['id', 'totalCrosses']))
 
-    beanstalk_client = BeanstalkSqlClient()
-    print(
-        f'\nCurrent and previous Season Stats:\n{beanstalk_client.seasons_stats()}')
-    timestamp = 1628299400
-    print(
-        f'season at time {timestamp} = {beanstalk_client.get_season_id_by_timestamp(timestamp)}')
+    # beanstalk_client = BeanstalkSqlClient()
+    # print(
+    #     f'\nCurrent and previous Season Stats:\n{beanstalk_client.seasons_stats()}')
+    # timestamp = 1628299400
+    # print(
+    #     f'season at time {timestamp} = {beanstalk_client.get_season_id_by_timestamp(timestamp)}')
+    
+    basin_client = BasinSqlClient()
+    print(f'\nDeposit: {basin_client.try_get_well_deposit_info("0x002a57c802e6125455e1d05ff8c6c2a2db8248cc5ef0bc19c7d979752251450d", 360)}')
 
     # snapshot_sql_client = SnapshotClient()
     # print(f'Voted: {snapshot_sql_client.percent_of_stalk_voted()}%')
