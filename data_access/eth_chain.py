@@ -587,7 +587,7 @@ class BeanClient(ChainClient):
     #     return get_token_price(TOKEN_3CRV_ADDR)
     
     def curve_bean_3crv_pool_info(self):
-        """Return pool info as list."""
+        """Return pool info as dict."""
         return self.get_price_info()['pool_infos'][CURVE_BEAN_3CRV_ADDR]
 
     def curve_bean_3crv_bean_price(self):
@@ -597,6 +597,14 @@ class BeanClient(ChainClient):
     def curve_bean_3crv_lp_value(self):
         """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
         return bean_to_float(self.curve_bean_3crv_pool_info()['lp_usd'])
+    
+    def well_bean_eth_pool_info(self):
+        """Return pool info as dict."""
+        return self.get_price_info()['pool_infos'][BEAN_ETH_WELL_ADDR]
+    
+    def well_bean_eth_bean_price(self):
+        """Current float Bean price in the BEAN:ETH well."""
+        return bean_to_float(self.well_bean_eth_pool_info()['price'])
 
 
 # class AquiferClient(ChainClient):

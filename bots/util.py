@@ -583,6 +583,7 @@ class WellMonitor(Monitor):
     def any_event_str(self, event_log):
         bdv = value = None
         event_str = ''
+        bean_well_value = self.bean_client.well_bean_eth_bean_price()
         # Parse possible values of interest from the event log. Not all will be populated.
         fromToken = event_log.args.get('fromToken')
         toToken = event_log.args.get('toToken')
@@ -688,12 +689,14 @@ class WellMonitor(Monitor):
                 event_str += f'📕 {amount_in} {erc20_info_in.symbol} sold for {amount_out} {erc20_info_out.symbol} '
             else:
                 event_str += f'🔁 {amount_in} {erc20_info_in.symbol} swapped ' \
-                            f'for {amount_out} {erc20_info_out.symbol} '
+                            f'for {amount_out} {erc20_info_out.symbol}'
 
         if bdv is not None:
             value = bdv * self.bean_client.avg_bean_price()
         if value is not None:
             event_str += f'({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
+            if is_swapish:
+                event_str += f'\n_Latest block well price is ${round_num(bean_well_value, 4)}_'
             event_str += f'\n{value_to_emojis(value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
@@ -745,8 +748,7 @@ class CurvePoolMonitor(Monitor):
             bean_price = self.bean_client.curve_bean_3crv_bean_price()
         # No default since each pool must have support manually built in.
         for event_log in event_logs:
-            event_str = self.any_event_str(
-                event_log, bean_price)
+            event_str = self.any_event_str(event_log, bean_price)
             if event_str:
                 self.message_function(event_str)
 
@@ -869,7 +871,7 @@ class CurvePoolMonitor(Monitor):
             swap_price = stable_out / bean_in
             swap_value = stable_out * stable_price
         event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, 0, avoid_zero=True, incl_dollar=True)})'
-        event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
+        event_str += f'\n_Latest block pool price is ${round_num(bean_price, 4)}_'
         # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.
         # if sig_compare(transaction['input'][:9], buy_fert_sigs.values()):
         #     event_str += f'\n_(🚛 Fertilizer purchase)_'
@@ -1087,7 +1089,7 @@ class BeanstalkMonitor(Monitor):
                     f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} '
         if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
             event_str += f'({round_num(bdv_float, 0)} BDV)'
-        event_str += f'\nLatest block price is ${round_num(bean_price, 4)}'
+        event_str += f'\n_Latest block price is ${round_num(bean_price, 4)}_'
         if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
             event_str += f'\n{value_to_emojis(value)}'
         event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
