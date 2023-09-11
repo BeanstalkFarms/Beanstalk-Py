@@ -499,8 +499,8 @@ class BasinPeriodicMonitor(Monitor):
         
     def period_string(self):
 
-        # ret_str = f'**Basin Daily Report**\n'
-        ret_str = f'🪣 {(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")}\n'
+        ret_str = f'🪣 **Basin Status**\n'
+        # ret_str = f'🪣 {(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")}\n'
 
         total_liquidity = 0
         total_volume = 0
