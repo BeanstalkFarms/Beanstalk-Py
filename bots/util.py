@@ -1218,7 +1218,7 @@ class MarketMonitor(Monitor):
                         f'Ignoring null listing cancel with graph id {listing_graph_id} and txn hash {event_log.transactionHash.hex()}')
                     return ''
                 pod_amount_str = round_num(pods_to_float(
-                    int(pod_listing['amount']) - int(pod_listing['filled'])), 0)
+                    int(pod_listing['originalAmount']) - int(pod_listing['filled'])), 0)
                 start_place_in_line_str = round_num(pods_to_float(int(
                     pod_listing['index']) + int(pod_listing['start'])) - pods_harvested, 0)
                 price_per_pod_str = round_num(

@@ -134,6 +134,7 @@ class BeanstalkSqlClient(object):
                     status
                     pricePerPod
                     amount
+                    originalAmount
                     filled
                     index
                     start
