@@ -905,7 +905,7 @@ class BeanstalkMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
-        # logging.warning(event_logs)
+        # logging.warning(f'handling {txn_hash} logs...')
         # Prune *plant* deposit logs. They are uninteresting clutter.
         # Prune *pick* deposit logs. They are uninteresting clutter.
         # For each earn (plant/pick) event log remove a corresponding AddDeposit log.
@@ -939,6 +939,12 @@ class BeanstalkMonitor(Monitor):
                     event_logs.remove(deposit_event_log)
                     logging.info(f'Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash.hex()}, possible transfer or silo migration')
 
+        if event_in_logs('ClaimFertilizer', event_logs):
+            event_str = self.rinse_str(event_logs)
+            if event_str:
+                self.message_function(event_str)
+            remove_events_from_logs_by_name('ClaimFertilizer', event_logs)
+        
         # Process conversion logs as a batch.
         if event_in_logs('Convert', event_logs):
             self.message_function(self.silo_conversion_str(event_logs))
@@ -1034,16 +1040,6 @@ class BeanstalkMonitor(Monitor):
                 event_str += f' ({round_num(underlying_value, 0, avoid_zero=True, incl_dollar=True)})'
                 event_str += f'\n{value_to_emojis(underlying_value)}'
 
-        # Rinse Sprouts (Fertilizer contract).
-        elif event_log.event == 'ClaimFertilizer':
-            bean_price = self.bean_client.avg_bean_price()
-            bean_amount = bean_to_float(event_log.args.beans)
-            # Ignore rinses with essentially no beans bc they are clutter, especially on transfers.
-            if (bean_amount < 1):
-                return ''
-            event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts ({round_num(bean_amount * bean_price, 0, avoid_zero=True, incl_dollar=True)})'
-            event_str += f'\n{value_to_emojis(bean_amount * bean_price)}'
-
         # Unknown event type.
         else:
             logging.warning(
@@ -1097,6 +1093,18 @@ class BeanstalkMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
+    def rinse_str(self, event_logs):
+        bean_amount = 0.0
+        for event_log in event_logs:
+            if event_log.event == 'ClaimFertilizer':
+                bean_amount += bean_to_float(event_log.args.beans)
+        # Ignore rinses with essentially no beans bc they are clutter, especially on transfers.
+        if (bean_amount < 1):
+            return ''
+        bean_price = self.bean_client.avg_bean_price()
+        event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts ({round_num(bean_amount * bean_price, 0, avoid_zero=True, incl_dollar=True)})'
+        event_str += f'\n{value_to_emojis(bean_amount * bean_price)}'
+        return event_str
 
 class MarketMonitor(Monitor):
     """Monitor the Beanstalk contract for market events."""
@@ -2126,6 +2134,10 @@ def event_in_logs(name, event_logs):
             return True
     return False
 
+def remove_events_from_logs_by_name(name, event_logs):
+    for event_log in event_logs:
+        if event_log.event == name:
+            event_logs.remove(event_log)
 
 def event_sig_in_txn(event_sig, txn_hash, web3=None):
     """Return True if an event signature appears in any logs from a txn. Else return False."""
