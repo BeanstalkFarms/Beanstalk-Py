@@ -372,6 +372,7 @@ class BasinSqlClient(object):
         query_str = f"""
             query {{
                 wells(orderBy: totalLiquidityUSD, orderDirection: desc, where: {{totalLiquidityUSD_gt: 1000}}) {{
+                    id
                     cumulativeVolumeUSD
                     totalLiquidityUSD
                 }}

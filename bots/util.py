@@ -1959,7 +1959,11 @@ class RootValuePreviewMonitor(PreviewMonitor):
 
 
 class BasinStatusPreviewMonitor(PreviewMonitor):
-    """Monitor data that offers view into current Basin token status via discord nickname/status."""
+    """Monitor data that offers view into current Basin token status via discord nickname/status.
+    
+    Note that this was implemented in a generalized fashion, then switched to specifically ETH:BEAN. I expect
+    it to return to an all-well implementation in the future.
+    """
 
     def __init__(self, name_function, status_function):
         super().__init__('BasinStatus', name_function, status_function, 1)
@@ -1971,24 +1975,28 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
-
-            current_liquidity = 0
-            cumulative_volume = 0
+            bean_eth_liquidity = 0
+            bean_eth_volume = 0
             wells = self.basin_graph_client.get_wells_stats()
 
             for well in wells:
-                current_liquidity += float(well["totalLiquidityUSD"])
-                cumulative_volume += float(well["cumulativeVolumeUSD"])
+                if well['id'].lower() == BEAN_ETH_WELL_ADDR.lower():
+                    bean_eth_liquidity += float(well['totalLiquidityUSD'])
+                    bean_eth_volume += float(well['cumulativeVolumeUSD'])
+
+            if bean_eth_liquidity == 0:
+                logging.warning('Missing BEAN:ETH well liquidity data in subgraph query result. Skipping update...')
+                continue
 
             # root_bdv = self.root_client.get_root_token_bdv()
-            name_str = f'TVL: ${round_num(current_liquidity, 0)}'
+            name_str = f'Liq: ${round_num(bean_eth_liquidity, 0)}'
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
 
             # Rotate data and update status.
             if self.display_index == 0:
-                self.status_function(f'Volume: ${round_num(cumulative_volume, 0)}')
+                self.status_function(f'24h Vol: ${round_num(bean_eth_volume, 0)}')
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):
