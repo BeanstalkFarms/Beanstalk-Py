@@ -696,7 +696,7 @@ class WellMonitor(Monitor):
         if value is not None:
             event_str += f'({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
             if is_swapish:
-                event_str += f'\n_Latest block well price is ${round_num(bean_well_value, 4)}_'
+                event_str += f'\n_Latest block Well price is ${round_num(bean_well_value, 4)}_'
             event_str += f'\n{value_to_emojis(value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
@@ -863,13 +863,13 @@ class CurvePoolMonitor(Monitor):
             return ''
         if stable_in:
             event_str += f'📗 {round_num(bean_out, 0)} {get_erc20_info(BEAN_ADDR).symbol} bought for {round_num(stable_in, 0)} {stable_name}'
-            swap_price = stable_in / bean_out
             swap_value = stable_in * stable_price
+            swap_price = swap_value / bean_out
         elif bean_in:
             event_str += f'📕 {round_num(bean_in, 0)} {get_erc20_info(BEAN_ADDR).symbol} sold for {round_num(stable_out, 0)} {stable_name}'
             # If this is a sale of Beans for a fertilizer purchase.
-            swap_price = stable_out / bean_in
             swap_value = stable_out * stable_price
+            swap_price = swap_value / bean_in
         event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, 0, avoid_zero=True, incl_dollar=True)})'
         event_str += f'\n_Latest block pool price is ${round_num(bean_price, 4)}_'
         # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.
@@ -1548,13 +1548,11 @@ class RootUniswapMonitor(Monitor):
             return ''
         if eth_in:
             event_str += f'📘 {round_num(bean_out)} {get_erc20_info(BEAN_ADDR).symbol} bought for {round_num(eth_in, 4)} ETH'
-            swap_price = avg_eth_to_bean_swap_price(
-                eth_in, bean_out, eth_price)
+            swap_price = avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price)
             swap_value = swap_price * bean_out
         elif bean_in:
             event_str += f'📙 {round_num(bean_in)} {get_erc20_info(BEAN_ADDR).symbol} sold for {round_num(eth_out, 4)} ETH'
-            swap_price = avg_bean_to_eth_swap_price(
-                bean_in, eth_out, eth_price)
+            swap_price = avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
             swap_value = swap_price * bean_in
         event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, avoid_zero=True, incl_dollar=True)})'
         event_str += f'  -  Latest pool block price is ${round_num(bean_price, 4)}'
