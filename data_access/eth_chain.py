@@ -1015,7 +1015,7 @@ class EthEventsClient():
             decoded_type_logs = silo_v2_contract.events['RemoveDeposit']().processReceipt(receipt, errors=DISCARD)
             if len(decoded_type_logs) > 0:
                 logging.warning('Skipping txn with Silo v2 RemoveDeposit')
-                txn_logs_dict[txn_hash] = decoded_logs
+                txn_logs_dict[txn_hash] = []
                 continue
 
             # Get and decode all logs of interest from the txn. There may be many logs.
