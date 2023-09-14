@@ -57,7 +57,9 @@ class TelegramBot(object):
         if not msg:
             return
         # Remove URL pointy brackets used by md formatting to suppress link previews.
-        msg = msg.replace('<', '').replace('>', '')
+        msg_split = msg.rsplit('<http', 1)
+        if len(msg_split) == 2:
+            msg = msg_split[0] + 'http' + msg_split[1].replace('>', '')
         # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
         self.tele_bot.send_message(
             chat_id=self._chat_id, text=msg, disable_web_page_preview=True)
