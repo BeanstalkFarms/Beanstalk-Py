@@ -1881,7 +1881,7 @@ class NFTPreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into BeaNFT collections."""
 
     def __init__(self, name_function, status_function):
-        super().__init__('NFT', name_function, status_function, check_period=APPROX_BLOCK_TIME)
+        super().__init__('NFT', name_function, status_function, check_period=8)
         self.opensea_api = None
 
     def _monitor_method(self):
