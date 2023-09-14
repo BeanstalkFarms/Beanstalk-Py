@@ -651,8 +651,10 @@ class WellMonitor(Monitor):
             # value = lpAmountIn * lp_value
             erc20_info_in = get_erc20_info(fromToken)
             erc20_info_out = get_erc20_info(toToken)
-            amount_in = round_token(amountIn, erc20_info_in.decimals, erc20_info_in.addr)
-            amount_out = round_token(amountOut, erc20_info_out.decimals, erc20_info_out.addr)
+            amount_in = amountIn
+            amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
+            amount_out = amountOut
+            amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
             if fromToken == BEAN_ADDR:
                 bdv = bean_to_float(amountIn)
             elif toToken == BEAN_ADDR:
@@ -664,35 +666,38 @@ class WellMonitor(Monitor):
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
                 bdv = bean_to_float(amountOut)
                 erc20_info_in = get_erc20_info(WRAPPED_ETH)
-                amount_in = round_token(self.well_client.get_eth_sent(event_log.transactionHash), erc20_info_in.decimals, erc20_info_in.addr)
+                amount_in = self.well_client.get_eth_sent(event_log.transactionHash)
+                amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 value = token_to_float(amountOut, erc20_info_out.decimals) * get_token_price('0x0')
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
-                amount_in_float = bean_to_float( self.well_client.get_beans_sent(event_log.transactionHash))
-                if amount_in_float:
-                    bdv = amount_in_float
-                    amount_in = round_num(amount_in_float, 0)
-            amount_out = round_token(amountOut, erc20_info_out.decimals, erc20_info_out.addr)
-            if amount_in is not None and float(amount_in.replace(',','')) > 0: # not None and not 0, then it is a pseudo swap
+                amount_in = self.well_client.get_beans_sent(event_log.transactionHash)
+                if amount_in:
+                    bdv = bean_to_float(amount_in)
+                    amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
+            amount_out = amountOut
+            amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
+            if amount_in is not None and amount_in > 0: # not None and not 0, then it is a pseudo swap
                 is_swapish = True
             else: # one sided shift
-                event_str += f'🔀 {amount_out} {erc20_info_out.symbol} shifted out '
+                event_str += f'🔀 {amount_out_str} {erc20_info_out.symbol} shifted out '
         else:
             logging.warning(
                 f'Unexpected event log seen in Well ({event_log.event}). Ignoring.')
             return ''
         
-        if is_swapish:
-            if self.bean_reporting and erc20_info_out.symbol == 'BEAN':
-                event_str += f'📗 {amount_out} {erc20_info_out.symbol} bought for {amount_in} {erc20_info_in.symbol} '
-            elif self.bean_reporting and erc20_info_in.symbol == 'BEAN':
-                event_str += f'📕 {amount_in} {erc20_info_in.symbol} sold for {amount_out} {erc20_info_out.symbol} '
-            else:
-                event_str += f'🔁 {amount_in} {erc20_info_in.symbol} swapped ' \
-                            f'for {amount_out} {erc20_info_out.symbol}'
-
         if bdv is not None:
             value = bdv * self.bean_client.avg_bean_price()
+        
+        if is_swapish:
+            if self.bean_reporting and erc20_info_out.symbol == 'BEAN':
+                event_str += f'📗 {amount_out_str} {erc20_info_out.symbol} bought for {amount_in_str} {erc20_info_in.symbol} @ ${round_num(value/bean_to_float(amount_out), 4)} '
+            elif self.bean_reporting and erc20_info_in.symbol == 'BEAN':
+                event_str += f'📕 {amount_in_str} {erc20_info_in.symbol} sold for {amount_out_str} {erc20_info_out.symbol} @ ${round_num(value/bean_to_float(amount_in), 4)} '
+            else:
+                event_str += f'🔁 {amount_in_str} {erc20_info_in.symbol} swapped ' \
+                            f'for {amount_out_str} {erc20_info_out.symbol}'
+
         if value is not None:
             event_str += f'({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
             if is_swapish:
