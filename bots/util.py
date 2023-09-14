@@ -1885,7 +1885,8 @@ class NFTPreviewMonitor(PreviewMonitor):
         self.opensea_api = None
 
     def _monitor_method(self):
-        self.opensea_api = OpenseaAPI()
+        api_key = os.environ["OPEN_SEA_KEY"]
+        self.opensea_api = OpenseaAPI(apikey=api_key)
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()
