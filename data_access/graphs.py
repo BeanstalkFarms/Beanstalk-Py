@@ -106,13 +106,13 @@ class BeanSqlClient(object):
             array of dicts containing timestamp and cross direction for each cross.
         """
         query_str = """
-            query get_last_crosses {
-                crosses(first: """ + str(n) + """, orderBy:timestamp, orderDirection: desc, where: {overall: true})
+            query get_last_bean_crosses {
+                beanCrosses(first: """ + str(n) + """, orderBy:timestamp, orderDirection: desc)
                 {timestamp, above, id}
             }
         """
         # Create gql query and execute.
-        return execute(self._client, query_str)['crosses']
+        return execute(self._client, query_str)['beanCrosses']
 
 
 class BeanstalkSqlClient(object):
