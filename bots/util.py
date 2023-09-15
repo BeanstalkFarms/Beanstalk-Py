@@ -1116,6 +1116,7 @@ class BeanstalkMonitor(Monitor):
         bean_price = self.bean_client.avg_bean_price()
         event_str = f'💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts ({round_num(bean_amount * bean_price, 0, avoid_zero=True, incl_dollar=True)})'
         event_str += f'\n{value_to_emojis(bean_amount * bean_price)}'
+        event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
         return event_str
 
 class MarketMonitor(Monitor):
