@@ -2016,7 +2016,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
 
             # Rotate data and update status.
             if self.display_index == 0:
-                self.status_function('Cumul Vol: ${round_num(bean_eth_volume, 0)}')
+                self.status_function(f'Cumul Vol: ${round_num(bean_eth_volume/1000, 0)}k')
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):
