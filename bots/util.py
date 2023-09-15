@@ -62,6 +62,8 @@ BARN_RAISE_START_TIME = 1652112000  # seconds
 # BOP_QUORUM_RATIO = 0.35
 # SUNRISE_TIME_PRE_EXPLOIT = 1650196819
 # SUNRISE_TIME_POST_EXPLOIT = 1659762014
+# Timestamp for deployment of Basin.
+BASIN_DEPLOY_EPOCH = 1692814103
 
 DISCORD_NICKNAME_LIMIT = 32
 
@@ -499,22 +501,27 @@ class BasinPeriodicMonitor(Monitor):
         
     def period_string(self):
 
-        ret_str = f'🪣 **Basin Status**\n'
+        days_of_basin = int((datetime.utcnow() - datetime.fromtimestamp(BASIN_DEPLOY_EPOCH)).days)
+        ret_str = f'🪣 Basin Daily Report #{days_of_basin}\n'
         # ret_str = f'🪣 {(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")}\n'
 
         total_liquidity = 0
-        total_volume = 0
-        wells = self.basin_graph_client.get_latest_well_snapshots()
+        daily_volume = 0
+        weekly_volume = 0
+        wells = self.basin_graph_client.get_latest_well_snapshots(7)
 
         per_well_str = ''
         for well in wells:
             per_well_str += '\n🌱 ' if well["id"] == BEAN_ETH_WELL_ADDR.lower() else '\n💦 '
             per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
-            total_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
+            daily_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
+            for snapshot in well["dailySnapshots"]:
+                weekly_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
 
-        ret_str += f'\n🌊 Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k'
-        ret_str += f'\n📊 24h Volume: ${round_num_auto(total_volume/1000, sig_fig_min=2)}k'
+        ret_str += f'\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k'
+        ret_str += f'\n📊 24H Volume: ${round_num_auto(daily_volume/1000, sig_fig_min=2)}k'
+        ret_str += f'\n🗓 7D Volume: ${round_num_auto(weekly_volume/1000, sig_fig_min=2)}k'
 
         ret_str += f'\n\n**Wells**'
         ret_str += per_well_str

@@ -349,7 +349,7 @@ class BasinSqlClient(object):
         self._client = Client(
             transport=transport, fetch_schema_from_transport=False, execute_timeout=7)
 
-    def get_latest_well_snapshots(self):
+    def get_latest_well_snapshots(self, num_snapshots):
         """Get a single well snapshot.
         """
         query_str = f"""
@@ -358,7 +358,7 @@ class BasinSqlClient(object):
                     id
                     name
                     symbol
-                        dailySnapshots(first: 1, orderBy: day, orderDirection: desc) {{
+                        dailySnapshots(first: {num_snapshots}, orderBy: day, orderDirection: desc) {{
                             totalLiquidityUSD
                             deltaVolumeUSD
                     }}
