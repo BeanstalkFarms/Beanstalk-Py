@@ -26,6 +26,7 @@ class TwitterBot(object):
         logging.info(f'Attempting to tweet:\n{msg}\n')
         # Remove URL pointy brackets used by md formatting to suppress link previews.
         msg = msg.replace('<', '').replace('>', '')
+        msg = msg.replace('**', '')
         try:
             self.client.create_tweet(text=msg)
         except tweepy.errors.BadRequest as e:

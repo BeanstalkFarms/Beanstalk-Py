@@ -512,12 +512,12 @@ class BasinPeriodicMonitor(Monitor):
 
         per_well_str = ''
         for well in wells:
-            per_well_str += '\n🌱 ' if well["id"] == BEAN_ETH_WELL_ADDR.lower() else '\n💦 '
+            per_well_str += '\n- 🌱 ' if well["id"] == BEAN_ETH_WELL_ADDR.lower() else '\n💦 '
             per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
             daily_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
             for snapshot in well["dailySnapshots"]:
-                weekly_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
+                weekly_volume += float(snapshot["deltaVolumeUSD"])
 
         ret_str += f'\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k'
         ret_str += f'\n📊 24H Volume: ${round_num_auto(daily_volume/1000, sig_fig_min=2)}k'
