@@ -1093,8 +1093,9 @@ class BeanstalkMonitor(Monitor):
                 remove_token_addr = event_log.args.get('fromToken')
                 _, _, remove_token_symbol, remove_decimals = get_erc20_info(
                     remove_token_addr, web3=self._web3).parse()
+                add_token_addr = event_log.args.get('toToken')
                 _, _, add_token_symbol, add_decimals = get_erc20_info(
-                    event_log.args.get('toToken'), web3=self._web3).parse()
+                    add_token_addr, web3=self._web3).parse()
                 remove_float = token_to_float(
                     event_log.args.get('fromAmount'), remove_decimals)
                 add_float = token_to_float(
