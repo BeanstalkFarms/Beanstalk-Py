@@ -585,6 +585,14 @@ class BeanClient(ChainClient):
     # def curve_3crv_price(self):
     #     """Current 3CRV price in USD as float."""
     #     return get_token_price(TOKEN_3CRV_ADDR)
+
+    def get_pool_info(self, addr):
+        """Return pool info as dict. If addr is Bean addr, return all info."""
+        price_info = self.get_price_info()
+        if addr == BEAN_ADDR:
+            return price_info
+        else:
+            return price_info['pool_infos'][addr]
     
     def curve_bean_3crv_pool_info(self):
         """Return pool info as dict."""

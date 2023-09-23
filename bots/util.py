@@ -609,20 +609,22 @@ class WellMonitor(Monitor):
         tokens = self.well_client.tokens()
         logging.info(f'well tokens: {tokens}')
 
-        # lp_value =
         is_swapish = False
+        is_lpish = False
 
         if event_log.event == 'AddLiquidity':
+            is_lpish = True
             event_str += f'📥 LP added - '
-            # value = lpAmountOut * lp_value
+            lp_amount = lpAmountOut
             for i in range(len(tokens)):
                 erc20_info = get_erc20_info(tokens[i])
                 event_str += f'{round_token(tokenAmountsIn[i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}'
                 if i < len(tokens) - 1:
-                    event_str += f','
+                    event_str += ' and'
                 event_str += f' '
             bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
         elif event_log.event == 'Sync':
+            is_lpish = True
             event_str += f'📥 LP added - '
             # subgraph may be down, providing no deposit data.
             deposit = self.basin_graph_client.try_get_well_deposit_info(event_log.transactionHash, event_log.logIndex)
@@ -631,12 +633,13 @@ class WellMonitor(Monitor):
                     erc20_info = get_erc20_info(deposit['tokens'][i]['id'])
                     event_str += f'{round_token(deposit["reserves"][i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}'
                     if i < len(tokens) - 1:
-                        event_str += f','
+                        event_str += ' and'
                     event_str += f' '
                 value = float(deposit['amountUSD'])
             else:
                 bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityOneToken':
+            is_lpish = True
             event_str += f'📤 LP removed - '
             for i in range(len(tokens)):
                 erc20_info = get_erc20_info(tokens[i])
@@ -650,7 +653,7 @@ class WellMonitor(Monitor):
                 event_str += f'{round_token(out_amount, erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}'
                 
                 if i < len(tokens) - 1:
-                    event_str += f','
+                    event_str += f' and'
                 event_str += f' '
             bdv = token_to_float(lpAmountIn, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
         elif event_log.event == 'Swap':
@@ -703,12 +706,14 @@ class WellMonitor(Monitor):
                 event_str += f'📕 {amount_in_str} {erc20_info_in.symbol} sold for {amount_out_str} {erc20_info_out.symbol} @ ${round_num(value/bean_to_float(amount_in), 4)} '
             else:
                 event_str += f'🔁 {amount_in_str} {erc20_info_in.symbol} swapped ' \
-                            f'for {amount_out_str} {erc20_info_out.symbol}'
+                            f'for {amount_out_str} {erc20_info_out.symbol} '
 
         if value is not None:
             event_str += f'({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
-            if is_swapish:
-                event_str += f'\n_Latest block Well price is ${round_num(bean_well_value, 4)}_'
+            if (is_swapish or is_lpish) and self.bean_reporting:
+                event_str += f'\n_{latest_pool_price_str(self.bean_client, BEAN_ETH_WELL_ADDR)}_ '
+            if is_lpish and not self.bean_reporting:
+                event_str += f'\n_{latest_well_lp_str(self.bean_client, BEAN_ETH_WELL_ADDR)}_ '
             event_str += f'\n{value_to_emojis(value)}'
 
         event_str += f'\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>'
@@ -835,13 +840,15 @@ class CurvePoolMonitor(Monitor):
                     f'Unexpected stable_id seen ({stable_id}) in exchange. Ignoring.')
                 return ''
 
-            event_str += self.exchange_event_str(bean_price, stable_name, stable_price,
+            event_str += self.exchange_event_str(stable_name, stable_price,
                                                  bean_out=bean_out, bean_in=bean_in,
                                                  stable_in=stable_in, stable_out=stable_out)
         elif event_log.event == 'AddLiquidity':
             event_str += f'📥 LP added - {round_num(bean_amount, 0)} Beans and {round_num(crv_amount, 0)} {token_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
+            event_str += f'\n_{latest_pool_price_str(self.bean_client, CURVE_BEAN_3CRV_ADDR)}_ '
         elif event_log.event == 'RemoveLiquidity' or event_log.event == 'RemoveLiquidityImbalance':
             event_str += f'📤 LP removed - {round_num(bean_amount, 0)} Beans and {round_num(crv_amount, 0)} {token_name} ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
+            event_str += f'\n_{latest_pool_price_str(self.bean_client, CURVE_BEAN_3CRV_ADDR)}_ '
         elif event_log.event == 'RemoveLiquidityOne':
             event_str += f'📤 LP removed - '
             if self.pool_type == EventClientType.CURVE_BEAN_3CRV_POOL:
@@ -851,6 +858,7 @@ class CurvePoolMonitor(Monitor):
                 else:
                     event_str += f'{round_num(crv_to_float(coin_amount), 0)} 3CRV'
             event_str += f' ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})'
+            event_str += f'\n_{latest_pool_price_str(self.bean_client, CURVE_BEAN_3CRV_ADDR)}_ '
         else:
             logging.warning(
                 f'Unexpected event log seen in Curve Pool ({event_log.event}). Ignoring.')
@@ -863,7 +871,7 @@ class CurvePoolMonitor(Monitor):
         event_str += '\n_ _'
         return event_str
 
-    def exchange_event_str(self, bean_price, stable_name, stable_price, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
+    def exchange_event_str(self, stable_name, stable_price, stable_in=None, bean_in=None, stable_out=None, bean_out=None):
         """Generate a standard token exchange string."""
         event_str = ''
         if ((not stable_in and not bean_in) or (not stable_out and not bean_out)):
@@ -883,7 +891,7 @@ class CurvePoolMonitor(Monitor):
             swap_value = stable_out * stable_price
             swap_price = swap_value / bean_in
         event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, 0, avoid_zero=True, incl_dollar=True)})'
-        event_str += f'\n_Latest block pool price is ${round_num(bean_price, 4)}_'
+        event_str += f'\n_{latest_pool_price_str(self.bean_client, CURVE_BEAN_3CRV_ADDR)}_ '
         # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.
         # if sig_compare(transaction['input'][:9], buy_fert_sigs.values()):
         #     event_str += f'\n_(🚛 Fertilizer purchase)_'
@@ -1092,12 +1100,18 @@ class BeanstalkMonitor(Monitor):
                 add_float = token_to_float(
                     event_log.args.get('toAmount'), add_decimals)
 
+        pool_token = BEAN_ADDR
+        if remove_token_addr == CURVE_BEAN_3CRV_ADDR or add_token_addr == CURVE_BEAN_3CRV_ADDR:
+            pool_token = CURVE_BEAN_3CRV_ADDR
+        elif remove_token_addr == BEAN_ETH_WELL_ADDR or add_token_addr == BEAN_ETH_WELL_ADDR:
+            pool_token = BEAN_ETH_WELL_ADDR
 
         event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
                     f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} '
         if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
             event_str += f'({round_num(bdv_float, 0)} BDV)'
-        event_str += f'\n_Latest block price is ${round_num(bean_price, 4)}_'
+        pool_type_str =  f''
+        event_str += f'\n_{latest_pool_price_str(self.bean_client, pool_token)}_ '
         if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
             event_str += f'\n{value_to_emojis(value)}'
         event_str += f'\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>'
@@ -2230,6 +2244,24 @@ def value_to_emojis(value):
     value = round(value, -5)
     return '🐳' * (value // 100000)
 
+def latest_pool_price_str(bean_client, addr):
+    pool_info = bean_client.get_pool_info(addr)
+    if addr == BEAN_ADDR:
+        type_str = ' Bean'
+    elif addr == CURVE_BEAN_3CRV_ADDR:
+        type_str = ' pool'
+    else:
+        type_str = ' Well'
+    price = token_to_float(pool_info['price'], BEAN_DECIMALS)
+    delta_b = token_to_float(pool_info['delta_b'], BEAN_DECIMALS)
+    # liquidity = pool_info['liquidity']
+    return f'Latest{type_str} data: Bean price [${round_num(price, 4)}], deltaB [{round_num(delta_b, 0)}]'
+
+def latest_well_lp_str(bean_client, addr):
+    pool_info = bean_client.get_pool_info(addr)
+    # lp_price = token_to_float(pool_info['lp_usd'], BEAN_DECIMALS)
+    liquidity = token_to_float(pool_info['liquidity'], BEAN_DECIMALS)
+    return f'Latest well liquidity: ${round_num(liquidity, 0)}'
 
 def value_to_emojis_root(value):
     """Convert a rounded dollar value to a string of emojis. Smaller values for betting."""
