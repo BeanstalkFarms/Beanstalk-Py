@@ -99,6 +99,7 @@ class Monitor():
         self._thread_active = False
         self._thread_wrapper = threading.Thread(
             target=self._thread_wrapper_method)
+        self._web3 = get_web3_instance()
 
     @abstractmethod
     def _monitor_method(self):
@@ -136,6 +137,7 @@ class Monitor():
                 time.sleep(1)
                 continue
             logging.info(f'Starting monitor on {self.name} thread.')
+            self._web3 = get_web3_instance()
             try:
                 self._monitor_method()
             # Websocket disconnects are expected occasionally.
@@ -279,8 +281,6 @@ class SeasonsMonitor(Monitor):
         self.short_msgs = short_msgs
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
-        # TODO(funderberker): Reuse this web3 instance for efficiency.
-        self._web3 = get_web3_instance()
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()
@@ -558,7 +558,6 @@ class WellMonitor(Monitor):
         super().__init__(f'wells', message_function,
                          POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
-        self._web3 = get_web3_instance()
         self._eth_event_client = EthEventsClient(self.pool_type, address)
         self.well_client = WellClient(address)
         self.bean_client = BeanClient()
@@ -905,7 +904,6 @@ class BeanstalkMonitor(Monitor):
     def __init__(self, message_function, prod=False, dry_run=False):
         super().__init__('Beanstalk', message_function,
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._web3 = get_web3_instance()
         self._eth_event_client = EthEventsClient(EventClientType.BEANSTALK)
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()
@@ -1142,7 +1140,6 @@ class MarketMonitor(Monitor):
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._eth_event_client = EthEventsClient(
             EventClientType.MARKET)
-        self._web3 = get_web3_instance()
         self.bean_client = BeanClient(self._web3)
         self.bean_contract = get_bean_contract(self._web3)
         self.beanstalk_contract = get_beanstalk_contract(self._web3)
@@ -1303,7 +1300,6 @@ class BarnRaiseMonitor(Monitor):
     def __init__(self, message_function, report_events=True, report_summaries=False, prod=False, dry_run=False):
         super().__init__('BarnRaise', message_function,
                          BARN_RAISE_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self._web3 = get_web3_instance()
         # Used for special init cases
         # self.SUMMARY_BLOCK_RANGE = self._web3.eth.get_block('latest').number - 14918083
         self.SUMMARY_BLOCK_RANGE = 1430  # ~ 6 hours
@@ -1596,7 +1592,6 @@ class BettingMonitor(Monitor):
                          BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_check_time = APPROX_BLOCK_TIME * 4
         self._eth_event_client = EthEventsClient(EventClientType.BETTING)
-        self._web3 = get_web3_instance()
         self.root_client = RootClient(self._web3)
         self.betting_client = BettingClient(self._web3)
         self.pool_status_thread = threading.Thread(
