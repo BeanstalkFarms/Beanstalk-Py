@@ -103,8 +103,6 @@ class DiscordClient(discord.ext.commands.Bot):
 
         self.channels_to_fwd = [DISCORD_CHANNEL_ID_ANNOUNCEMENTS,
                                 DISCORD_CHANNEL_ID_WEEKLY_UPDATES]
-        # # For dry_run testing.
-        # self.channels_to_fwd = [DISCORD_CHANNEL_ID_TEST_BOT]
         self.tele_bot = None
         if telegram_token is not None:
             self.tele_bot = telebot.TeleBot(
@@ -553,7 +551,6 @@ if __name__ == '__main__':
         prod = True
     except KeyError:
         token = os.environ["DISCORD_BOT_TOKEN"]
-        telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
 
     discord_client = DiscordClient(prod=prod, telegram_token=telegram_token)
