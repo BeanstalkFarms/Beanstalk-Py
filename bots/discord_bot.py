@@ -551,6 +551,7 @@ if __name__ == '__main__':
         prod = True
     except KeyError:
         token = os.environ["DISCORD_BOT_TOKEN"]
+        telegram_token = None
         prod = False
 
     discord_client = DiscordClient(prod=prod, telegram_token=telegram_token)
