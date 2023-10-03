@@ -571,8 +571,8 @@ class WellMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the well event logs for a single txn."""
@@ -744,8 +744,8 @@ class CurvePoolMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the curve pool event logs for a single txn.
@@ -915,8 +915,8 @@ class BeanstalkMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the beanstalk event logs for a single txn.
@@ -1152,8 +1152,8 @@ class MarketMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the beanstalk event logs for a single txn.
@@ -1332,7 +1332,8 @@ class BarnRaiseMonitor(Monitor):
                         self._web3, current_block.number - self.SUMMARY_BLOCK_RANGE)
                     time_range = current_block.timestamp - from_block.timestamp
                     all_events_in_time_range = []
-                    for event_logs in self._eth_event_client.get_log_range(from_block=from_block.number, to_block=current_block.number).values():
+                    for txn_pair in self._eth_event_client.get_log_range(from_block=from_block.number, to_block=current_block.number):
+                        event_logs = txn_pair.logs
                         all_events_in_time_range.extend(event_logs)
                     # Do not report a summary if nothing happened.
                     if len(all_events_in_time_range) == 0:
@@ -1366,8 +1367,8 @@ class BarnRaiseMonitor(Monitor):
             if self.report_events:
                 # Check for new Bids, Bid updates, and Sows.
                 all_events = []
-                for event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).values():
-                    all_events.extend(event_logs)
+                for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                    all_events.extend(txn_pair.logs)
                 for event_log in all_events:
                     self._handle_event_log(event_log)
 
@@ -1422,8 +1423,8 @@ class RootMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the root token event logs for a single txn.
@@ -1505,8 +1506,8 @@ class RootUniswapMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _handle_txn_logs(self, txn_hash, event_logs):
         """Process the pool event logs for a single txn."""
@@ -1612,8 +1613,8 @@ class BettingMonitor(Monitor):
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
-            for txn_hash, event_logs in self._eth_event_client.get_new_logs(dry_run=self._dry_run).items():
-                self._handle_txn_logs(txn_hash, event_logs)
+            for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
+                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
     def _pool_status_thread_method(self):
         """Send messages when pool status changes without associated event."""

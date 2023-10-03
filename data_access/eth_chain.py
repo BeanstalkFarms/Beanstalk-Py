@@ -850,6 +850,15 @@ def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
     return eth_price * (eth_out / bean_in)
 
 
+class TxnPair:
+    """The logs, in order, associated with a transaction."""
+    txn_hash = ''
+    logs = []
+
+    def __init__(self, txn_hash, logs):
+        self.txn_hash = txn_hash
+        self.logs = logs
+
 class EventClientType(IntEnum):
     BEANSTALK = 0
     MARKET = 1
@@ -971,7 +980,8 @@ class EthEventsClient():
         if filters is None:
             filters = self._event_filters
         # All decoded logs of interest from each txn.
-        txn_logs_dict = {}
+        txn_hash_set = set()
+        txn_logs_list = []
 
         if not dry_run:
             new_entries = []
@@ -1007,7 +1017,7 @@ class EthEventsClient():
 
             # Do not process the same txn multiple times.
             txn_hash = entry['transactionHash']
-            if txn_hash in txn_logs_dict:
+            if txn_hash in txn_hash_set:
                 continue
 
             logging.info(
@@ -1023,7 +1033,7 @@ class EthEventsClient():
             decoded_type_logs = silo_v2_contract.events['RemoveDeposit']().processReceipt(receipt, errors=DISCARD)
             if len(decoded_type_logs) > 0:
                 logging.warning('Skipping txn with Silo v2 RemoveDeposit')
-                txn_logs_dict[txn_hash] = []
+                txn_hash_set.add(txn_hash)
                 continue
 
             # Get and decode all logs of interest from the txn. There may be many logs.
@@ -1052,12 +1062,13 @@ class EthEventsClient():
                 decoded_logs.append(log)
 
             # Add all remaining txn logs to log map.
-            txn_logs_dict[txn_hash] = decoded_logs
+            txn_hash_set.add(txn_hash)
+            txn_logs_list.append(TxnPair(txn_hash, decoded_logs))
             logging.info(
                 f'Transaction: {txn_hash}\nAll txn logs of interest:\n'
                 f'{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}')
 
-        return txn_logs_dict
+        return txn_logs_list
 
     def safe_get_new_entries(self, filter, get_all=False):
         """Retrieve all new entries that pass the filter.
