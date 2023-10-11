@@ -1107,8 +1107,8 @@ class BeanstalkMonitor(Monitor):
 
         event_str = f'🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} ' \
                     f'Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} '
-        if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
-            event_str += f'({round_num(bdv_float, 0)} BDV)'
+        # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
+        event_str += f'({round_num(bdv_float, 0)} BDV)'
         pool_type_str =  f''
         event_str += f'\n_{latest_pool_price_str(self.bean_client, pool_token)}_ '
         if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
