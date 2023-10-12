@@ -1,7 +1,5 @@
 import abc
 from enum import Enum
-from google.cloud import storage
-import google.api_core.exceptions as google_api_exceptions
 import json
 import logging
 import logging.handlers
@@ -329,22 +327,6 @@ class DiscordClient(discord.ext.commands.Bot):
         # Process commands.
         await self.process_commands(message)
 
-    def retrieve_or_init_bucket(self):
-        """Get the Google Cloud Storage bucket, or create a new one with pertinent files."""
-        storage_client = storage.Client()
-        bucket = storage_client.lookup_bucket(BUCKET_NAME)
-
-        # If no bucket, this bucket did not exist and a new empty bucket has been created.
-        # This could indicate a very bad data loss event has occurred if it is not the first run.
-        if bucket is None:
-            logging.critical('Existing bucket not detected. New bucket created. '
-                             'This is likely a data loss event.')
-            # Initialize new bucket.
-            bucket = storage_client.create_bucket(
-                BUCKET_NAME, location='US-CENTRAL1')
-
-        return bucket
-
     def add_to_watched_addresses(self, address, channel_id):
         try:
             wallets = self.channel_to_wallets[channel_id]
@@ -382,31 +364,6 @@ class DiscordClient(discord.ext.commands.Bot):
 
         # Update cloud source of truth with new data.
         self.upload_channel_to_wallets()
-
-    def download_channel_to_wallets(self):
-        """Pull down data from cloud source of truth. Returns True/False based on success."""
-        try:
-            map_str = self.wallets_blob.download_as_string(
-                timeout=120).decode('utf8')
-            logging.info(
-                f'Channel to wallets map string pulled from cloud source:\n{map_str}')
-            self.channel_to_wallets = json.loads(map_str)
-        except google_api_exceptions.NotFound as e:
-            # Data blob not found. Confirm it does not exist, then init to empty file.
-            if not self.wallets_blob.exists():
-                logging.critical(f'Blob file {self.wallets_blob.name} does not exist. May be a '
-                                 'data loss event. Creating empty blob file.')
-                self.channel_to_wallets = {}
-                self.upload_channel_to_wallets()
-            else:
-                logging.exception(e)
-                return False
-        except Exception as e:
-            logging.error('Failed to download wallet watching list.')
-            logging.exception(e)
-            return False
-        logging.info('Successfully downloaded channel_to_wallets map.')
-        return True
 
     def upload_channel_to_wallets(self):
         """Update cloud source of truth with new data. Returns True/False based on success."""
