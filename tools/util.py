@@ -8,13 +8,14 @@ from web3.datastructures import AttributeDict
 from web3.logs import DISCARD
 
 
-URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + os.environ['ALCHEMY_ETH_API_KEY']
+URL = "wss://eth-mainnet.g.alchemy.com/v2/" + os.environ["ALCHEMY_ETH_API_KEY"]
 web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
 
 
 def decode_logs(txn_receipt, event):
     """Returns all decoded logs of an event in a receipt."""
     return event.processReceipt(txn_receipt, errors=DISCARD)
+
 
 def get_decoded_logs(txn_receipt, contract):
     """Get all decoded logs from a single contract in a receipt.
@@ -47,21 +48,22 @@ def format_log_str(log, indent=0):
     ret_str_list = []
     for key, value in log.items():
         if isinstance(value, AttributeDict):
-            str_value = f'\n{format_log_str(value, 2)}'
+            str_value = f"\n{format_log_str(value, 2)}"
         elif isinstance(value, HexBytes):
             str_value = value.hex()
         else:
             str_value = str(value)
         item_str = f'{" " * indent}{key}: {str_value}'
-        if key == 'event':
+        if key == "event":
             ret_str_list.insert(0, item_str)
         else:
             ret_str_list.append(item_str)
-    return '\n'.join(ret_str_list)
+    return "\n".join(ret_str_list)
 
 
 def web3_call_with_retries(web3_function, max_retries=5):
     """Decorator to wrap web3 calls that could fail and gracefully handle retries."""
+
     def retry_wrapper(web3, txn_hash):
         try_count = 0
         while True:
@@ -70,12 +72,14 @@ def web3_call_with_retries(web3_function, max_retries=5):
                 return web3_function(web3, txn_hash)
             except Exception as e:
                 if try_count < max_retries:
-                    logging.warning(f'Failed to get txn. Retrying...\n{e}')
+                    logging.warning(f"Failed to get txn. Retrying...\n{e}")
                     time.sleep(15)
                     continue
                 logging.error(
-                    f'Failed to get txn after {try_count} retries. Was the block orphaned?')
+                    f"Failed to get txn after {try_count} retries. Was the block orphaned?"
+                )
                 raise (e)
+
     return retry_wrapper
 
 
@@ -122,26 +126,25 @@ def format_farm_call_str(decoded_txn, beanstalk_contract):
     Return:
         str representing the farm call in human readable format.
     """
-    ret_str = ''
+    ret_str = ""
     # Possible to have multiple items in this list, what do they represent?
     # [1] is args, ['data'] is data arg
-    farm_data_arg_list = decoded_txn[1]['data']
+    farm_data_arg_list = decoded_txn[1]["data"]
     # logging.info(f'farm_data_arg_list: {farm_data_arg_list}')
 
     for sub_method_call_bytes in farm_data_arg_list:
         sub_method_selector = sub_method_call_bytes[:4]
-        logging.info(f'\nsub_method_selector: {sub_method_selector.hex()}')
+        logging.info(f"\nsub_method_selector: {sub_method_selector.hex()}")
         # sub_method_input = sub_method_call_bytes[4:]
         # logging.info(f'sub_method_input: {sub_method_input.hex()}')
-        decoded_sub_method_call = beanstalk_contract.decode_function_input(
-            sub_method_call_bytes)
-        logging.info(f'decoded_sub_method_call: {decoded_sub_method_call}')
-        ret_str += f'  sub-call: {decoded_sub_method_call[0].function_identifier}'
-        ret_str += '\n  args:'
+        decoded_sub_method_call = beanstalk_contract.decode_function_input(sub_method_call_bytes)
+        logging.info(f"decoded_sub_method_call: {decoded_sub_method_call}")
+        ret_str += f"  sub-call: {decoded_sub_method_call[0].function_identifier}"
+        ret_str += "\n  args:"
         for arg_name, value in decoded_sub_method_call[1].items():
             # Clean up bytes as strings for printing.
             if type(value) is bytes:
                 value = value.hex()
-            ret_str += f'\n    {arg_name}: {value}'
-        ret_str += '\n\n'
+            ret_str += f"\n    {arg_name}: {value}"
+        ret_str += "\n\n"
     return ret_str

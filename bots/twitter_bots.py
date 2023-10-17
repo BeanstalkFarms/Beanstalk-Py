@@ -18,47 +18,53 @@ class TwitterBot(object):
 
     def set_client(self):
         self.client = tweepy.Client(
-            consumer_key=self.api_key, consumer_secret=self.api_key_secret,
-            access_token=self.access_token, access_token_secret=self.access_token_secret
+            consumer_key=self.api_key,
+            consumer_secret=self.api_key_secret,
+            access_token=self.access_token,
+            access_token_secret=self.access_token_secret,
         )
 
     def send_msg(self, msg):
-        logging.info(f'Attempting to tweet:\n{msg}\n')
+        logging.info(f"Attempting to tweet:\n{msg}\n")
         # Remove URL pointy brackets used by md formatting to suppress link previews.
-        msg = msg.replace('<', '').replace('>', '')
-        msg = msg.replace('**', '')
+        msg = msg.replace("<", "").replace(">", "")
+        msg = msg.replace("**", "")
         try:
             self.client.create_tweet(text=msg)
         except tweepy.errors.BadRequest as e:
-            logging.error(f'HTTP Error 400 (Bad Request) for tweet with body "{msg}" '
-                         f'\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}')
+            logging.error(
+                f'HTTP Error 400 (Bad Request) for tweet with body "{msg}" '
+                f"\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}"
+            )
             return
         except tweepy.errors.Forbidden as e:
-            logging.error(f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
-                         f'Was it a repeat tweet?\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}')
+            logging.error(
+                f'HTTP Error 403 (Forbidden) for tweet with body "{msg}" '
+                f"Was it a repeat tweet?\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}"
+            )
             return
         except tweepy.errors.TooManyRequests as e:
-            logging.error(f'HTTP Error 429 (Too Many Requests) for tweet with body "{msg}" '
-                         f'\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}'
-                         f'\n\nAggressively idling...')
-            time.sleep(16 * 60) # Wait 16 minutes to be safe, expect 15 minutes to reset.
+            logging.error(
+                f'HTTP Error 429 (Too Many Requests) for tweet with body "{msg}" '
+                f"\n{e.api_messages}\n\n{e.response}\n\n{e.api_errors}"
+                f"\n\nAggressively idling..."
+            )
+            time.sleep(16 * 60)  # Wait 16 minutes to be safe, expect 15 minutes to reset.
             return
-        logging.info(f'Tweeted:\n{msg}\n')
-
+        logging.info(f"Tweeted:\n{msg}\n")
 
 
 class BeanstalkTwitterBot(TwitterBot):
-
     def __init__(self, prod=False):
         if prod:
             self.api_key = os.environ["TWITTER_BOT_API_KEY_PROD"]
             self.api_key_secret = os.environ["TWITTER_BOT_API_KEY_SECRET_PROD"]
             self.access_token = os.environ["TWITTER_BOT_ACCESS_TOKEN_PROD"]
             self.access_token_secret = os.environ["TWITTER_BOT_ACCESS_TOKEN_SECRET_PROD"]
-            logging.info('BeanstalkTwitterBot configured as a production instance.')
+            logging.info("BeanstalkTwitterBot configured as a production instance.")
         else:
             self.set_keys_staging()
-            logging.info('BeanstalkTwitterBot configured as a staging instance.')
+            logging.info("BeanstalkTwitterBot configured as a staging instance.")
         self.set_client()
 
         self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, short_msgs=True, prod=prod)
@@ -69,24 +75,22 @@ class BeanstalkTwitterBot(TwitterBot):
 
 
 class RootTwitterBot(TwitterBot):
-
     def __init__(self, prod=False):
         if prod:
             self.api_key = os.environ["TWITTER_ROOT_BOT_API_KEY_PROD"]
             self.api_key_secret = os.environ["TWITTER_ROOT_BOT_API_KEY_SECRET_PROD"]
             self.access_token = os.environ["TWITTER_ROOT_BOT_ACCESS_TOKEN_PROD"]
             self.access_token_secret = os.environ["TWITTER_ROOT_BOT_ACCESS_TOKEN_SECRET_PROD"]
-            logging.info('RootTwitterBot configured as a production instance.')
+            logging.info("RootTwitterBot configured as a production instance.")
         else:
             self.set_keys_staging()
-            logging.info('RootTwitterBot configured as a staging instance.')
+            logging.info("RootTwitterBot configured as a staging instance.")
         self.set_client()
 
         self.token_monitor = util.RootMonitor(self.send_msg, prod=prod, dry_run=False)
         self.token_monitor.start()
 
-        self.uniswap_monitor = util.RootUniswapMonitor(
-            self.send_msg, prod=prod, dry_run=False)
+        self.uniswap_monitor = util.RootUniswapMonitor(self.send_msg, prod=prod, dry_run=False)
         self.uniswap_monitor.start()
 
     def stop(self):
@@ -101,10 +105,10 @@ class ParadoxTwitterBot(TwitterBot):
             self.api_key_secret = os.environ["TWITTER_PARADOX_BOT_API_KEY_SECRET_PROD"]
             self.access_token = os.environ["TWITTER_PARADOX_BOT_ACCESS_TOKEN_PROD"]
             self.access_token_secret = os.environ["TWITTER_PARADOX_BOT_ACCESS_TOKEN_SECRET_PROD"]
-            logging.info('ParadoxTwitterBot configured as a production instance.')
+            logging.info("ParadoxTwitterBot configured as a production instance.")
         else:
             self.set_keys_staging()
-            logging.info('ParadoxTwitterBot configured as a staging instance.')
+            logging.info("ParadoxTwitterBot configured as a staging instance.")
         self.set_client()
 
         self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
@@ -121,14 +125,13 @@ class BasinTwitterBot(TwitterBot):
             self.api_key_secret = os.environ["TWITTER_BASIN_BOT_API_KEY_SECRET_PROD"]
             self.access_token = os.environ["TWITTER_BASIN_BOT_ACCESS_TOKEN_PROD"]
             self.access_token_secret = os.environ["TWITTER_BASIN_BOT_ACCESS_TOKEN_SECRET_PROD"]
-            logging.info('BasinTwitterBot configured as a production instance.')
+            logging.info("BasinTwitterBot configured as a production instance.")
         else:
             self.set_keys_staging()
-            logging.info('BasinTwitterBot configured as a staging instance.')
+            logging.info("BasinTwitterBot configured as a staging instance.")
         self.set_client()
 
-        self.period_monitor = util.BasinPeriodicMonitor(
-            self.send_msg, prod=prod, dry_run=False)
+        self.period_monitor = util.BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
         self.period_monitor.start()
 
         # self.well_monitor_bean_eth = util.WellMonitor(
@@ -146,13 +149,18 @@ def infinity_polling():
         time.sleep(5)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
-    logging.basicConfig(format=f'Twitter Bots : {util.LOGGING_FORMAT_STR_SUFFIX}',
-                        level=logging.INFO, handlers=[
-                            logging.handlers.RotatingFileHandler(
-                                "twitter_bots.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1),
-                            logging.StreamHandler()])
+    logging.basicConfig(
+        format=f"Twitter Bots : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        level=logging.INFO,
+        handlers=[
+            logging.handlers.RotatingFileHandler(
+                "twitter_bots.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+            ),
+            logging.StreamHandler(),
+        ],
+    )
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     util.configure_main_thread_exception_logging()

@@ -26,10 +26,9 @@ class Channel(Enum):
 
 
 class DiscordClient(discord.ext.commands.Bot):
-
     def __init__(self, prod=False):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
-        self.nickname = ''
+        self.nickname = ""
         # self._update_naming.start()
 
         if prod:
@@ -37,13 +36,13 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_token = DISCORD_CHANNEL_ID_TOKEN
             self._chat_id_exchange = DISCORD_CHANNEL_ID_EXCHANGE
             self._chat_id_betting = DISCORD_CHANNEL_ID_BETTING
-            logging.info('Configured as a production instance.')
+            logging.info("Configured as a production instance.")
         else:
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_token = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_exchange = DISCORD_CHANNEL_ID_TEST_BOT
             self._chat_id_betting = DISCORD_CHANNEL_ID_TEST_BOT
-            logging.info('Configured as a staging instance.')
+            logging.info("Configured as a staging instance.")
 
         self.msg_queue = []
 
@@ -53,16 +52,15 @@ class DiscordClient(discord.ext.commands.Bot):
         discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        self.token_monitor = util.RootMonitor(
-            self.send_msg_token, prod=prod, dry_run=False)
+        self.token_monitor = util.RootMonitor(self.send_msg_token, prod=prod, dry_run=False)
         self.token_monitor.start()
 
         self.uniswap_monitor = util.RootUniswapMonitor(
-            self.send_msg_exchange, prod=prod, dry_run=False)
+            self.send_msg_exchange, prod=prod, dry_run=False
+        )
         self.uniswap_monitor.start()
 
-        self.betting_monitor = util.BettingMonitor(
-            self.send_msg_betting, prod=prod, dry_run=False)
+        self.betting_monitor = util.BettingMonitor(self.send_msg_betting, prod=prod, dry_run=False)
         self.betting_monitor.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
@@ -72,8 +70,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # self._update_naming.add_exception_type(discord.DiscordException)
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
-        self.send_queued_messages.add_exception_type(
-            discord.errors.DiscordServerError)
+        self.send_queued_messages.add_exception_type(discord.errors.DiscordServerError)
         # Start the message queue sending task in the background.
         self.send_queued_messages.start()
 
@@ -89,7 +86,7 @@ class DiscordClient(discord.ext.commands.Bot):
     def send_msg_token(self, text):
         """Send a message through the Discord bot in the token channel."""
         self.msg_queue.append((Channel.TOKEN, text))
-    
+
     def send_msg_exchange(self, text):
         """Send a message through the Discord bot in the exchange channel."""
         self.msg_queue.append((Channel.EXCHANGE, text))
@@ -105,20 +102,26 @@ class DiscordClient(discord.ext.commands.Bot):
         self._channel_betting = self.get_channel(self._chat_id_betting)
 
         logging.info(
-            f'Discord channels are {self._channel_report}, {self._channel_token}, '
-            f'{self._chat_id_exchange}, {self._channel_betting}')
+            f"Discord channels are {self._channel_report}, {self._channel_token}, "
+            f"{self._chat_id_exchange}, {self._channel_betting}"
+        )
 
         # Guild IDs for all servers this bot is in.
         self.current_guilds = []
         for guild in self.guilds:
             self.current_guilds.append(guild)
-            logging.info(f'Guild found: {guild.id}')
+            logging.info(f"Guild found: {guild.id}")
 
         # Log the commit of this run.
-        logging.info('Git commit is ' + subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'],
-            cwd=os.path.dirname(os.path.realpath(__file__))
-        ).decode('ascii').strip())
+        logging.info(
+            "Git commit is "
+            + subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=os.path.dirname(os.path.realpath(__file__)),
+            )
+            .decode("ascii")
+            .strip()
+        )
 
     # @tasks.loop(seconds=10, reconnect=True)
     # async def _update_naming(self):
@@ -148,16 +151,15 @@ class DiscordClient(discord.ext.commands.Bot):
         We handle unexpected exceptions in this method so that:
         1. We can log them usefully.
         2. This thread does not crash forever.
-        The Discord.py lib allows us to ignore an exception and restart, or die on the exception. 
+        The Discord.py lib allows us to ignore an exception and restart, or die on the exception.
         We want to log it _and_ not die.
         """
         try:
             for channel, msg in self.msg_queue:
                 if len(msg) > 2000:
                     msg = msg[-2000:]
-                    logging.warning(f'Clipping message length down to 2000.')
-                logging.info(
-                    f'Sending message through {channel} channel:\n{msg}\n')
+                    logging.warning(f"Clipping message length down to 2000.")
+                logging.info(f"Sending message through {channel} channel:\n{msg}\n")
                 # Ignore empty messages.
                 if not msg:
                     pass
@@ -170,13 +172,11 @@ class DiscordClient(discord.ext.commands.Bot):
                 elif channel is Channel.BETTING:
                     await self._channel_betting.send(msg)
                 else:
-                    logging.error(
-                        'Unknown channel seen in msg queue: {channel}')
+                    logging.error("Unknown channel seen in msg queue: {channel}")
                 self.msg_queue = self.msg_queue[1:]
         except Exception as e:
             logging.warning(e, exc_info=True)
-            logging.warning(
-                'Failed to send message to Discord server. Will retry.')
+            logging.warning("Failed to send message to Discord server. Will retry.")
 
     @send_queued_messages.before_loop
     async def before_send_queued_messages_loop(self):
@@ -203,13 +203,17 @@ def channel_id(ctx):
     return str(ctx.channel.id)
 
 
-if __name__ == '__main__':
-    logging.basicConfig(format=f'Discord Root Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
-                        level=logging.INFO, handlers=[
-                            logging.handlers.RotatingFileHandler(
-                                "discord_root_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES,
-                                backupCount=1),
-                            logging.StreamHandler()])
+if __name__ == "__main__":
+    logging.basicConfig(
+        format=f"Discord Root Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        level=logging.INFO,
+        handlers=[
+            logging.handlers.RotatingFileHandler(
+                "discord_root_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+            ),
+            logging.StreamHandler(),
+        ],
+    )
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     util.configure_main_thread_exception_logging()

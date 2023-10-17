@@ -15,20 +15,19 @@ TELE_CHAT_ID_PARADOX_PRODUCTION = "-1001830693664"  # Paradox Tracker channel
 
 
 class TelegramBot(object):
-
     def __init__(self, token, prod=False):
 
         if prod:
             self._chat_id_root = TELE_CHAT_ID_ROOT_PRODUCTION
             self._chat_id_paradox = TELE_CHAT_ID_PARADOX_PRODUCTION
-            logging.info('Configured as a production instance.')
+            logging.info("Configured as a production instance.")
         else:
             self._chat_id_root = TELE_CHAT_ID_STAGING
             self._chat_id_paradox = TELE_CHAT_ID_STAGING
-            logging.info('Configured as a staging instance.')
+            logging.info("Configured as a staging instance.")
 
         apihelper.SESSION_TIME_TO_LIVE = 5 * 60
-        self.tele_bot = telebot.TeleBot(token, parse_mode='Markdown')
+        self.tele_bot = telebot.TeleBot(token, parse_mode="Markdown")
 
         self.token_monitor = util.RootMonitor(self.send_msg_root, prod=prod, dry_run=False)
         self.token_monitor.start()
@@ -42,7 +41,7 @@ class TelegramBot(object):
     def clean_msg(self, msg):
         # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
         # Remove URL pointy brackets used by md formatting to suppress link previews.
-        return msg.replace('<', '').replace('>', '')
+        return msg.replace("<", "").replace(">", "")
 
     def send_msg_root(self, msg):
         # Ignore empty messages.
@@ -50,8 +49,9 @@ class TelegramBot(object):
             return
         msg = self.clean_msg(msg)
         self.tele_bot.send_message(
-            chat_id=self._chat_id_root, text=msg, disable_web_page_preview=True)
-        logging.info(f'Message sent in root channel:\n{msg}\n')
+            chat_id=self._chat_id_root, text=msg, disable_web_page_preview=True
+        )
+        logging.info(f"Message sent in root channel:\n{msg}\n")
 
     def send_msg_paradox(self, msg):
         # Ignore empty messages.
@@ -59,8 +59,9 @@ class TelegramBot(object):
             return
         msg = self.clean_msg(msg)
         self.tele_bot.send_message(
-            chat_id=self._chat_id_paradox, text=msg, disable_web_page_preview=True)
-        logging.info(f'Message sent in paradox channel:\n{msg}\n')
+            chat_id=self._chat_id_paradox, text=msg, disable_web_page_preview=True
+        )
+        logging.info(f"Message sent in paradox channel:\n{msg}\n")
 
     def stop(self):
         self.token_monitor.stop()
@@ -68,13 +69,18 @@ class TelegramBot(object):
         self.betting_monitor.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
-    logging.basicConfig(format=f'Telegram Root Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
-                        level=logging.INFO, handlers=[
-                            logging.handlers.RotatingFileHandler(
-                                "telegram_root_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1),
-                            logging.StreamHandler()])
+    logging.basicConfig(
+        format=f"Telegram Root Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        level=logging.INFO,
+        handlers=[
+            logging.handlers.RotatingFileHandler(
+                "telegram_root_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+            ),
+            logging.StreamHandler(),
+        ],
+    )
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     util.configure_main_thread_exception_logging()

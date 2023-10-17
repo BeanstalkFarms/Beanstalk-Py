@@ -6,12 +6,17 @@ import signal
 from bots import util
 
 
-if __name__ == '__main__':
-    logging.basicConfig(format=f'Discord Betting Pools Bot : {util.LOGGING_FORMAT_STR_SUFFIX}',
-                        level=logging.INFO, handlers=[
-                            logging.handlers.RotatingFileHandler(
-                                "discord_betting_pools_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1),
-                            logging.StreamHandler()])
+if __name__ == "__main__":
+    logging.basicConfig(
+        format=f"Discord Betting Pools Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        level=logging.INFO,
+        handlers=[
+            logging.handlers.RotatingFileHandler(
+                "discord_betting_pools_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+            ),
+            logging.StreamHandler(),
+        ],
+    )
     signal.signal(signal.SIGTERM, util.handle_sigterm)
 
     util.configure_main_thread_exception_logging()
@@ -20,7 +25,7 @@ if __name__ == '__main__':
     try:
         token = os.environ["DISCORD_BETTING_POOLS_BOT_TOKEN_PROD"]
         prod = True
-        logging.info('Configured as a production instance.')
+        logging.info("Configured as a production instance.")
     except KeyError:
         # Note this is the *shared* discord staging bot.
         token = os.environ["DISCORD_BOT_TOKEN"]

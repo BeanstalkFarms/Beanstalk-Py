@@ -23,25 +23,31 @@ import tools.util
 logging.basicConfig(level=logging.WARNING)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Pull transaction information.')
-    parser.add_argument('txn_hash', type=str, help='the transaction hash')
-    parser.add_argument('-p', '--abi_path', type=str,
-                        help='path to contract abi (default: beanstalk)',
-                        default=os.path.join(
-                            os.path.dirname(__file__), '../constants/abi/beanstalk_abi.json'))
-    parser.add_argument('-k', '--key', type=str,
-                        help='alchemy key (default pulls env var ALCHEMY_ETH_API_KEY)',
-                        default=os.environ['ALCHEMY_ETH_API_KEY'])
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Pull transaction information.")
+    parser.add_argument("txn_hash", type=str, help="the transaction hash")
+    parser.add_argument(
+        "-p",
+        "--abi_path",
+        type=str,
+        help="path to contract abi (default: beanstalk)",
+        default=os.path.join(os.path.dirname(__file__), "../constants/abi/beanstalk_abi.json"),
+    )
+    parser.add_argument(
+        "-k",
+        "--key",
+        type=str,
+        help="alchemy key (default pulls env var ALCHEMY_ETH_API_KEY)",
+        default=os.environ["ALCHEMY_ETH_API_KEY"],
+    )
     args = parser.parse_args()
 
-    URL = 'wss://eth-mainnet.g.alchemy.com/v2/' + args.key
+    URL = "wss://eth-mainnet.g.alchemy.com/v2/" + args.key
     web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
 
     # Get receipt from chain.
     receipt = tools.util.get_txn_receipt_or_wait(web3, args.txn_hash)
-    print('\nTxn receipt:\n' + pformat(dict(receipt)))
+    print("\nTxn receipt:\n" + pformat(dict(receipt)))
 
     # Decode logs if contract abi provided.
     contract = tools.util.load_contract_from_abi(args.abi_path)
@@ -51,8 +57,9 @@ if __name__ == '__main__':
     # Use below line if you want decoded logs for a specific event only.
     # decoded_logs = get_decoded_logs_by_event(receipt, contract, 'AddDeposit')
 
-    print('\nDecoded logs:\n' +
-          '\n\n'.join([tools.util.format_log_str(log) for log in decoded_logs]))
+    print(
+        "\nDecoded logs:\n" + "\n\n".join([tools.util.format_log_str(log) for log in decoded_logs])
+    )
 
     # If a farm txn, decode the underlying farm method calls.
     txn = tools.util.get_txn_or_wait(web3, args.txn_hash)
@@ -62,10 +69,13 @@ if __name__ == '__main__':
     except ValueError as e:
         logging.warning(e)
     if decoded_txn is not None:
-        print(f'\n\nfunction: {decoded_txn[0].function_identifier}')
-        if decoded_txn[0].function_identifier == 'farm' and txn.to == constants.addresses.BEANSTALK_ADDR:
+        print(f"\n\nfunction: {decoded_txn[0].function_identifier}")
+        if (
+            decoded_txn[0].function_identifier == "farm"
+            and txn.to == constants.addresses.BEANSTALK_ADDR
+        ):
             print(tools.util.format_farm_call_str(decoded_txn, contract))
         else:
-            print(f'args:')
+            print(f"args:")
             for arg_name, value in decoded_txn[1].items():
-                print(f'    {arg_name}: {value}')
+                print(f"    {arg_name}: {value}")
