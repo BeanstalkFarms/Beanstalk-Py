@@ -82,7 +82,7 @@ TOKEN_SYMBOL_MAP = {
     BEAN_ADDR.lower() : 'BEAN',
     CURVE_BEAN_3CRV_ADDR.lower() : 'BEAN3CRV',
     UNRIPE_ADDR.lower() : 'urBEAN',
-    UNRIPE_3CRV_ADDR.lower() : 'urBEAN3CRV',
+    UNRIPE_3CRV_ADDR.lower() : 'urBEANETH',
     BEAN_ETH_WELL_ADDR.lower() : 'BEANETH'
 }
 
@@ -635,25 +635,22 @@ class WellClient(ChainClient):
         """Returns a list of ERC20 tokens supported by the Well."""
         return call_contract_function_with_retry(self.contract.functions.tokens())
 
-    # def get_price(self):
-    #     return ????
-
-    def get_eth_sent(self, txn_hash):
-        """Return the amount (as a float) of ETH or WETH sent in a transaction"""
-        txn_value = self._web3.eth.get_transaction(txn_hash).value
-        if txn_value != 0:
-            return txn_value
-        log = get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash)
-        if log:
-            return int(log.data, 16)
-        return 0
-
     def get_beans_sent(self, txn_hash):
         """Return the amount (as a float) of BEAN sent in a transaction"""
         log = get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash)
         if log:
             return int(log.data, 16)
         return 0
+
+def get_eth_sent(txn_hash, web3):
+    """Return the amount (as a float) of ETH or WETH sent in a transaction"""
+    txn_value = web3.eth.get_transaction(txn_hash).value
+    if txn_value != 0:
+        return txn_value
+    log = get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash, web3=web3)
+    if log:
+        return int(log.data, 16)
+    return 0
 
 class RootClient(ChainClient):
     """Common functionality related to the Root token."""
@@ -1508,15 +1505,6 @@ def get_test_entries():
     ]
     return entries
 
-
-# For testing purposes.
-# Verify at https://v2.info.uniswap.org/pair/0x87898263b6c5babe34b4ec53f22d98430b91e371.
-def monitor_uni_v2_pair_events():
-    client = EthEventsClient(EventClientType.UNISWAP_POOL)
-    while True:
-        events = client.get_new_logs(dry_run=False)
-        time.sleep(5)
-
 # For testing purposes.
 
 
@@ -1565,7 +1553,6 @@ def monitor_betting_events():
 if __name__ == '__main__':
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
-    # monitor_uni_v2_pair_events()
     # monitor_beanstalk_events()
     # monitor_curve_pool_events()
     # bean_client = BeanClient()

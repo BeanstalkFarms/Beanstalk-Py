@@ -675,7 +675,7 @@ class WellMonitor(Monitor):
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
                 bdv = bean_to_float(amountOut)
                 erc20_info_in = get_erc20_info(WRAPPED_ETH)
-                amount_in = self.well_client.get_eth_sent(event_log.transactionHash)
+                amount_in = get_eth_sent(event_log.transactionHash, self._web3)
                 amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 value = token_to_float(amountOut, erc20_info_out.decimals) * get_token_price('0x0')
@@ -891,9 +891,6 @@ class CurvePoolMonitor(Monitor):
             swap_price = swap_value / bean_in
         event_str += f' @ ${round_num(swap_price, 4)} ({round_num(swap_value, 0, avoid_zero=True, incl_dollar=True)})'
         event_str += f'\n_{latest_pool_price_str(self.bean_client, CURVE_BEAN_3CRV_ADDR)}_ '
-        # This doesn't work because there are multiple reasons Bean may exchange on a 'farm' call, including purchase of Beans for soil.
-        # if sig_compare(transaction['input'][:9], buy_fert_sigs.values()):
-        #     event_str += f'\n_(🚛 Fertilizer purchase)_'
         event_str += f'\n{value_to_emojis(swap_value)}'
         return event_str
 
@@ -1378,24 +1375,26 @@ class BarnRaiseMonitor(Monitor):
         if (event_log.event in ['TransferSingle', 'TransferBatch'] and
                 event_log.args['from'] == NULL_ADDR):
             if event_log.event == 'TransferSingle':
-                usdc_amount = int(event_log.args.value)
+                amount = int(event_log.args.value)
             # Mint batch.   <- is this even possible???
             elif event_log.event == 'TransferBatch':
-                usdc_amount = sum([int(value)
+                amount = sum([int(value)
                                   for value in event_log.args.values])
+                
+            weth_amount = get_eth_sent(event_log.transactionHash, web3=self._web3)
 
-            event_str = f'🚛 Fertilizer Purchased - {round_num(usdc_amount, 0)} USDC @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity'
+            event_str = f'🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(weth_amount, 3)} WETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity'
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
             # The subgraph is slower to update, so may need to calculate total bought here.
             if total_bought <= self.last_total_bought + 1:
-                self.last_total_bought = total_bought + usdc_amount
+                self.last_total_bought = total_bought + amount
             else:
                 self.last_total_bought = total_bought
 
             event_str += f' - Total sold: {round_num(self.last_total_bought, 0)}'
             # event_str += f' ({round_num(self.barn_raise_client.remaining(), 0)} Available Fertilizer)'
-            event_str += f'\n{value_to_emojis(usdc_amount)}'
+            event_str += f'\n{value_to_emojis(amount)}'
         # Transfer or some other uninteresting transaction.
         else:
             return
