@@ -530,7 +530,6 @@ class BasinPeriodicMonitor(Monitor):
         self.last_update = time.time()
 
     def period_string(self):
-
         days_of_basin = int((datetime.utcnow() - datetime.fromtimestamp(BASIN_DEPLOY_EPOCH)).days)
         ret_str = f"🪣 Basin Daily Report #{days_of_basin}\n"
         # ret_str = f'🪣 {(datetime.now() - timedelta(days=1)).strftime("%b %d %Y")}\n'
@@ -1483,7 +1482,9 @@ class BarnRaiseMonitor(Monitor):
             elif event_log.event == "TransferBatch":
                 amount = sum([int(value) for value in event_log.args.values])
 
-            weth_amount = get_eth_sent(event_log.transactionHash, web3=self._web3)
+            weth_amount = token_to_float(
+                get_eth_sent(event_log.transactionHash, web3=self._web3), 18
+            )
 
             event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(weth_amount, 3)} WETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity"
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
@@ -2209,7 +2210,6 @@ class SnapshotPreviewMonitor(PreviewMonitor):
         self.snapshot_client = SnapshotClient()
         self.beanstalk_graph_client = BeanstalkSqlClient()
         while self._thread_active:
-
             active_proposals = self.snapshot_client.get_active_proposals()
             if len(active_proposals) == 0:
                 self.name_function("DAO: 0 active")
