@@ -1160,7 +1160,10 @@ class BeanstalkMonitor(Monitor):
         pool_token = BEAN_ADDR
         if remove_token_addr == CURVE_BEAN_3CRV_ADDR or add_token_addr == CURVE_BEAN_3CRV_ADDR:
             pool_token = CURVE_BEAN_3CRV_ADDR
-        elif remove_token_addr == BEAN_ETH_WELL_ADDR or add_token_addr == BEAN_ETH_WELL_ADDR:
+        elif remove_token_addr in [BEAN_ETH_WELL_ADDR, UNRIPE_3CRV_ADDR] or add_token_addr in [
+            BEAN_ETH_WELL_ADDR,
+            UNRIPE_3CRV_ADDR,
+        ]:
             pool_token = BEAN_ETH_WELL_ADDR
 
         event_str = (
