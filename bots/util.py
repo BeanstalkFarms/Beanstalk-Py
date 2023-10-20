@@ -394,6 +394,10 @@ class SeasonsMonitor(Monitor):
         ret_string = f"⏱ Season {last_season_stats.season} is complete!"
         ret_string += f"\n💵 Current price is ${round_num(price, 6)}"
 
+        # Pool info.
+        bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
+        curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
+
         # Full string message.
         if not short_str:
             ret_string += (
@@ -404,6 +408,18 @@ class SeasonsMonitor(Monitor):
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted"
             ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown"
 
+            # Liquidity stats.
+            ret_string += f"\n\n**Liquidity**"
+            ret_string += (
+                f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}, "
+                f"deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
+                f"price [${round_num(token_to_float(bean_eth_well_pi['price'], 6), 4)}]"
+            )
+            ret_string += (
+                f"\n🔸 BEAN3CRV: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)}, "
+                f"deltaB [{round_num(token_to_float(curve_pool_pi['delta_b'], 6), 0)}], "
+                f"price [${round_num(token_to_float(curve_pool_pi['price'], 6), 4)}]"
+            )
             # Silo balance stats.
             ret_string += f"\n\n**Silo**"
             ret_string += f"\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo"
@@ -2150,7 +2166,8 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
 
             # Rotate data and update status.
             if self.display_index == 0:
-                self.status_function(f"Cumul Vol: ${round_num(bean_eth_volume/1000, 0)}k")
+                # self.status_function(f"Cumul Vol: ${round_num(bean_eth_volume/1000, 0)}k")
+                self.status_function(f"BEANETH")
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):
@@ -2386,7 +2403,7 @@ def latest_well_lp_str(bean_client, addr):
     pool_info = bean_client.get_pool_info(addr)
     # lp_price = token_to_float(pool_info['lp_usd'], BEAN_DECIMALS)
     liquidity = token_to_float(pool_info["liquidity"], BEAN_DECIMALS)
-    return f"Latest well liquidity: ${round_num(liquidity, 0)}"
+    return f"Latest Well liquidity: ${round_num(liquidity, 0)}"
 
 
 def value_to_emojis_root(value):
