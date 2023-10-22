@@ -428,6 +428,10 @@ with open(
 ) as betting_abi_file:
     betting_abi = json.load(betting_abi_file)
 with open(
+    os.path.join(os.path.dirname(__file__), "../constants/abi/chainlink_abi.json")
+) as chainlink_abi_file:
+    chainlink_abi = json.load(chainlink_abi_file)
+with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/betting_admin_abi.json")
 ) as betting_admin_abi_file:
     betting_admin_abi = json.load(betting_admin_abi_file)
@@ -516,6 +520,9 @@ def get_betting_contract(web3):
     """Get a web.eth.contract object for the betting bets contract. Contract is not thread safe."""
     return web3.eth.contract(address=BETTING_ADDR, abi=betting_abi)
 
+def get_chainlink_contract(web3, price_feed_addr):
+    """Get a web.eth.contract object for chainlink price feed. Contract is not thread safe."""
+    return web3.eth.contract(address=price_feed_addr, abi=chainlink_abi)
 
 def get_erc20_contract(web3, address):
     """Get a web3.eth.contract object for a standard ERC20 token contract."""

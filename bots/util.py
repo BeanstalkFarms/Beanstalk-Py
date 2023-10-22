@@ -24,7 +24,8 @@ from data_access.graphs import (
 )
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
-from data_access.coin_gecko import get_eth_price, get_token_price
+from data_access.coin_gecko import get_token_price
+from data_access.chainlink import get_eth_price
 from tools.util import get_txn_receipt_or_wait
 
 # Strongly encourage Python 3.8+.
@@ -513,8 +514,10 @@ class BasinPeriodicMonitor(Monitor):
         self.basin_graph_client = BasinSqlClient()
 
     def _monitor_method(self):
-        while self._thread_active:
+        while True:
             self._wait_until_update_time()
+            if not self._thread_active:
+                return
             self.message_function(self.period_string())
 
     def _wait_until_update_time(self):
@@ -558,13 +561,15 @@ class BasinPeriodicMonitor(Monitor):
         per_well_str = ""
         for well in wells:
             per_well_str += "\n- 🌱 " if well["id"] == BEAN_ETH_WELL_ADDR.lower() else "\n💦 "
-            per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000, sig_fig_min=2)}k'
+            per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000000, sig_fig_min=2)}m'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
             daily_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
             for snapshot in well["dailySnapshots"]:
                 weekly_volume += float(snapshot["deltaVolumeUSD"])
 
-        ret_str += f"\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000, sig_fig_min=2)}k"
+        ret_str += (
+            f"\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000000, sig_fig_min=2)}m"
+        )
         ret_str += f"\n📊 24H Volume: ${round_num_auto(daily_volume/1000, sig_fig_min=2)}k"
         ret_str += f"\n🗓 7D Volume: ${round_num_auto(weekly_volume/1000, sig_fig_min=2)}k"
 
@@ -732,7 +737,9 @@ class WellMonitor(Monitor):
                 amount_in = get_eth_sent(event_log.transactionHash, self._web3)
                 amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
-                value = token_to_float(amountOut, erc20_info_out.decimals) * get_token_price("0x0")
+                value = token_to_float(amountOut, erc20_info_out.decimals) * get_eth_price(
+                    self._web3
+                )
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in = self.well_client.get_beans_sent(event_log.transactionHash)
                 if amount_in:
@@ -2087,18 +2094,18 @@ class EthPreviewMonitor(PreviewMonitor):
 
     def __init__(self, name_function, status_function):
         super().__init__("ETH", name_function, status_function, check_period=APPROX_BLOCK_TIME)
+        self._web3 = get_web3_instance()
 
     def _monitor_method(self):
         while self._thread_active:
             self.wait_for_next_cycle()
             gas_base_fee = get_gas_base_fee()
-            eth_price = EthPreviewMonitor.eth_price()
+            eth_price = self.eth_price()
             self.name_function(f"{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei")
             self.status_function(f"ETH: ${round_num(eth_price)}")
 
-    @staticmethod
-    def eth_price():
-        return get_eth_price()
+    def eth_price(self):
+        return get_eth_price(self._web3)
 
 
 class RootValuePreviewMonitor(PreviewMonitor):
