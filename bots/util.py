@@ -412,15 +412,18 @@ class SeasonsMonitor(Monitor):
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
             ret_string += (
-                f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}, "
-                f"deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
-                f"price [${round_num(token_to_float(bean_eth_well_pi['price'], 6), 4)}]"
+                f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
             )
             ret_string += (
-                f"\n🔸 BEAN3CRV: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)}, "
-                f"deltaB [{round_num(token_to_float(curve_pool_pi['delta_b'], 6), 0)}], "
-                f"price [${round_num(token_to_float(curve_pool_pi['price'], 6), 4)}]"
+                f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
             )
+            ret_string += f"price [${round_num(token_to_float(bean_eth_well_pi['price'], 6), 4)}]_"
+            ret_string += (
+                f"\n🔸 BEAN3CRV: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)} - "
+            )
+            ret_string += f"_deltaB [{round_num(token_to_float(curve_pool_pi['delta_b'], 6), 0)}], "
+            ret_string += f"price [${round_num(token_to_float(curve_pool_pi['price'], 6), 4)}]_"
+
             # Silo balance stats.
             ret_string += f"\n\n**Silo**"
             ret_string += f"\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo"
@@ -2403,7 +2406,9 @@ def latest_pool_price_str(bean_client, addr):
     price = token_to_float(pool_info["price"], BEAN_DECIMALS)
     delta_b = token_to_float(pool_info["delta_b"], BEAN_DECIMALS)
     # liquidity = pool_info['liquidity']
-    return f"Latest{type_str} data: Bean price [${round_num(price, 4)}], deltaB [{round_num(delta_b, 0)}]"
+    return (
+        f"Latest{type_str} data: deltaB [{round_num(delta_b, 0)}], price [${round_num(price, 4)}]"
+    )
 
 
 def latest_well_lp_str(bean_client, addr):

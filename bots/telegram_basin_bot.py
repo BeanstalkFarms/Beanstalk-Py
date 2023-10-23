@@ -15,7 +15,6 @@ TELE_CHAT_ID_PRODUCTION = "@basintracker"  # Basin Tracker channel
 
 class TelegramBasinBot(object):
     def __init__(self, token, prod=False):
-
         if prod:
             self._chat_id = TELE_CHAT_ID_PRODUCTION
             logging.info("Configured as a production instance.")

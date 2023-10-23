@@ -62,7 +62,8 @@ class TelegramBot(object):
         if len(msg_split) == 2:
             msg = msg_split[0] + "http" + msg_split[1].replace(">", "")
         # Replace all brackets with double bracket to avoid markdown formatting.
-        msg = msg.replace("[", "[[").replace("]", "]]")
+        # Note that Telegram handles brackets differently when they are in italics.
+        # msg = msg.replace("[", "[[").replace("]", "]]")
         # Note that Telegram uses pseudo md style and must use '_' for italics, rather than '*'.
         self.tele_bot.send_message(chat_id=self._chat_id, text=msg, disable_web_page_preview=True)
         logging.info(f"Message sent:\n{msg}\n")
