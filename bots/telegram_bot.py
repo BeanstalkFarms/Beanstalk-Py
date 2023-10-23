@@ -29,7 +29,7 @@ class TelegramBot(object):
         self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod)
+        self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod, dry_run=False)
         self.sunrise_monitor.start()
 
         self.well_monitor = util.WellMonitor(
@@ -42,10 +42,10 @@ class TelegramBot(object):
         )
         self.curve_bean_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod)
+        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod, dry_run=False)
         self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod)
+        self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod, dry_run=False)
         self.market_monitor.start()
 
         self.barn_raise_monitor = util.BarnRaiseMonitor(
