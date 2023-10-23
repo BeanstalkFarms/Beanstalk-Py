@@ -520,9 +520,11 @@ def get_betting_contract(web3):
     """Get a web.eth.contract object for the betting bets contract. Contract is not thread safe."""
     return web3.eth.contract(address=BETTING_ADDR, abi=betting_abi)
 
+
 def get_chainlink_contract(web3, price_feed_addr):
     """Get a web.eth.contract object for chainlink price feed. Contract is not thread safe."""
     return web3.eth.contract(address=price_feed_addr, abi=chainlink_abi)
+
 
 def get_erc20_contract(web3, address):
     """Get a web3.eth.contract object for a standard ERC20 token contract."""
@@ -1711,7 +1713,29 @@ def get_test_entries():
                 ),
                 "transactionIndex": 6,
             }
-        ),  # topic hash manually updated to reflect silo v3 sig
+        ),  # Complex convert
+        AttributeDict(
+            {
+                "address": "0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5",
+                "blockHash": HexBytes(
+                    "0x81824eedc6c21ad465b330e9a6032142179fceb51fc0868f77e8f5605f4a17d9"
+                ),
+                "blockNumber": 18409737,
+                "data": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfdb000000000000000000000000000000000000000000000002bbbd9228b34c6c5100000000000000000000000000000000000000000000000000000000f6816d0d",
+                "logIndex": 235,
+                "removed": False,
+                "topics": [
+                    HexBytes("0xf4d42fc7416f300569832aee6989201c613d31d64b823327915a6a33fe7afa55"),
+                    HexBytes("0x0000000000000000000000009662c8e686fe84f468a139b10769d65665c344f9"),
+                    HexBytes("0x000000000000000000000000bea0e11282e2bb5893bece110cf199501e872bad"),
+                ],
+                "transactionHash": HexBytes(
+                    "0xb4ba54a1c54c48a7b127495d85f60d8b6e8f71bdaa8576802906def878339905"
+                ),
+                "transactionIndex": 56,
+            }
+        ),
+        # topic hash manually updated to reflect silo v3 sig
         AttributeDict(
             {
                 "address": "0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5",

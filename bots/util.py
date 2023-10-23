@@ -1016,6 +1016,19 @@ class BeanstalkMonitor(Monitor):
                         f"Ignoring a {earn_event_log.event} AddDeposit event {txn_hash.hex()}"
                     )
                     break
+
+        if event_in_logs("ClaimFertilizer", event_logs):
+            event_str = self.rinse_str(event_logs)
+            if event_str:
+                self.message_function(event_str)
+            remove_events_from_logs_by_name("ClaimFertilizer", event_logs)
+
+        # Process conversion logs as a batch.
+        if event_in_logs("Convert", event_logs):
+            self.message_function(self.silo_conversion_str(event_logs))
+            return
+        # Else handle txn logs individually using default strings.
+
         # Prune *transfer* deposit logs. They are uninteresting clutter.
         # Note that this assumes that a transfer event never includes a novel deposit.
         remove_event_logs = get_logs_by_names(["RemoveDeposit", "RemoveDeposits"], event_logs)
@@ -1035,21 +1048,10 @@ class BeanstalkMonitor(Monitor):
                         f"Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash.hex()}, possible transfer or silo migration"
                     )
 
-        if event_in_logs("ClaimFertilizer", event_logs):
-            event_str = self.rinse_str(event_logs)
+        for event_log in event_logs:
+            event_str = self.single_event_str(event_log)
             if event_str:
                 self.message_function(event_str)
-            remove_events_from_logs_by_name("ClaimFertilizer", event_logs)
-
-        # Process conversion logs as a batch.
-        if event_in_logs("Convert", event_logs):
-            self.message_function(self.silo_conversion_str(event_logs))
-        # Handle txn logs individually using default strings.
-        else:
-            for event_log in event_logs:
-                event_str = self.single_event_str(event_log)
-                if event_str:
-                    self.message_function(event_str)
 
     def single_event_str(self, event_log):
         """Create a string representing a single event log.
