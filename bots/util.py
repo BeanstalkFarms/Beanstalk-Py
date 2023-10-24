@@ -369,6 +369,7 @@ class SeasonsMonitor(Monitor):
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
+        eth_price = get_eth_price(self._web3)
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = current_season_stats.reward_beans
         pod_rate = current_season_stats.pod_rate * 100
@@ -393,7 +394,7 @@ class SeasonsMonitor(Monitor):
 
         # Current state.
         ret_string = f"⏱ Season {last_season_stats.season} is complete!"
-        ret_string += f"\n💵 Current price is ${round_num(price, 6)}"
+        ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
         # Pool info.
         bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
@@ -402,8 +403,9 @@ class SeasonsMonitor(Monitor):
         # Full string message.
         if not short_str:
             ret_string += (
-                f'\n⚖ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
+                f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
             )
+            ret_string += f"\n🪙 ETH price is ${round_num(eth_price, 2)}"
             # Bean Supply stats.
             ret_string += f"\n\n**Supply**"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted"
