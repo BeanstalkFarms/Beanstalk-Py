@@ -11,8 +11,8 @@ import websockets
 # NOTE(funderberker): LOCAL TESTING
 from web3 import Web3
 
-# from web3 import HTTPProvider
-from web3 import WebsocketProvider
+from web3 import HTTPProvider
+
 from web3 import exceptions as web3_exceptions
 from web3.logs import DISCARD
 
@@ -33,7 +33,8 @@ except KeyError:
 # # Goerli testing address.
 # GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
 # URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
-URL = "wss://eth-mainnet.g.alchemy.com/v2/" + API_KEY
+# URL = "wss://eth-mainnet.g.alchemy.com/v2/" + API_KEY
+URL = "https://eth-mainnet.g.alchemy.com/v2/" + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18
@@ -443,7 +444,8 @@ def get_web3_instance():
     # return Web3(HTTPProvider(LOCAL_TESTING_URL))
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
-    return Web3(WebsocketProvider(URL, websocket_timeout=60))
+    # return Web3(WebsocketProvider(URL, websocket_timeout=60))
+    return Web3(HTTPProvider(URL))
 
 
 def get_uniswap_v3_contract(address, web3):

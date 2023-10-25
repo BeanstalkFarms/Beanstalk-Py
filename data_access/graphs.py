@@ -118,7 +118,7 @@ class BeanSqlClient(object):
             + """, orderBy:timestamp, orderDirection: desc)
                 {timestamp, above, id}
             }
-        """
+            """
         )
         # Create gql query and execute.
         return execute(self._client, query_str)["beanCrosses"]

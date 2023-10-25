@@ -130,10 +130,8 @@ class Monitor:
 
     def _thread_wrapper_method(self):
         """
-        If an unhandled exception occurs in the monitor and it is killed, log the exception here
+        If an unhandled exception occurred in the monitor and it is killed, log the exception here
         and restart the monitor.
-
-        The most common failures are web3 calls, which can fail arbitrarily on external access.
         """
         retry_time = 0
         while self._thread_active:
