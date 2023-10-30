@@ -391,7 +391,7 @@ class SeasonsMonitor(Monitor):
         )
 
         # Current state.
-        ret_string = f"⏱ Season {last_season_stats.season} is complete!"
+        ret_string = f"⏱ Season {last_season_stats.season + 1} has started!"
         ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
         # Pool info.
