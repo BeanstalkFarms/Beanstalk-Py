@@ -1195,8 +1195,8 @@ class BeanstalkMonitor(Monitor):
             pool_token = BEAN_ETH_WELL_ADDR
 
         event_str = (
-            f"🔄 {round_num_auto(remove_float, min_precision=0)} Deposited {remove_token_symbol} "
-            f"Converted to {round_num_auto(add_float, min_precision=0)} Deposited {add_token_symbol} "
+            f"🔄 {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
+            f"Converted to {round_num_auto(add_float, min_precision=0)} {add_token_symbol} "
         )
         # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
         event_str += f"({round_num(bdv_float, 0)} BDV)"
@@ -1719,7 +1719,7 @@ class RootUniswapMonitor(Monitor):
             swap_price = avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price)
             swap_value = swap_price * bean_in
         event_str += f" @ ${round_num(swap_price, 4)} ({round_num(swap_value, avoid_zero=True, incl_dollar=True)})"
-        event_str += f"  -  Latest pool block price is ${round_num(bean_price, 4)}"
+        event_str += f"  -  pool price is ${round_num(bean_price, 4)}"
         event_str += f"\n{value_to_emojis(swap_value)}"
         return event_str
 
@@ -2166,7 +2166,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
 
             if bean_eth_liquidity == 0:
                 logging.warning(
-                    "Missing BEAN:ETH well liquidity data in subgraph query result. Skipping update..."
+                    "Missing BEAN:ETH Well liquidity data in subgraph query result. Skipping update..."
                 )
                 continue
 
@@ -2400,24 +2400,22 @@ def value_to_emojis(value):
 def latest_pool_price_str(bean_client, addr):
     pool_info = bean_client.get_pool_info(addr)
     if addr == BEAN_ADDR:
-        type_str = " Bean"
+        type_str = "Bean"
     elif addr == CURVE_BEAN_3CRV_ADDR:
-        type_str = " pool"
+        type_str = "Pool"
     else:
-        type_str = " Well"
+        type_str = "Well"
     price = token_to_float(pool_info["price"], BEAN_DECIMALS)
     delta_b = token_to_float(pool_info["delta_b"], BEAN_DECIMALS)
     # liquidity = pool_info['liquidity']
-    return (
-        f"Latest{type_str} data: deltaB [{round_num(delta_b, 0)}], price [${round_num(price, 4)}]"
-    )
+    return f"{type_str}: deltaB [{round_num(delta_b, 0)}], price [${round_num(price, 4)}]"
 
 
 def latest_well_lp_str(bean_client, addr):
     pool_info = bean_client.get_pool_info(addr)
     # lp_price = token_to_float(pool_info['lp_usd'], BEAN_DECIMALS)
     liquidity = token_to_float(pool_info["liquidity"], BEAN_DECIMALS)
-    return f"Latest Well liquidity: ${round_num(liquidity, 0)}"
+    return f"Well liquidity: ${round_num(liquidity, 0)}"
 
 
 def value_to_emojis_root(value):
