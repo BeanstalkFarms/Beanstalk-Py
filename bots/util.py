@@ -398,11 +398,12 @@ class SeasonsMonitor(Monitor):
         bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
         curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
 
+        ret_string += (
+            f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
+        )
+
         # Full string message.
         if not short_str:
-            ret_string += (
-                f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
-            )
             ret_string += f"\n🪙 ETH price is ${round_num(eth_price, 2)}"
             # Bean Supply stats.
             ret_string += f"\n\n**Supply**"
@@ -411,6 +412,7 @@ class SeasonsMonitor(Monitor):
 
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
+
             ret_string += (
                 f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
             )
@@ -472,6 +474,9 @@ class SeasonsMonitor(Monitor):
 
         # Short string version (for Twitter).
         else:
+            ret_string += f"\n\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
+            ret_string += f"\n🔸 BEAN3CRV liquidity: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)}"
+
             ret_string += f"\n"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted"
             # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'

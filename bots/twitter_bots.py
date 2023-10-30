@@ -67,7 +67,9 @@ class BeanstalkTwitterBot(TwitterBot):
             logging.info("BeanstalkTwitterBot configured as a staging instance.")
         self.set_client()
 
-        self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, short_msgs=True, prod=prod)
+        self.sunrise_monitor = util.SeasonsMonitor(
+            self.send_msg, short_msgs=True, prod=prod, dry_run=False
+        )
         self.sunrise_monitor.start()
 
     def stop(self):
