@@ -370,6 +370,7 @@ class SeasonsMonitor(Monitor):
         eth_price = get_eth_price(self._web3)
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = current_season_stats.reward_beans
+        incentive_beans = current_season_stats.incentive_beans
         pod_rate = current_season_stats.pod_rate * 100
         price = current_season_stats.price
         delta_b = current_season_stats.delta_b
@@ -408,6 +409,7 @@ class SeasonsMonitor(Monitor):
             # Bean Supply stats.
             ret_string += f"\n\n**Supply**"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted"
+            ret_string += f"\n☀️ {round_num(incentive_beans, 0)} Beans gm reward"
             ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown"
 
             # Liquidity stats.
@@ -464,7 +466,7 @@ class SeasonsMonitor(Monitor):
             else:
                 ret_string += f"{round_num(issued_soil, 0, avoid_zero=True)}"
             ret_string += f" Soil in Field"
-            ret_string += f"\n🌤 {round_num(current_season_stats.temperature, 0)}% Temperature"
+            ret_string += f"\n🌡 {round_num(current_season_stats.temperature, 0)}% Temperature"
             ret_string += f"\n🧮 {round_num(pod_rate, 0)}% Pod Rate"
 
             # Barn.
@@ -488,7 +490,7 @@ class SeasonsMonitor(Monitor):
             #     silo_bdv += bean_to_float(asset['depositedBDV'])
             # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
             ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods"
-            ret_string += f"\n🌤 {round_num(current_season_stats.temperature, 0)}% Temperature"
+            ret_string += f"\n🌡 {round_num(current_season_stats.temperature, 0)}% Temperature"
             ret_string += f"\n🧮 {round_num(pod_rate, 0)}% Pod Rate"
         return ret_string
 

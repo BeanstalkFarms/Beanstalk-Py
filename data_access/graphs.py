@@ -251,6 +251,7 @@ class BeanstalkSqlClient(object):
                     deltaB
                     beans
                     rewardBeans
+                    incentiveBeans
                 }}
             """
         if siloHourlySnapshots:
@@ -487,6 +488,9 @@ class SeasonStats:
             # silo rewards + fert rewards + pods harvestable
             self.reward_beans = bean_to_float(
                 graph_seasons_response["seasons"][season_index]["rewardBeans"]
+            )
+            self.incentive_beans = bean_to_float(
+                graph_seasons_response["seasons"][season_index]["incentiveBeans"]
             )
         if "siloHourlySnapshots" in graph_seasons_response:
             # Beans minted this season # newFarmableBeans
