@@ -1077,6 +1077,7 @@ class EthEventsClient:
                     address=address,
                     topics=[self._signature_list],
                     # from_block=10581687, # Use this to search for old events. # Rinkeby
+                    ## TEMP ##
                     from_block=18722171,  # Use this to search for old events. # Mainnet
                     # from_block="latest",
                     to_block="latest",
@@ -1113,6 +1114,9 @@ class EthEventsClient:
         # All decoded logs of interest from each txn.
         txn_hash_set = set()
         txn_logs_list = []
+
+        ## TEMP ##
+        get_all = True
 
         if not dry_run:
             new_entries = []
