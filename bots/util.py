@@ -472,6 +472,9 @@ class SeasonsMonitor(Monitor):
             # Barn.
             ret_string += f"\n\n**Barn**"
             ret_string += f"\n{percent_to_moon_emoji(percent_recap)} {round_num(fertilizer_bought, 0)} Fertilizer sold ({round_num(percent_recap*100, 2)}%)"
+
+            # Txn hash of sunrise/gm call.
+            ret_string += f"\n\n<https://etherscan.io/tx/{current_season_stats.sunrise_hash}>"
             ret_string += "\n_ _"  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).

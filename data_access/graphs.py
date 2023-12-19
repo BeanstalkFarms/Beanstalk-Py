@@ -234,7 +234,12 @@ class BeanstalkSqlClient(object):
         return assets_changes
 
     def seasons_stats(
-        self, num_seasons=2, seasons=True, siloHourlySnapshots=True, fieldHourlySnapshots=True
+        self,
+        num_seasons=2,
+        seasons=True,
+        siloHourlySnapshots=True,
+        fieldHourlySnapshots=True,
+        incentives=True,
     ):
         """Get a standard set of data corresponding to current season.
 
@@ -298,6 +303,13 @@ class BeanstalkSqlClient(object):
                     deltaSownBeans
                 }}
             """
+        if incentives:
+            query_str += f"""
+                incentives(first: {num_seasons}, orderDirection: desc, orderBy: createdAt) {{
+                    hash
+                }}
+            """
+
         query_str += "}"
 
         # Create gql query and execute.
@@ -523,6 +535,8 @@ class SeasonStats:
             self.sown_beans = bean_to_float(
                 graph_seasons_response["fieldHourlySnapshots"][season_index]["deltaSownBeans"]
             )
+        if "incentives" in graph_seasons_response:
+            self.sunrise_hash = graph_seasons_response["incentives"][season_index]["hash"]
 
 
 class AssetChanges:
