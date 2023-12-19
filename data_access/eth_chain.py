@@ -32,8 +32,6 @@ except KeyError:
 # LOCAL_TESTING_URL = 'https://anvil1.bean.money:443/'
 # # Goerli testing address.
 # GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
-# URL = 'wss://eth-goerli.g.alchemy.com/v2/' + GOERLI_API_KEY
-# URL = "wss://eth-mainnet.g.alchemy.com/v2/" + API_KEY
 URL = "https://eth-mainnet.g.alchemy.com/v2/" + API_KEY
 
 # Decimals for conversion from chain int values to float decimal values.

@@ -455,7 +455,7 @@ class SeasonsMonitor(Monitor):
                 else:
                     ret_string += f"📈 {round_num(abs(delta_asset * asset_bdv), 0)} BDV"
                 # ret_string += f' — {token_symbol}  ({round_num(bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
-                ret_string += f" — {token_symbol}  ({round_num_auto(bean_to_float(current_bdv)/1000000, sig_fig_min=2)}M BDV)"
+                ret_string += f" — {token_symbol}  ({round_num_auto(bean_to_float(current_bdv), sig_fig_min=2, abbreviate=True)} BDV)"
 
             # Field.
             ret_string += f"\n\n**Field**"
@@ -571,17 +571,19 @@ class BasinPeriodicMonitor(Monitor):
         per_well_str = ""
         for well in wells:
             per_well_str += "\n- 🌱 " if well["id"] == BEAN_ETH_WELL_ADDR.lower() else "\n💦 "
-            per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"])/1000000, sig_fig_min=2)}m'
+            per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
             daily_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
             for snapshot in well["dailySnapshots"]:
                 weekly_volume += float(snapshot["deltaVolumeUSD"])
 
+        ret_str += f"\n🌊 Total Liquidity: ${round_num_auto(total_liquidity, sig_fig_min=2, abbreviate=True)}"
         ret_str += (
-            f"\n🌊 Total Liquidity: ${round_num_auto(total_liquidity/1000000, sig_fig_min=2)}m"
+            f"\n📊 24H Volume: ${round_num_auto(daily_volume, sig_fig_min=2, abbreviate=True)}"
         )
-        ret_str += f"\n📊 24H Volume: ${round_num_auto(daily_volume/1000, sig_fig_min=2)}k"
-        ret_str += f"\n🗓 7D Volume: ${round_num_auto(weekly_volume/1000, sig_fig_min=2)}k"
+        ret_str += (
+            f"\n🗓 7D Volume: ${round_num_auto(weekly_volume, sig_fig_min=2, abbreviate=True)}"
+        )
 
         ret_str += f"\n\n**Wells**"
         ret_str += per_well_str
@@ -2370,13 +2372,23 @@ def round_num(number, precision=2, avoid_zero=False, incl_dollar=False):
     return ret_string
 
 
-def round_num_auto(number, sig_fig_min=3, min_precision=2):
+def round_num_auto(number, sig_fig_min=3, min_precision=2, abbreviate=False):
     """Round a string or float and return as a string.
 
     Caller specifies the minimum significant figures and precision that that very large and very
     small numbers can both be handled.
+
+    If abbreviate is True, trailing zeros replaced by magnitude acronym letter
     """
     if number > 1:
+        number = float(number)
+        if abbreviate:
+            if number > 1e9:
+                return round_num(number / 1e9, min_precision) + "B"
+            elif number > 1e6:
+                return round_num(number / 1e6, min_precision) + "M"
+            elif number > 1e3:
+                return round_num(number / 1e3, min_precision) + "K"
         return round_num(number, min_precision)
     return "%s" % float(f"%.{sig_fig_min}g" % float(number))
 
