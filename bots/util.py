@@ -25,7 +25,7 @@ from data_access.graphs import (
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
 from data_access.coin_gecko import get_token_price
-from data_access.chainlink import get_eth_price
+from data_access.eth_usd_oracle import get_twa_eth_price
 from tools.util import get_txn_receipt_or_wait
 
 # Strongly encourage Python 3.8+.
@@ -367,7 +367,7 @@ class SeasonsMonitor(Monitor):
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
-        eth_price = get_eth_price(self._web3)
+        eth_price = get_twa_eth_price(self._web3, 3600)
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = current_season_stats.reward_beans
         incentive_beans = current_season_stats.incentive_beans
@@ -399,13 +399,11 @@ class SeasonsMonitor(Monitor):
         bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
         curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
 
-        ret_string += (
-            f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} time-weighted deltaB'
-        )
+        ret_string += f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} TWA deltaB'
 
         # Full string message.
         if not short_str:
-            ret_string += f"\n🪙 ETH price is ${round_num(eth_price, 2)}"
+            ret_string += f"\n🪙 TWA ETH price is ${round_num(eth_price, 2)}"
             # Bean Supply stats.
             ret_string += f"\n\n**Supply**"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted"
@@ -752,8 +750,8 @@ class WellMonitor(Monitor):
                 amount_in = get_eth_sent(event_log.transactionHash, self._web3)
                 amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
-                value = token_to_float(amountOut, erc20_info_out.decimals) * get_eth_price(
-                    self._web3
+                value = token_to_float(amountOut, erc20_info_out.decimals) * get_twa_eth_price(
+                    self._web3, 0
                 )
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
                 amount_in = self.well_client.get_beans_sent(event_log.transactionHash)
@@ -2122,7 +2120,7 @@ class EthPreviewMonitor(PreviewMonitor):
             self.status_function(f"ETH: ${round_num(eth_price)}")
 
     def eth_price(self):
-        return get_eth_price(self._web3)
+        return get_twa_eth_price(self._web3, 0)
 
 
 class RootValuePreviewMonitor(PreviewMonitor):
