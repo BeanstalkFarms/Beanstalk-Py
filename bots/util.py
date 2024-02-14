@@ -413,9 +413,7 @@ class SeasonsMonitor(Monitor):
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
 
-            ret_string += (
-                f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
-            )
+            ret_string += f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
             ret_string += (
                 f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
             )
@@ -469,7 +467,7 @@ class SeasonsMonitor(Monitor):
 
             # Barn.
             ret_string += f"\n\n**Barn**"
-            ret_string += f"\n{percent_to_moon_emoji(percent_recap)} {round_num(fertilizer_bought, 0)} Fertilizer sold ({round_num(percent_recap*100, 2)}%)"
+            ret_string += f"\n{percent_to_moon_emoji(percent_recap)} {round_num(fertilizer_bought, 0)} Fertilizer sold ({round_num(percent_recap*100, 2)}% recapitalized)"
 
             # Txn hash of sunrise/gm call.
             ret_string += f"\n\n<https://etherscan.io/tx/{current_season_stats.sunrise_hash}>"
@@ -2055,7 +2053,7 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
                     f"Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%"
                 )
             elif self.display_index == 1:
-                self.status_function(f"{round_num(percent_funded*100, 2)}% Fertilizer Sold")
+                self.status_function(f"{round_num(percent_funded*100, 2)}% Recapitalized")
 
 
 class NFTPreviewMonitor(PreviewMonitor):
