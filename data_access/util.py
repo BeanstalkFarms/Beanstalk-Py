@@ -3,13 +3,13 @@ import time
 import requests
 
 
-def get_with_retries(request_url, max_tries=10):
+def get_with_retries(request_url, max_tries=10, timeout=6):
     """Attempt a get call with error handling."""
     logging.info(f"Attempting GET to {request_url}")
     try_count = 0
     while True:
         try:
-            response = requests.get(request_url, timeout=6)
+            response = requests.get(request_url, timeout=timeout)
             logging.info(f"Response: {response.json()}")
             return response.json()
 
