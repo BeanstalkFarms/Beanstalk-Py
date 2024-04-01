@@ -516,7 +516,9 @@ class BasinPeriodicMonitor(Monitor):
         self.well_client = WellClient(BEAN_ETH_WELL_ADDR)
         self.update_period = 60 * 60 * 24
         self.update_ref_time = int(
-            0.5 * 60 * 60
+            # 9:05am PST/12:05pm EST. Subgraph takes daily snapshot in tandem with the sunrise,
+            # for now recommend waiting 5 extra minutes for that reason
+            16 * 60 * 60 + 5*60
         )  # 15 * 60 * 60 # timestamp to check period against (11:00 EST)
         # updated_secs_ago = time.time() - (time.time() % self.update_period) - self.update_ref_time
         self.last_update = time.time()  # arbitrary init
