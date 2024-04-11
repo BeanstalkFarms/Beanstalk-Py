@@ -745,14 +745,15 @@ class WellMonitor(Monitor):
             if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
                 bdv = bean_to_float(amountOut)
                 erc20_info_in = get_erc20_info(WRAPPED_ETH)
-                amount_in = get_eth_sent(event_log.transactionHash, self._web3)
+                amount_in = get_eth_sent(event_log.transactionHash, event_log.address, self._web3, event_log.logIndex)
                 amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
             elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
                 value = token_to_float(amountOut, erc20_info_out.decimals) * get_twa_eth_price(
                     self._web3, 0
                 )
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
-                amount_in = self.well_client.get_beans_sent(event_log.transactionHash)
+                amount_in = self.well_client.get_beans_sent(event_log.transactionHash, event_log.address, event_log.logIndex)
+                logging.info(f"Shift: BEAN Tokens in: {amount_in}")
                 if amount_in:
                     bdv = bean_to_float(amount_in)
                     amount_in_str = round_token(
@@ -1522,7 +1523,7 @@ class BarnRaiseMonitor(Monitor):
                 amount = sum([int(value) for value in event_log.args.values])
 
             weth_amount = token_to_float(
-                get_eth_sent(event_log.transactionHash, web3=self._web3), 18
+                get_eth_sent(event_log.transactionHash, event_log.address, self._web3, event_log.logIndex), 18
             )
 
             event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(weth_amount, 3)} WETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity"
