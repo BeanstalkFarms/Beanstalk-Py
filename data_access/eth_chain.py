@@ -770,7 +770,7 @@ class WellClient(ChainClient):
 
 
 def get_eth_sent(txn_hash, recipient, web3, log_end_index):
-    """Return the amount (as a float) of ETH or WETH sent in a transaction to the given recipient, prior to the provided log index"""
+    """Return the amount (as a float) of ETH and WETH sent in a transaction to the given recipient, prior to the provided log index"""
     total_sum = web3.eth.get_transaction(txn_hash).value
     logs = get_erc20_transfer_logs_in_txn(WRAPPED_ETH, txn_hash, recipient, log_end_index)
     for entry in logs:
