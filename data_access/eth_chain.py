@@ -770,9 +770,16 @@ class WellClient(ChainClient):
 
 
 def get_eth_sent(txn_hash, recipient, web3, log_end_index):
-    """Return the amount (as a float) of ETH and WETH sent in a transaction to the given recipient, prior to the provided log index"""
-    total_sum = web3.eth.get_transaction(txn_hash).value
+    """
+    Return the amount (as a float) of ETH or WETH sent in a transaction to the given recipient, prior to the provided log index.
+    If an aggregate value (ETH + WETH) is required, a specialized approach should be taken for the particular use case.
+    This is because it is unclear who is the recipient of the ETH based on the .value property.
+    """
+    txn_value = web3.eth.get_transaction(txn_hash).value
+    if txn_value != 0:
+        return txn_value
     logs = get_erc20_transfer_logs_in_txn(WRAPPED_ETH, txn_hash, recipient, log_end_index)
+    total_sum = 0
     for entry in logs:
         total_sum += int(entry.data, 16)
     return total_sum
