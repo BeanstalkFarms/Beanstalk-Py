@@ -2609,6 +2609,29 @@ def get_test_entries():
             }
         ),
         # Well Trade via Shift - Some circulating/some Farm
+
+        ### The below two txns are a bean3crv trade followed by an automated arb in bean3crv and beaneth.
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0x15445b0374c6bffee7fb9764b22008ba2e950bd184287643cffd8dc6c647d6b9"
+                ),
+                "topics": [
+                    HexBytes("0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b")
+                ]
+            }
+        ),
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0xcd518d8689178bf1e8c7f9026d963b8156e6609633d8fb374d23d847d0a40002"
+                ),
+                "topics": [
+                    HexBytes("0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b")
+                ]
+            }
+        ),
+        ###
     ]
     return entries
 
