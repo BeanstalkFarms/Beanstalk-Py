@@ -12,7 +12,7 @@ def get_gas_base_fee():
     request_url = ETHERSCAN_API_URL.format(
         module="gastracker", action="gasoracle", payload="", key=os.environ["ETHERSCAN_TOKEN"]
     )
-    result = get_with_retries(request_url, timeout=15)
+    result = get_with_retries(request_url, max_tries=4, timeout=10)
     if int(result["status"]) == 0:
         raise Exception(f'Request rejected by etherscan:\n{result["result"]}')
     return float(result["result"]["suggestBaseFee"])
