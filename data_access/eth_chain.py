@@ -760,23 +760,29 @@ class WellClient(ChainClient):
         """Returns a list of ERC20 tokens supported by the Well."""
         return call_contract_function_with_retry(self.contract.functions.tokens())
 
-    def get_beans_sent(self, txn_hash):
-        """Return the amount (as a float) of BEAN sent in a transaction"""
-        log = get_erc20_transfer_log_in_txn(BEAN_ADDR, txn_hash)
-        if log:
-            return int(log.data, 16)
-        return 0
+    def get_beans_sent(self, txn_hash, recipient, log_end_index):
+        """Return the amount (as a float) of BEAN sent in a transaction to the given recipient, prior to the provided log index"""
+        logs = get_erc20_transfer_logs_in_txn(BEAN_ADDR, txn_hash, recipient, log_end_index)
+        total_sum = 0
+        for entry in logs:
+            total_sum += int(entry.data, 16)
+        return total_sum
 
 
-def get_eth_sent(txn_hash, web3):
-    """Return the amount (as a float) of ETH or WETH sent in a transaction"""
+def get_eth_sent(txn_hash, recipient, web3, log_end_index):
+    """
+    Return the amount (as a float) of ETH or WETH sent in a transaction to the given recipient, prior to the provided log index.
+    If an aggregate value (ETH + WETH) is required, a specialized approach should be taken for the particular use case.
+    This is because it is unclear who is the recipient of the ETH based on the .value property.
+    """
     txn_value = web3.eth.get_transaction(txn_hash).value
     if txn_value != 0:
         return txn_value
-    log = get_erc20_transfer_log_in_txn(WRAPPED_ETH, txn_hash, web3=web3)
-    if log:
-        return int(log.data, 16)
-    return 0
+    logs = get_erc20_transfer_logs_in_txn(WRAPPED_ETH, txn_hash, recipient, log_end_index)
+    total_sum = 0
+    for entry in logs:
+        total_sum += int(entry.data, 16)
+    return total_sum
 
 
 class RootClient(ChainClient):
@@ -1395,19 +1401,27 @@ def call_contract_function_with_retry(function, max_tries=10):
                 raise (e)
 
 
-def get_erc20_transfer_log_in_txn(address, txn_hash, web3=None):
-    """Return first log matching transfer signature and address logs from a txn. Else return None."""
+def get_erc20_transfer_logs_in_txn(token, txn_hash, recipient, log_end_index, web3=None):
+    """Return all logs matching transfer signature to the recipient before the end index."""
     if not web3:
         web3 = get_web3_instance()
     receipt = tools.util.get_txn_receipt_or_wait(web3, txn_hash)
+    retval = []
     for log in receipt.logs:
+        if log.logIndex >= log_end_index:
+            break
         try:
-            if log.address == address and log.topics[0].hex() == ERC20_TRANSFER_EVENT_SIG:
-                return log
+            if log.address == token and log.topics[0].hex() == ERC20_TRANSFER_EVENT_SIG and topic_is_address(log.topics[2], recipient):
+                retval.append(log)
         # Ignore anonymous events (logs without topics).
         except IndexError:
             pass
-    return None
+    return retval
+
+
+# Compares a topic (which has leading zeros) with an ethereum address
+def topic_is_address(topic, address):
+    return "0x" + topic.hex().lstrip("0x").zfill(40) == address.lower()
 
 
 def token_to_float(token_long, decimals):
@@ -2583,6 +2597,41 @@ def get_test_entries():
             }
         ),
         # Well RemoveLiquidityOneToken
+        AttributeDict(
+            {
+                # Minimal info required is tx hash and any topic within self._events_dict
+                "transactionHash": HexBytes(
+                    "0xae26697773d8a53c73b58cb13511345e36a037eb38605f9b582955185f31c010"
+                ),
+                "topics": [
+                    HexBytes("0x91a6d8e872c9887412278189089c9936e99450551cc971309ff282f79bfef56f")
+                ]
+            }
+        ),
+        # Well Trade via Shift - Some circulating/some Farm
+
+        ### The below two txns are a bean3crv trade followed by an automated arb in bean3crv and beaneth.
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0x15445b0374c6bffee7fb9764b22008ba2e950bd184287643cffd8dc6c647d6b9"
+                ),
+                "topics": [
+                    HexBytes("0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b")
+                ]
+            }
+        ),
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0xcd518d8689178bf1e8c7f9026d963b8156e6609633d8fb374d23d847d0a40002"
+                ),
+                "topics": [
+                    HexBytes("0xd013ca23e77a65003c2c659c5442c00c805371b7fc1ebd4c206c41d1536bd90b")
+                ]
+            }
+        ),
+        ###
     ]
     return entries
 
