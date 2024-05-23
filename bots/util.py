@@ -1054,7 +1054,10 @@ class BeanstalkMonitor(Monitor):
                         event_logs.remove(remove_event_log)
                     except ValueError:
                         pass
-                    event_logs.remove(deposit_event_log)
+                    try:
+                        event_logs.remove(deposit_event_log)
+                    except ValueError:
+                        pass
                     logging.info(
                         f"Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash.hex()}, possible transfer or silo migration"
                     )
