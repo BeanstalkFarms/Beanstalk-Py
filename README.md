@@ -14,3 +14,5 @@ Environment variables necessary:
 - `SUBGRAPH_API_KEY`
 - `DISCORD_BOT_TOKEN` (`DISCORD_BOT_TOKEN_PROD` for prod application)
 - `TELE_BOT_KEY` (`TELEGRAM_BOT_TOKEN_PROD` for prod application)
+
+Create an `env.dev` file using the provided example and place your varaibles there. Then, execute `./dev.sh <module>`. For example, to run the main set of bots, execute `./dev.sh bots.discord_bot`.

@@ -33,6 +33,9 @@ class TelegramBasinBot(object):
         )
         self.well_monitor_bean_eth.start()
 
+        # TODO
+        # self.well_monitor_misc =
+
     def send_msg(self, msg):
         # Ignore empty messages.
         if not msg:
