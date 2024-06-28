@@ -601,8 +601,9 @@ class BasinPeriodicMonitor(Monitor):
             name += symbol
 
 class MiscWellsMonitor(Monitor):
-    def __init__(self, message_function, prod=False, dry_run=False):
+    def __init__(self, message_function, discord=False, prod=False, dry_run=False):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._discord = discord
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
     
     def _monitor_method(self):
@@ -631,17 +632,17 @@ class MiscWellsMonitor(Monitor):
             erc20_info_0 = get_erc20_info(tokens[0])
             erc20_info_1 = get_erc20_info(tokens[1])
 
-            # TODO: need to not include the emojis on telegram (or provide an alternative)
-
             def erc20_linkstr(info):
                 result = f"[{info.symbol}](https://etherscan.io/address/{info.addr.lower()})"
-                if info.symbol == "BEAN":
-                    result = '<:bean:1256384062340464750> ' + result
+                # Embellish with discord emojis
+                if self._discord:
+                    if info.symbol == "BEAN":
+                        result = '<:bean:1256384062340464750> ' + result
                 return result
 
             event_str = (
-                f"New Well created - {erc20_linkstr(erc20_info_0)}/{erc20_linkstr(erc20_info_1)}"
-                f"\n<:basin:1256383927610769478> https://basin.exchange/#/wells/{well.lower()}"
+                f"New Well created - {erc20_linkstr(erc20_info_0)} / {erc20_linkstr(erc20_info_1)}"
+                f"\n{"<:basin:1256383927610769478> " if self._discord else ""}https://basin.exchange/#/wells/{well.lower()}"
             )
 
             return event_str

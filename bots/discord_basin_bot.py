@@ -54,7 +54,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
         # TODO: change msg function when the real channel gets created
         self.well_monitor_misc = util.MiscWellsMonitor(
-            self.send_msg_report, prod=prod, dry_run=True
+            self.send_msg_report, discord=True, prod=prod, dry_run=True
         )
         self.well_monitor_misc.start()
 
