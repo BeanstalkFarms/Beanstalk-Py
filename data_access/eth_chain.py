@@ -2632,6 +2632,18 @@ def get_test_entries():
             }
         ),
         ###
+
+        # BoreWell
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0x2a05799ce2d8a9ed710fc0e52242c1abaf26c994bb3f57f1bd20af64c12874b4"
+                ),
+                "topics": [
+                    HexBytes("0xff64a5823907c85a1e7c0400576024f76bd1640c74350033bd0d689f793202f2")
+                ]
+            }
+        )
     ]
     return entries
 

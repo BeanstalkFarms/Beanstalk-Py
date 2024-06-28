@@ -8,6 +8,8 @@ Included in this repo is a set of bots that disseminate information to Beanstalk
 - **Contract Bot** - sends a message detailing each interaction with the Beanstalk contact
 
 ### Running locally
+First, install the necessary requirements using `pip3 install -r beanstalk-py/requirements.txt`.
+
 To run the bots locally you will need to set several environment variables with your own keys.
 Environment variables necessary:
 - `ALCHEMY_ETH_API_KEY`
