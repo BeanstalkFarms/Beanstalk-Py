@@ -574,9 +574,9 @@ class BasinPeriodicMonitor(Monitor):
             per_well_str += "\n- 🌱 " if well["id"] == BEAN_ETH_WELL_ADDR.lower() else "\n💦 "
             per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
-            daily_volume += float(well["dailySnapshots"][0]["deltaVolumeUSD"])
+            daily_volume += float(well["dailySnapshots"][0]["deltaTradeVolumeUSD"])
             for snapshot in well["dailySnapshots"]:
-                weekly_volume += float(snapshot["deltaVolumeUSD"])
+                weekly_volume += float(snapshot["deltaTradeVolumeUSD"])
 
         ret_str += f"\n🌊 Total Liquidity: ${round_num_auto(total_liquidity, sig_fig_min=2, abbreviate=True)}"
         ret_str += (
@@ -2176,7 +2176,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             for well in wells:
                 if well["id"].lower() == BEAN_ETH_WELL_ADDR.lower():
                     bean_eth_liquidity += float(well["totalLiquidityUSD"])
-                    bean_eth_volume += float(well["cumulativeVolumeUSD"])
+                    bean_eth_volume += float(well["cumulativeTradeVolumeUSD"])
 
             if bean_eth_liquidity == 0:
                 logging.warning(

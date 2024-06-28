@@ -387,7 +387,7 @@ class BasinSqlClient(object):
                     symbol
                         dailySnapshots(first: {num_snapshots}, orderBy: day, orderDirection: desc) {{
                             totalLiquidityUSD
-                            deltaVolumeUSD
+                            deltaTradeVolumeUSD
                     }}
                 }}
             }}
@@ -401,7 +401,7 @@ class BasinSqlClient(object):
             query {{
                 wells(orderBy: totalLiquidityUSD, orderDirection: desc, where: {{totalLiquidityUSD_gt: 1000}}) {{
                     id
-                    cumulativeVolumeUSD
+                    cumulativeTradeVolumeUSD
                     totalLiquidityUSD
                 }}
             }}
