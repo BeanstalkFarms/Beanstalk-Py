@@ -760,13 +760,14 @@ class WellClient(ChainClient):
         """Returns a list of ERC20 tokens supported by the Well."""
         return call_contract_function_with_retry(self.contract.functions.tokens())
 
-    def get_beans_sent(self, txn_hash, recipient, log_end_index):
-        """Return the amount (as a float) of BEAN sent in a transaction to the given recipient, prior to the provided log index"""
-        logs = get_erc20_transfer_logs_in_txn(BEAN_ADDR, txn_hash, recipient, log_end_index)
-        total_sum = 0
-        for entry in logs:
-            total_sum += int(entry.data, 16)
-        return total_sum
+
+def get_beans_sent(txn_hash, recipient, log_end_index):
+    """Return the amount (as a float) of BEAN sent in a transaction to the given recipient, prior to the provided log index"""
+    logs = get_erc20_transfer_logs_in_txn(BEAN_ADDR, txn_hash, recipient, log_end_index)
+    total_sum = 0
+    for entry in logs:
+        total_sum += int(entry.data, 16)
+    return total_sum
 
 
 def get_eth_sent(txn_hash, recipient, web3, log_end_index):

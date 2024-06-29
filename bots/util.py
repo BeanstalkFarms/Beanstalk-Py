@@ -648,7 +648,7 @@ class AllWellsMonitor(Monitor):
                 f"New Well created - {erc20_linkstr(erc20_info_0)} / {erc20_linkstr(erc20_info_1)}"
                 f"\n{'<:basin:1256383927610769478> ' if self._discord else ''}<https://basin.exchange/#/wells/{well.lower()}>"
             )
-
+            event_str += "\n_ _"
             return event_str
         
     def well_event_str(self, event_log):
@@ -672,7 +672,8 @@ class WellMonitor(Monitor):
     def __init__(self, message_function, address, bean_reporting=False, prod=False, dry_run=False):
         super().__init__(f"specific well", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
-        self._eth_event_client = EthEventsClient(self.pool_type, address)
+        self.pool_address = address
+        self._eth_event_client = EthEventsClient(self.pool_type, self.pool_address)
         self.well_client = WellClient(address)
         self.bean_client = BeanClient()
         self.basin_graph_client = BasinSqlClient()
@@ -705,7 +706,7 @@ class WellMonitor(Monitor):
     def any_event_str(self, event_log):
         bdv = value = None
         event_str = ""
-        bean_well_value = self.bean_client.well_bean_eth_bean_price()
+        address = event_log.get("address")
         # Parse possible values of interest from the event log. Not all will be populated.
         fromToken = event_log.args.get("fromToken")
         toToken = event_log.args.get("toToken")
@@ -722,7 +723,6 @@ class WellMonitor(Monitor):
         lpAmountOut = event_log.args.get("lpAmountOut")
 
         tokens = self.well_client.tokens()
-        logging.info(f"well tokens: {tokens}")
 
         is_swapish = False
         is_lpish = False
@@ -730,7 +730,6 @@ class WellMonitor(Monitor):
         if event_log.event == "AddLiquidity":
             is_lpish = True
             event_str += f"📥 LP added - "
-            lp_amount = lpAmountOut
             for i in range(len(tokens)):
                 erc20_info = get_erc20_info(tokens[i])
                 event_str += f"{round_token(tokenAmountsIn[i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}"
@@ -738,7 +737,7 @@ class WellMonitor(Monitor):
                     event_str += " and"
                 event_str += f" "
             bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(
-                BEAN_ETH_WELL_ADDR, web3=self._web3
+                address, web3=self._web3
             )
         elif event_log.event == "Sync":
             is_lpish = True
@@ -758,7 +757,7 @@ class WellMonitor(Monitor):
             else:
                 bdv = token_to_float(
                     lpAmountOut, WELL_LP_DECIMALS
-                ) * get_constant_product_well_lp_bdv(BEAN_ETH_WELL_ADDR, web3=self._web3)
+                ) * get_constant_product_well_lp_bdv(address, web3=self._web3)
         elif event_log.event == "RemoveLiquidity" or event_log.event == "RemoveLiquidityOneToken":
             is_lpish = True
             event_str += f"📤 LP removed - "
@@ -777,7 +776,7 @@ class WellMonitor(Monitor):
                     event_str += f" and"
                 event_str += f" "
             bdv = token_to_float(lpAmountIn, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(
-                BEAN_ETH_WELL_ADDR, web3=self._web3
+                address, web3=self._web3
             )
         elif event_log.event == "Swap":
             is_swapish = True
@@ -806,8 +805,7 @@ class WellMonitor(Monitor):
                     self._web3, 0
                 )
                 erc20_info_in = get_erc20_info(BEAN_ADDR)
-                amount_in = self.well_client.get_beans_sent(event_log.transactionHash, event_log.address, event_log.logIndex)
-                logging.info(f"Shift: BEAN Tokens in: {amount_in}")
+                amount_in = get_beans_sent(event_log.transactionHash, event_log.address, event_log.logIndex)
                 if amount_in:
                     bdv = bean_to_float(amount_in)
                     amount_in_str = round_token(
@@ -842,9 +840,9 @@ class WellMonitor(Monitor):
         if value is not None:
             event_str += f"({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
             if (is_swapish or is_lpish) and self.bean_reporting:
-                event_str += f"\n_{latest_pool_price_str(self.bean_client, BEAN_ETH_WELL_ADDR)}_ "
+                event_str += f"\n_{latest_pool_price_str(self.bean_client, address)}_ "
             if is_lpish and not self.bean_reporting:
-                event_str += f"\n_{latest_well_lp_str(self.bean_client, BEAN_ETH_WELL_ADDR)}_ "
+                event_str += f"\n_{latest_well_lp_str(self.bean_client, address)}_ "
             event_str += f"\n{value_to_emojis(value)}"
 
         event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"

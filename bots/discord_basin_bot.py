@@ -59,7 +59,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.well_monitor_all.start()
 
         self.well_monitor_bean_eth = util.WellMonitor(
-            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
+            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=True
         )
         self.well_monitor_bean_eth.start()
 
