@@ -605,6 +605,8 @@ class MiscWellsMonitor(Monitor):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._discord = discord
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
+        # All addresses
+        self._eth_all_wells = EthEventsClient(EventClientType.WELL, address=None)
     
     def _monitor_method(self):
         last_check_time = 0
@@ -642,7 +644,7 @@ class MiscWellsMonitor(Monitor):
 
             event_str = (
                 f"New Well created - {erc20_linkstr(erc20_info_0)} / {erc20_linkstr(erc20_info_1)}"
-                f"\n{"<:basin:1256383927610769478> " if self._discord else ""}https://basin.exchange/#/wells/{well.lower()}"
+                f"\n{'<:basin:1256383927610769478> ' if self._discord else ''}https://basin.exchange/#/wells/{well.lower()}"
             )
 
             return event_str

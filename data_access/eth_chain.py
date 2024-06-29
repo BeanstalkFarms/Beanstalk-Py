@@ -1020,25 +1020,21 @@ class EthEventsClient:
             self._contract_addresses = [AQUIFER_ADDR]
             self._events_dict = AQUIFER_EVENT_MAP
             self._signature_list = AQUIFER_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.WELL:
             self._contracts = [get_well_contract(self._web3, address)]
             self._contract_addresses = [address]
             self._events_dict = WELL_EVENT_MAP
             self._signature_list = WELL_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
             self._contracts = [get_bean_3crv_pool_contract(self._web3)]
             self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.UNI_V3_ROOT_BEAN_POOL:
             self._contracts = [get_uniswap_v3_contract(UNI_V3_ROOT_BEAN_ADDR, self._web3)]
             self._contract_addresses = [UNI_V3_ROOT_BEAN_ADDR]
             self._events_dict = UNISWAP_V3_POOL_EVENT_MAP
             self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contracts = [
                 get_beanstalk_contract(self._web3),
@@ -1047,25 +1043,21 @@ class EthEventsClient:
             self._contract_addresses = [BEANSTALK_ADDR, FERTILIZER_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.MARKET:
             self._contracts = [get_beanstalk_contract(self._web3)]
             self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.BARN_RAISE:
             self._contracts = [get_fertilizer_contract(self._web3)]
             self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.ROOT_TOKEN:
             self._contracts = [get_root_contract(self._web3)]
             self._contract_addresses = [ROOT_ADDR]
             self._events_dict = ROOT_EVENT_MAP
             self._signature_list = ROOT_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.BETTING:
             self._contracts = [
                 get_betting_admin_contract(self._web3),
@@ -1074,9 +1066,9 @@ class EthEventsClient:
             self._contract_addresses = [BETTING_ADMIN_ADDR, BETTING_ADDR]
             self._events_dict = BETTING_EVENT_MAP
             self._signature_list = BETTING_SIGNATURES_LIST
-            self._set_filters()
         else:
             raise ValueError("Unsupported event client type.")
+        self._set_filters()
 
     def _set_filters(self):
         """This is located in a method so it can be reset on the fly."""
@@ -1278,9 +1270,15 @@ def safe_create_filter(web3, address, topics, from_block, to_block):
     try_count = 0
     while try_count < max_tries:
         try:
-            return web3.eth.filter(
-                {"address": address, "topics": topics, "fromBlock": from_block, "toBlock": to_block}
-            )
+            filter_params = {
+                "topics": topics,
+                "fromBlock": from_block,
+                "toBlock": to_block
+            }
+            # Include the address in the filter params only if it is not None
+            if address:
+                filter_params["address"] = address
+            return web3.eth.filter(filter_params)
         except websockets.exceptions.ConnectionClosedError as e:
             logging.warning(e, exc_info=True)
             time.sleep(2)
