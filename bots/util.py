@@ -600,7 +600,7 @@ class BasinPeriodicMonitor(Monitor):
                 name += ":"
             name += symbol
 
-class MiscWellsMonitor(Monitor):
+class AllWellsMonitor(Monitor):
     def __init__(self, message_function, discord=False, prod=False, dry_run=False):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._discord = discord
@@ -616,15 +616,17 @@ class MiscWellsMonitor(Monitor):
                 continue
             last_check_time = time.time()
             for txn_pair in self._eth_aquifer.get_new_logs(dry_run=self._dry_run):
-                self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
+                for event_log in txn_pair.logs:
+                    event_str = self.aquifer_event_str(event_log)
+                    if event_str:
+                        self.message_function(event_str)
+            for txn_pair in self._eth_all_wells.get_new_logs(dry_run=self._dry_run):
+                for event_log in txn_pair.logs:
+                    event_str = self.well_event_str(event_log)
+                    if event_str:
+                        self.message_function(event_str)
 
-    def _handle_txn_logs(self, txn_hash, event_logs):
-        for event_log in event_logs:
-            event_str = self.any_event_str(event_log)
-            if event_str:
-                self.message_function(event_str)
-
-    def any_event_str(self, event_log):
+    def aquifer_event_str(self, event_log):
         event_str = ""
 
         if event_log.event == "BoreWell":
@@ -635,7 +637,7 @@ class MiscWellsMonitor(Monitor):
             erc20_info_1 = get_erc20_info(tokens[1])
 
             def erc20_linkstr(info):
-                result = f"[{info.symbol}](https://etherscan.io/address/{info.addr.lower()})"
+                result = f"[{info.symbol}](<https://etherscan.io/address/{info.addr.lower()}>)"
                 # Embellish with discord emojis
                 if self._discord:
                     if info.symbol == "BEAN":
@@ -644,10 +646,14 @@ class MiscWellsMonitor(Monitor):
 
             event_str = (
                 f"New Well created - {erc20_linkstr(erc20_info_0)} / {erc20_linkstr(erc20_info_1)}"
-                f"\n{'<:basin:1256383927610769478> ' if self._discord else ''}https://basin.exchange/#/wells/{well.lower()}"
+                f"\n{'<:basin:1256383927610769478> ' if self._discord else ''}<https://basin.exchange/#/wells/{well.lower()}>"
             )
 
             return event_str
+        
+    def well_event_str(self, event_log):
+        event_str = ""
+        return event_str
 
 # Monitors a specific Well.
 # NOTE arguments for doing 1 monitor for all wells and 1 monitor per well. In first pass wells will each get their
