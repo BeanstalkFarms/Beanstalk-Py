@@ -674,7 +674,6 @@ class WellMonitor(Monitor):
         self.pool_type = EventClientType.WELL
         self.pool_address = address
         self._eth_event_client = EthEventsClient(self.pool_type, self.pool_address)
-        self.well_client = WellClient(address)
         self.bean_client = BeanClient()
         self.basin_graph_client = BasinSqlClient()
         self.bean_reporting = bean_reporting
@@ -699,156 +698,161 @@ class WellMonitor(Monitor):
             return
 
         for event_log in event_logs:
-            event_str = self.any_event_str(event_log)
+            event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
             if event_str:
                 self.message_function(event_str)
+    
+def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, web3=None):
+    bdv = value = None
+    event_str = ""
+    address = event_log.get("address")
+    # Parse possible values of interest from the event log. Not all will be populated.
+    fromToken = event_log.args.get("fromToken")
+    toToken = event_log.args.get("toToken")
+    amountIn = event_log.args.get("amountIn")
+    amountOut = event_log.args.get("amountOut")
+    # recipient = event_log.args.get('recipient')
+    tokenAmountsIn = event_log.args.get("tokenAmountsIn")  # int[]
+    lpAmountOut = event_log.args.get("lpAmountOut")  # int
+    lpAmountIn = event_log.args.get("lpAmountIn")
+    tokenOut = event_log.args.get("tokenOut")
+    tokenAmountOut = event_log.args.get("tokenAmountOut")
+    tokenAmountsOut = event_log.args.get("tokenAmountsOut")
+    #  = event_log.args.get('reserves')
+    lpAmountOut = event_log.args.get("lpAmountOut")
 
-    def any_event_str(self, event_log):
-        bdv = value = None
-        event_str = ""
-        address = event_log.get("address")
-        # Parse possible values of interest from the event log. Not all will be populated.
-        fromToken = event_log.args.get("fromToken")
-        toToken = event_log.args.get("toToken")
-        amountIn = event_log.args.get("amountIn")
-        amountOut = event_log.args.get("amountOut")
-        # recipient = event_log.args.get('recipient')
-        tokenAmountsIn = event_log.args.get("tokenAmountsIn")  # int[]
-        lpAmountOut = event_log.args.get("lpAmountOut")  # int
-        lpAmountIn = event_log.args.get("lpAmountIn")
-        tokenOut = event_log.args.get("tokenOut")
-        tokenAmountOut = event_log.args.get("tokenAmountOut")
-        tokenAmountsOut = event_log.args.get("tokenAmountsOut")
-        #  = event_log.args.get('reserves')
-        lpAmountOut = event_log.args.get("lpAmountOut")
+    well_client = WellClient(address)
+    tokens = well_client.tokens()
 
-        tokens = self.well_client.tokens()
+    is_swapish = False
+    is_lpish = False
 
-        is_swapish = False
-        is_lpish = False
-
-        if event_log.event == "AddLiquidity":
-            is_lpish = True
-            event_str += f"📥 LP added - "
+    if event_log.event == "AddLiquidity":
+        is_lpish = True
+        event_str += f"📥 LP added - "
+        for i in range(len(tokens)):
+            erc20_info = get_erc20_info(tokens[i])
+            event_str += f"{round_token(tokenAmountsIn[i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}"
+            if i < len(tokens) - 1:
+                event_str += " and"
+            event_str += f" "
+        bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(
+            address, web3=web3
+        )
+    elif event_log.event == "Sync":
+        is_lpish = True
+        event_str += f"📥 LP added - "
+        # subgraph may be down, providing no deposit data.
+        deposit = basin_graph_client.try_get_well_deposit_info(
+            event_log.transactionHash, event_log.logIndex
+        )
+        if deposit:
             for i in range(len(tokens)):
-                erc20_info = get_erc20_info(tokens[i])
-                event_str += f"{round_token(tokenAmountsIn[i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}"
+                erc20_info = get_erc20_info(deposit["tokens"][i]["id"])
+                event_str += f'{round_token(deposit["reserves"][i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}'
                 if i < len(tokens) - 1:
                     event_str += " and"
                 event_str += f" "
-            bdv = token_to_float(lpAmountOut, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(
-                address, web3=self._web3
-            )
-        elif event_log.event == "Sync":
-            is_lpish = True
-            event_str += f"📥 LP added - "
-            # subgraph may be down, providing no deposit data.
-            deposit = self.basin_graph_client.try_get_well_deposit_info(
-                event_log.transactionHash, event_log.logIndex
-            )
-            if deposit:
-                for i in range(len(tokens)):
-                    erc20_info = get_erc20_info(deposit["tokens"][i]["id"])
-                    event_str += f'{round_token(deposit["reserves"][i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}'
-                    if i < len(tokens) - 1:
-                        event_str += " and"
-                    event_str += f" "
-                value = float(deposit["amountUSD"])
-            else:
-                bdv = token_to_float(
-                    lpAmountOut, WELL_LP_DECIMALS
-                ) * get_constant_product_well_lp_bdv(address, web3=self._web3)
-        elif event_log.event == "RemoveLiquidity" or event_log.event == "RemoveLiquidityOneToken":
-            is_lpish = True
-            event_str += f"📤 LP removed - "
-            for i in range(len(tokens)):
-                erc20_info = get_erc20_info(tokens[i])
-                if event_log.event == "RemoveLiquidityOneToken":
-                    if tokenOut == tokens[i]:
-                        out_amount = tokenAmountOut
-                    else:
-                        out_amount = 0
-                else:
-                    out_amount = tokenAmountsOut[i]
-                event_str += f"{round_token(out_amount, erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}"
-
-                if i < len(tokens) - 1:
-                    event_str += f" and"
-                event_str += f" "
-            bdv = token_to_float(lpAmountIn, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(
-                address, web3=self._web3
-            )
-        elif event_log.event == "Swap":
-            is_swapish = True
-            # value = lpAmountIn * lp_value
-            erc20_info_in = get_erc20_info(fromToken)
-            erc20_info_out = get_erc20_info(toToken)
-            amount_in = amountIn
-            amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
-            amount_out = amountOut
-            amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
-            if fromToken == BEAN_ADDR:
-                bdv = bean_to_float(amountIn)
-            elif toToken == BEAN_ADDR:
-                bdv = bean_to_float(amountOut)
-        elif event_log.event == "Shift":
-            erc20_info_out = get_erc20_info(toToken)
-
-            amount_in = None
-            if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
-                bdv = bean_to_float(amountOut)
-                erc20_info_in = get_erc20_info(WRAPPED_ETH)
-                amount_in = get_eth_sent(event_log.transactionHash, event_log.address, self._web3, event_log.logIndex)
-                amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
-            elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
-                value = token_to_float(amountOut, erc20_info_out.decimals) * get_twa_eth_price(
-                    self._web3, 0
-                )
-                erc20_info_in = get_erc20_info(BEAN_ADDR)
-                amount_in = get_beans_sent(event_log.transactionHash, event_log.address, event_log.logIndex)
-                if amount_in:
-                    bdv = bean_to_float(amount_in)
-                    amount_in_str = round_token(
-                        amount_in, erc20_info_in.decimals, erc20_info_in.addr
-                    )
-            amount_out = amountOut
-            amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
-            if (
-                amount_in is not None and amount_in > 0
-            ):  # not None and not 0, then it is a pseudo swap
-                is_swapish = True
-            else:  # one sided shift
-                event_str += f"🔀 {amount_out_str} {erc20_info_out.symbol} shifted out "
+            value = float(deposit["amountUSD"])
         else:
-            logging.warning(f"Unexpected event log seen in Well ({event_log.event}). Ignoring.")
-            return ""
-
-        if bdv is not None:
-            value = bdv * self.bean_client.avg_bean_price()
-
-        if is_swapish:
-            if self.bean_reporting and erc20_info_out.symbol == "BEAN":
-                event_str += f"📗 {amount_out_str} {erc20_info_out.symbol} bought for {amount_in_str} {erc20_info_in.symbol} @ ${round_num(value/bean_to_float(amount_out), 4)} "
-            elif self.bean_reporting and erc20_info_in.symbol == "BEAN":
-                event_str += f"📕 {amount_in_str} {erc20_info_in.symbol} sold for {amount_out_str} {erc20_info_out.symbol} @ ${round_num(value/bean_to_float(amount_in), 4)} "
+            bdv = token_to_float(
+                lpAmountOut, WELL_LP_DECIMALS
+            ) * get_constant_product_well_lp_bdv(address, web3=web3)
+    elif event_log.event == "RemoveLiquidity" or event_log.event == "RemoveLiquidityOneToken":
+        is_lpish = True
+        event_str += f"📤 LP removed - "
+        for i in range(len(tokens)):
+            erc20_info = get_erc20_info(tokens[i])
+            if event_log.event == "RemoveLiquidityOneToken":
+                if tokenOut == tokens[i]:
+                    out_amount = tokenAmountOut
+                else:
+                    out_amount = 0
             else:
-                event_str += (
-                    f"🔁 {amount_in_str} {erc20_info_in.symbol} swapped "
-                    f"for {amount_out_str} {erc20_info_out.symbol} "
+                out_amount = tokenAmountsOut[i]
+            event_str += f"{round_token(out_amount, erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}"
+
+            if i < len(tokens) - 1:
+                event_str += f" and"
+            event_str += f" "
+        bdv = token_to_float(lpAmountIn, WELL_LP_DECIMALS) * get_constant_product_well_lp_bdv(
+            address, web3=web3
+        )
+    elif event_log.event == "Swap":
+        is_swapish = True
+        # value = lpAmountIn * lp_value
+        erc20_info_in = get_erc20_info(fromToken)
+        erc20_info_out = get_erc20_info(toToken)
+        amount_in = amountIn
+        amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
+        amount_out = amountOut
+        amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
+        if fromToken == BEAN_ADDR:
+            bdv = bean_to_float(amountIn)
+        elif toToken == BEAN_ADDR:
+            bdv = bean_to_float(amountOut)
+    elif event_log.event == "Shift":
+        erc20_info_out = get_erc20_info(toToken)
+
+        # TODO: derive erc20_info_in using self.well_client.tokens() and then get the amount
+
+        amount_in = None
+        if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
+            bdv = bean_to_float(amountOut)
+            erc20_info_in = get_erc20_info(WRAPPED_ETH)
+            amount_in = get_eth_sent(event_log.transactionHash, event_log.address, web3, event_log.logIndex)
+            amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
+        elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
+            value = token_to_float(amountOut, erc20_info_out.decimals) * get_twa_eth_price(
+                web3, 0
+            )
+            erc20_info_in = get_erc20_info(BEAN_ADDR)
+            amount_in = get_beans_sent(event_log.transactionHash, event_log.address, event_log.logIndex)
+            if amount_in:
+                bdv = bean_to_float(amount_in)
+                amount_in_str = round_token(
+                    amount_in, erc20_info_in.decimals, erc20_info_in.addr
                 )
+        amount_out = amountOut
+        amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
+        if (
+            amount_in is not None and amount_in > 0
+        ):  # not None and not 0, then it is a pseudo swap
+            is_swapish = True
+        else:  # one sided shift
+            event_str += f"🔀 {amount_out_str} {erc20_info_out.symbol} shifted out "
+    else:
+        logging.warning(f"Unexpected event log seen in Well ({event_log.event}). Ignoring.")
+        return ""
 
-        if value is not None:
-            event_str += f"({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
-            if (is_swapish or is_lpish) and self.bean_reporting:
-                event_str += f"\n_{latest_pool_price_str(self.bean_client, address)}_ "
-            if is_lpish and not self.bean_reporting:
-                event_str += f"\n_{latest_well_lp_str(self.bean_client, address)}_ "
-            event_str += f"\n{value_to_emojis(value)}"
+    if bdv is not None:
+        value = bdv * bean_client.avg_bean_price()
 
-        event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
-        # Empty line that does not get stripped.
-        event_str += "\n_ _"
-        return event_str
+    if is_swapish:
+        if bean_reporting and erc20_info_out.symbol == "BEAN":
+            event_str += f"📗 {amount_out_str} {erc20_info_out.symbol} bought for {amount_in_str} {erc20_info_in.symbol} @ ${round_num(value/bean_to_float(amount_out), 4)} "
+        elif bean_reporting and erc20_info_in.symbol == "BEAN":
+            event_str += f"📕 {amount_in_str} {erc20_info_in.symbol} sold for {amount_out_str} {erc20_info_out.symbol} @ ${round_num(value/bean_to_float(amount_in), 4)} "
+        else:
+            event_str += (
+                f"🔁 {amount_in_str} {erc20_info_in.symbol} swapped "
+                f"for {amount_out_str} {erc20_info_out.symbol} "
+            )
+
+    if value is not None and value != 0:
+        event_str += f"({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
+        if (is_swapish or is_lpish) and bean_reporting:
+            event_str += f"\n_{latest_pool_price_str(bean_client, address)}_ "
+        if is_lpish and not bean_reporting:
+            liqudity_usd = latest_well_lp_str(bean_client, address)
+            if liqudity_usd != 0:
+                event_str += f"\n_{liqudity_usd}_ "
+        event_str += f"\n{value_to_emojis(value)}"
+
+    event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+    # Empty line that does not get stripped.
+    event_str += "\n_ _"
+    return event_str
 
 
 class CurvePoolMonitor(Monitor):
