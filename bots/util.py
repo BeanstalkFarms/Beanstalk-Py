@@ -601,8 +601,9 @@ class BasinPeriodicMonitor(Monitor):
             name += symbol
 
 class AllWellsMonitor(Monitor):
-    def __init__(self, message_function, discord=False, prod=False, dry_run=False):
+    def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=False):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self._ignorelist = ignorelist
         self._discord = discord
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
         # All addresses
@@ -625,7 +626,7 @@ class AllWellsMonitor(Monitor):
             for txn_pair in self._eth_all_wells.get_new_logs(dry_run=self._dry_run):
                 for event_log in txn_pair.logs:
                     # Avoids double-reporting on whitelisted wells having a dedicated channel
-                    if event_log.get("address") not in [BEAN_ETH_WELL_ADDR]:
+                    if event_log.get("address") not in self._ignorelist:
                         event_str = well_event_str(event_log, False, self.basin_graph_client, self.bean_client, web3=self._web3)
                         if event_str:
                             self.message_function(event_str)
