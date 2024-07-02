@@ -408,6 +408,18 @@ class BasinSqlClient(object):
         """
         # Create gql query and execute.
         return execute(self._client, query_str)["wells"]
+    
+    def get_well_liquidity(self, well):
+        """Get the current USD liquidity for the requested Well"""
+        query_str = f"""
+            query {{
+                well(id: "{well}") {{
+                    totalLiquidityUSD
+                }}
+            }}
+        """
+        # Create gql query and execute.
+        return execute(self._client, query_str).get("well").get("totalLiquidityUSD")
 
     def try_get_well_deposit_info(self, txn_hash, log_index):
         """Get deposit tokens. Retry if data not available. Return {} if it does not become available.

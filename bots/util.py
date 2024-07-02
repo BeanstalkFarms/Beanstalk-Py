@@ -842,7 +842,7 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
         if (is_swapish or is_lpish) and bean_reporting:
             event_str += f"\n_{latest_pool_price_str(bean_client, address)}_ "
         if is_lpish and not bean_reporting:
-            liqudity_usd = latest_well_lp_str(bean_client, address)
+            liqudity_usd = latest_well_lp_str(basin_graph_client, address)
             if liqudity_usd != 0:
                 event_str += f"\n_{liqudity_usd}_ "
         event_str += f"\n{value_to_emojis(value)}"
@@ -2487,10 +2487,8 @@ def latest_pool_price_str(bean_client, addr):
     return f"{type_str}: deltaB [{round_num(delta_b, 0)}], price [${round_num(price, 4)}]"
 
 
-def latest_well_lp_str(bean_client, addr):
-    pool_info = bean_client.get_pool_info(addr)
-    # lp_price = token_to_float(pool_info['lp_usd'], BEAN_DECIMALS)
-    liquidity = token_to_float(pool_info["liquidity"], BEAN_DECIMALS)
+def latest_well_lp_str(basin_client, addr):
+    liquidity = basin_client.get_well_liquidity(addr)
     return f"Well liquidity: ${round_num(liquidity, 0)}"
 
 

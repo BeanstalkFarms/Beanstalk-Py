@@ -2642,6 +2642,18 @@ def get_test_entries():
                     HexBytes("0xff64a5823907c85a1e7c0400576024f76bd1640c74350033bd0d689f793202f2")
                 ]
             }
+        ),
+
+        # Add liquidity to non whitelisted well
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0xa4b1538758fe42fc48ccf6301c9dfaeb5377da5978d31e621fd60a25204275b4"
+                ),
+                "topics": [
+                    HexBytes("0x91a6d8e872c9887412278189089c9936e99450551cc971309ff282f79bfef56f")
+                ]
+            }
         )
     ]
     return entries
