@@ -56,15 +56,15 @@ class DiscordClient(discord.ext.commands.Bot):
         )
         self.period_monitor.start()
 
-        self.well_monitor_all = util.AllWellsMonitor(
-            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR], discord=True, prod=prod, dry_run=False
-        )
-        self.well_monitor_all.start()
-
         self.well_monitor_bean_eth = util.WellMonitor(
             self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_eth.start()
+
+        self.well_monitor_all = util.AllWellsMonitor(
+            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR], discord=True, prod=prod, dry_run=False
+        )
+        self.well_monitor_all.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         # Ignore base class, because we always want to reconnect.

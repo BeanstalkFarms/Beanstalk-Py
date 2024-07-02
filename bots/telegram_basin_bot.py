@@ -33,8 +33,10 @@ class TelegramBasinBot(object):
         )
         self.well_monitor_bean_eth.start()
 
-        # TODO
-        # self.well_monitor_misc =
+        self.well_monitor_all = util.AllWellsMonitor(
+            self.send_msg, [BEAN_ETH_WELL_ADDR], discord=False, prod=prod, dry_run=False
+        )
+        self.well_monitor_all.start()
 
     def send_msg(self, msg):
         # Ignore empty messages.
