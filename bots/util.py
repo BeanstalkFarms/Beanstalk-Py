@@ -792,27 +792,26 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
         elif toToken == BEAN_ADDR:
             bdv = bean_to_float(amountOut)
     elif event_log.event == "Shift":
+        shift_from_token = tokens[0] if tokens[1] == toToken else tokens[1]
+
+        erc20_info_in = get_erc20_info(shift_from_token)
         erc20_info_out = get_erc20_info(toToken)
 
-        # TODO: derive erc20_info_in using self.well_client.tokens() and then get the amount
-
         amount_in = None
-        if event_log.address == BEAN_ETH_WELL_ADDR and toToken == BEAN_ADDR:
+
+        if shift_from_token == WRAPPED_ETH:
+            amount_in = get_eth_sent(event_log.transactionHash, address, web3, event_log.logIndex)
+        else:
+            amount_in = get_tokens_sent(shift_from_token, event_log.transactionHash, event_log.address, event_log.logIndex)
+
+        if toToken == BEAN_ADDR:
             bdv = bean_to_float(amountOut)
-            erc20_info_in = get_erc20_info(WRAPPED_ETH)
-            amount_in = get_eth_sent(event_log.transactionHash, event_log.address, web3, event_log.logIndex)
-            amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
-        elif event_log.address == BEAN_ETH_WELL_ADDR and toToken == WRAPPED_ETH:
-            value = token_to_float(amountOut, erc20_info_out.decimals) * get_twa_eth_price(
-                web3, 0
-            )
-            erc20_info_in = get_erc20_info(BEAN_ADDR)
-            amount_in = get_beans_sent(event_log.transactionHash, event_log.address, event_log.logIndex)
-            if amount_in:
-                bdv = bean_to_float(amount_in)
-                amount_in_str = round_token(
-                    amount_in, erc20_info_in.decimals, erc20_info_in.addr
-                )
+        elif shift_from_token == BEAN_ADDR:
+            bdv = bean_to_float(amount_in)
+
+        erc20_info_in = get_erc20_info(shift_from_token)
+        amount_in_str = round_token(amount_in, erc20_info_in.decimals, erc20_info_in.addr)
+
         amount_out = amountOut
         amount_out_str = round_token(amount_out, erc20_info_out.decimals, erc20_info_out.addr)
         if (
