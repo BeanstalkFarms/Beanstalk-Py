@@ -607,6 +607,8 @@ class AllWellsMonitor(Monitor):
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
         # All addresses
         self._eth_all_wells = EthEventsClient(EventClientType.WELL, address=None)
+        self.basin_graph_client = BasinSqlClient()
+        self.bean_client = BeanClient()
     
     def _monitor_method(self):
         last_check_time = 0
@@ -622,13 +624,13 @@ class AllWellsMonitor(Monitor):
                         self.message_function(event_str)
             for txn_pair in self._eth_all_wells.get_new_logs(dry_run=self._dry_run):
                 for event_log in txn_pair.logs:
-                    event_str = self.well_event_str(event_log)
-                    if event_str:
-                        self.message_function(event_str)
+                    # Avoids double-reporting on whitelisted wells having a dedicated channel
+                    if event_log.get("address") not in [BEAN_ETH_WELL_ADDR]:
+                        event_str = well_event_str(event_log, False, self.basin_graph_client, self.bean_client, web3=self._web3)
+                        if event_str:
+                            self.message_function(event_str)
 
     def aquifer_event_str(self, event_log):
-        event_str = ""
-
         if event_log.event == "BoreWell":
             well = event_log.args.get("well")
             tokens = event_log.args.get("tokens")
@@ -650,10 +652,6 @@ class AllWellsMonitor(Monitor):
             )
             event_str += "\n_ _"
             return event_str
-        
-    def well_event_str(self, event_log):
-        event_str = ""
-        return event_str
 
 # Monitors a specific Well.
 # NOTE arguments for doing 1 monitor for all wells and 1 monitor per well. In first pass wells will each get their
@@ -674,8 +672,8 @@ class WellMonitor(Monitor):
         self.pool_type = EventClientType.WELL
         self.pool_address = address
         self._eth_event_client = EthEventsClient(self.pool_type, self.pool_address)
-        self.bean_client = BeanClient()
         self.basin_graph_client = BasinSqlClient()
+        self.bean_client = BeanClient()
         self.bean_reporting = bean_reporting
 
     def _monitor_method(self):
