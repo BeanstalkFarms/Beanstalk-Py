@@ -648,8 +648,8 @@ class AllWellsMonitor(Monitor):
                 return result
 
             event_str = (
-                f"New Well created - {erc20_linkstr(erc20_info_0)} / {erc20_linkstr(erc20_info_1)}"
-                f"\n{'<:basin:1256383927610769478> ' if self._discord else ''}<https://basin.exchange/#/wells/{well.lower()}>"
+                f"{'<:basin:1256383927610769478> ' if self._discord else ''} New Well created - {erc20_linkstr(erc20_info_0)} / {erc20_linkstr(erc20_info_1)}"
+                f"\n<https://basin.exchange/#/wells/{well.lower()}>"
             )
             event_str += "\n_ _"
             return event_str
