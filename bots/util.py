@@ -1431,9 +1431,7 @@ class MarketMonitor(Monitor):
                         f"Ignoring null order cancel with graph id {order_id} and txn hash {event_log.transactionHash.hex()}"
                     )
                     return ""
-                pod_amount = pods_to_float(
-                    int(pod_order["podAmount"]) - int(pod_order["podAmountFilled"])
-                )
+                pod_amount = (float(pod_order["beanAmount"]) - float(pod_order["beanAmountFilled"])) / float(pod_order["pricePerPod"])
                 max_place = pods_to_float(pod_order["maxPlaceInLine"])
                 price_per_pod = bean_to_float(pod_order["pricePerPod"])
                 event_str += f"❌ Pod Order Cancelled"
