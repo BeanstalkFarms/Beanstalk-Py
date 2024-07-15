@@ -760,13 +760,14 @@ class WellClient(ChainClient):
         """Returns a list of ERC20 tokens supported by the Well."""
         return call_contract_function_with_retry(self.contract.functions.tokens())
 
-    def get_beans_sent(self, txn_hash, recipient, log_end_index):
-        """Return the amount (as a float) of BEAN sent in a transaction to the given recipient, prior to the provided log index"""
-        logs = get_erc20_transfer_logs_in_txn(BEAN_ADDR, txn_hash, recipient, log_end_index)
-        total_sum = 0
-        for entry in logs:
-            total_sum += int(entry.data, 16)
-        return total_sum
+
+def get_tokens_sent(token, txn_hash, recipient, log_end_index):
+    """Return the amount (as a float) of token sent in a transaction to the given recipient, prior to the provided log index"""
+    logs = get_erc20_transfer_logs_in_txn(token, txn_hash, recipient, log_end_index)
+    total_sum = 0
+    for entry in logs:
+        total_sum += int(entry.data, 16)
+    return total_sum
 
 
 def get_eth_sent(txn_hash, recipient, web3, log_end_index):
@@ -1020,25 +1021,21 @@ class EthEventsClient:
             self._contract_addresses = [AQUIFER_ADDR]
             self._events_dict = AQUIFER_EVENT_MAP
             self._signature_list = AQUIFER_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.WELL:
             self._contracts = [get_well_contract(self._web3, address)]
             self._contract_addresses = [address]
             self._events_dict = WELL_EVENT_MAP
             self._signature_list = WELL_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
             self._contracts = [get_bean_3crv_pool_contract(self._web3)]
             self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.UNI_V3_ROOT_BEAN_POOL:
             self._contracts = [get_uniswap_v3_contract(UNI_V3_ROOT_BEAN_ADDR, self._web3)]
             self._contract_addresses = [UNI_V3_ROOT_BEAN_ADDR]
             self._events_dict = UNISWAP_V3_POOL_EVENT_MAP
             self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contracts = [
                 get_beanstalk_contract(self._web3),
@@ -1047,25 +1044,21 @@ class EthEventsClient:
             self._contract_addresses = [BEANSTALK_ADDR, FERTILIZER_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.MARKET:
             self._contracts = [get_beanstalk_contract(self._web3)]
             self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.BARN_RAISE:
             self._contracts = [get_fertilizer_contract(self._web3)]
             self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.ROOT_TOKEN:
             self._contracts = [get_root_contract(self._web3)]
             self._contract_addresses = [ROOT_ADDR]
             self._events_dict = ROOT_EVENT_MAP
             self._signature_list = ROOT_SIGNATURES_LIST
-            self._set_filters()
         elif self._event_client_type == EventClientType.BETTING:
             self._contracts = [
                 get_betting_admin_contract(self._web3),
@@ -1074,9 +1067,9 @@ class EthEventsClient:
             self._contract_addresses = [BETTING_ADMIN_ADDR, BETTING_ADDR]
             self._events_dict = BETTING_EVENT_MAP
             self._signature_list = BETTING_SIGNATURES_LIST
-            self._set_filters()
         else:
             raise ValueError("Unsupported event client type.")
+        self._set_filters()
 
     def _set_filters(self):
         """This is located in a method so it can be reset on the fly."""
@@ -1278,9 +1271,15 @@ def safe_create_filter(web3, address, topics, from_block, to_block):
     try_count = 0
     while try_count < max_tries:
         try:
-            return web3.eth.filter(
-                {"address": address, "topics": topics, "fromBlock": from_block, "toBlock": to_block}
-            )
+            filter_params = {
+                "topics": topics,
+                "fromBlock": from_block,
+                "toBlock": to_block
+            }
+            # Include the address in the filter params only if it is not None
+            if address:
+                filter_params["address"] = address
+            return web3.eth.filter(filter_params)
         except websockets.exceptions.ConnectionClosedError as e:
             logging.warning(e, exc_info=True)
             time.sleep(2)
@@ -2632,6 +2631,30 @@ def get_test_entries():
             }
         ),
         ###
+
+        # BoreWell
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0x2a05799ce2d8a9ed710fc0e52242c1abaf26c994bb3f57f1bd20af64c12874b4"
+                ),
+                "topics": [
+                    HexBytes("0xff64a5823907c85a1e7c0400576024f76bd1640c74350033bd0d689f793202f2")
+                ]
+            }
+        ),
+
+        # Add liquidity to non whitelisted well
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0xa4b1538758fe42fc48ccf6301c9dfaeb5377da5978d31e621fd60a25204275b4"
+                ),
+                "topics": [
+                    HexBytes("0x91a6d8e872c9887412278189089c9936e99450551cc971309ff282f79bfef56f")
+                ]
+            }
+        )
     ]
     return entries
 
