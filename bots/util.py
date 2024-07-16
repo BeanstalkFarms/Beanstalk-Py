@@ -2454,7 +2454,7 @@ def round_num_auto(number, sig_fig_min=3, min_precision=2, abbreviate=False):
 
 
 def round_token(number, decimals, addr):
-    if addr.lower() == WRAPPED_ETH.lower():
+    if addr.lower() in {token.lower() for token in {WRAPPED_ETH, WSTETH, WBTC}}:
         precision = 2
     else:
         precision = 0
