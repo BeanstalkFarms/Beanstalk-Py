@@ -413,6 +413,8 @@ class SeasonsMonitor(Monitor):
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
 
+            # TODO wstETH
+
             ret_string += f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
             ret_string += (
                 f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
@@ -568,6 +570,7 @@ class BasinPeriodicMonitor(Monitor):
 
         per_well_str = ""
         for well in wells:
+            # TODO wstETH
             per_well_str += "\n- 🌱 " if well["id"] == BEAN_ETH_WELL_ADDR.lower() else "\n💦 "
             per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
@@ -1259,6 +1262,7 @@ class BeanstalkMonitor(Monitor):
             UNRIPE_3CRV_ADDR,
         ]:
             pool_token = BEAN_ETH_WELL_ADDR
+        # TODO wstETH
 
         event_str = (
             f"🔄 {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
@@ -2219,6 +2223,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
+            # TODO wstETH
             bean_eth_liquidity = 0
             bean_eth_volume = 0
             wells = self.basin_graph_client.get_wells_stats()

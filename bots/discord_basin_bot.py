@@ -13,8 +13,9 @@ from bots import util
 from constants.addresses import *
 
 DISCORD_CHANNEL_ID_TEST = 1117767077420339220
-DISCORD_CHANNEL_ID_BEAN_ETH = 1117768417861193819
 DISCORD_CHANNEL_ID_DAILY = 1117768293625888868
+DISCORD_CHANNEL_ID_BEAN_ETH = 1117768417861193819
+DISCORD_CHANNEL_ID_BEAN_WSTETH = 1262891110439587890
 DISCORD_CHANNEL_ID_WELLS_OTHER = 1257633554427543633
 
 
@@ -22,7 +23,8 @@ class Channel(Enum):
     REPORT = 0
     DAILY = 1
     BEAN_ETH = 2
-    WELLS_OTHER = 3
+    BEAN_WSTETH = 3,
+    WELLS_OTHER = 4
 
 
 class DiscordClient(discord.ext.commands.Bot):
@@ -34,12 +36,14 @@ class DiscordClient(discord.ext.commands.Bot):
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST
             self._chat_id_daily = DISCORD_CHANNEL_ID_DAILY
             self._chat_id_bean_eth = DISCORD_CHANNEL_ID_BEAN_ETH
+            self._chat_id_bean_wsteth = DISCORD_CHANNEL_ID_BEAN_WSTETH
             self._chat_id_other_wells = DISCORD_CHANNEL_ID_WELLS_OTHER
             logging.info("Configured as a production instance.")
         else:
             self._chat_id_report = DISCORD_CHANNEL_ID_TEST
             self._chat_id_daily = DISCORD_CHANNEL_ID_TEST
             self._chat_id_bean_eth = DISCORD_CHANNEL_ID_TEST
+            self._chat_id_bean_wsteth = DISCORD_CHANNEL_ID_TEST
             self._chat_id_other_wells = DISCORD_CHANNEL_ID_TEST
             logging.info("Configured as a staging instance.")
 
@@ -60,9 +64,14 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_eth.start()
+        
+        self.well_monitor_bean_wsteth = util.WellMonitor(
+            self.send_msg_bean_wsteth, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=False
+        )
+        self.well_monitor_bean_wsteth.start()
 
         self.well_monitor_all = util.AllWellsMonitor(
-            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR], discord=True, prod=prod, dry_run=False
+            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=True, prod=prod, dry_run=False
         )
         self.well_monitor_all.start()
 
@@ -80,6 +89,8 @@ class DiscordClient(discord.ext.commands.Bot):
     def stop(self):
         self.period_monitor.stop()
         self.well_monitor_bean_eth.stop()
+        self.well_monitor_bean_wsteth.stop()
+        self.well_monitor_all.stop()
 
     def send_msg_report(self, text):
         """Send a message through the Discord bot in the report/test channel."""
@@ -93,6 +104,10 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the bean eth well channel."""
         self.msg_queue.append((Channel.BEAN_ETH, text))
 
+    def send_msg_bean_wsteth(self, text):
+        """Send a message through the Discord bot in the bean wsteth well channel."""
+        self.msg_queue.append((Channel.BEAN_WSTETH, text))
+
     def send_msg_wells_other(self, text):
         """Send a message through the Discord bot in the other wells channel."""
         self.msg_queue.append((Channel.WELLS_OTHER, text))
@@ -101,10 +116,11 @@ class DiscordClient(discord.ext.commands.Bot):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_daily = self.get_channel(self._chat_id_daily)
         self._channel_bean_eth = self.get_channel(self._chat_id_bean_eth)
+        self._channel_bean_wsteth = self.get_channel(self._chat_id_bean_wsteth)
         self._channel_wells_other = self.get_channel(self._chat_id_other_wells)
 
         logging.info(
-            f"Discord channels are {self._channel_report}, {self._channel_daily}, {self._channel_bean_eth}, {self._chat_id_other_wells}"
+            f"Discord channels are {self._channel_report}, {self._channel_daily}, {self._channel_bean_eth}, {self._channel_bean_wsteth}, {self._chat_id_other_wells}"
         )
 
         # Guild IDs for all servers this bot is in.
@@ -152,6 +168,8 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_daily.send(msg)
                 elif channel is Channel.BEAN_ETH:
                     await self._channel_bean_eth.send(msg)
+                elif channel is Channel.BEAN_WSTETH:
+                    await self._channel_bean_wsteth.send(msg)
                 elif channel is Channel.WELLS_OTHER:
                     await self._channel_wells_other.send(msg)
                 else:

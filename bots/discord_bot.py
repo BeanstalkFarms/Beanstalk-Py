@@ -124,6 +124,11 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_pool, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
         )
         self.well_monitor.start()
+        
+        self.well_monitor_2 = util.WellMonitor(
+            self.send_msg_pool, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
+        )
+        self.well_monitor_2.start()
 
         self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False
@@ -163,6 +168,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
         self.well_monitor.stop()
+        self.well_monitor_2.stop()
         self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
