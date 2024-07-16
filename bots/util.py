@@ -568,11 +568,13 @@ class BasinPeriodicMonitor(Monitor):
         weekly_volume = 0
         wells = self.basin_graph_client.get_latest_well_snapshots(7)
 
-        per_well_str = ""
+        whitelisted_wells_str = ""
+        other_wells_liquidity = 0
         for well in wells:
-            # TODO wstETH
-            per_well_str += "\n- 🌱 " if well["id"] == BEAN_ETH_WELL_ADDR.lower() else "\n💦 "
-            per_well_str += f'{TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
+            if well["id"] in {token.lower() for token in {BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR}}:
+                whitelisted_wells_str += f"\n- 🌱 {TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}"
+            else:
+                other_wells_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"]);
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])
             daily_volume += float(well["dailySnapshots"][0]["deltaTradeVolumeUSD"])
             for snapshot in well["dailySnapshots"]:
@@ -587,7 +589,9 @@ class BasinPeriodicMonitor(Monitor):
         )
 
         ret_str += f"\n\n**Wells**"
-        ret_str += per_well_str
+        ret_str += whitelisted_wells_str
+        if other_wells_liquidity > 0:
+            ret_str += f"\n- 💦 Other Wells' Liquidity: ${round_num_auto(other_wells_liquidity, sig_fig_min=2, abbreviate=True)}"
 
         return ret_str
 
