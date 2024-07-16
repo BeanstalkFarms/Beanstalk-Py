@@ -396,6 +396,7 @@ class SeasonsMonitor(Monitor):
         ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
         # Pool info.
+        bean_wsteth_well_pi = self.bean_client.well_bean_wsteth_pool_info()
         bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
         curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
 
@@ -413,8 +414,11 @@ class SeasonsMonitor(Monitor):
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
 
-            # TODO wstETH
-
+            ret_string += f"\n🌊 BEANwstETH: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)} - "
+            ret_string += (
+                f"_deltaB [{round_num(token_to_float(bean_wsteth_well_pi['delta_b'], 6), 0)}], "
+            )
+            ret_string += f"price [${round_num(token_to_float(bean_wsteth_well_pi['price'], 6), 4)}]_"
             ret_string += f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
             ret_string += (
                 f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
@@ -2228,7 +2232,8 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
-            # TODO wstETH
+            bean_wsteth_liquidity = 0
+            bean_wsteth_volume = 0
             bean_eth_liquidity = 0
             bean_eth_volume = 0
             wells = self.basin_graph_client.get_wells_stats()
@@ -2237,15 +2242,18 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
                 if well["id"].lower() == BEAN_ETH_WELL_ADDR.lower():
                     bean_eth_liquidity += float(well["totalLiquidityUSD"])
                     bean_eth_volume += float(well["cumulativeTradeVolumeUSD"])
+                elif well["id"].lower() == BEAN_WSTETH_WELL_ADDR.lower():
+                    bean_wsteth_liquidity += float(well["totalLiquidityUSD"])
+                    bean_wsteth_volume += float(well["cumulativeTradeVolumeUSD"])
 
-            if bean_eth_liquidity == 0:
+            if bean_eth_liquidity == 0 or bean_wsteth_liquidity == 0:
                 logging.warning(
-                    "Missing BEAN:ETH Well liquidity data in subgraph query result. Skipping update..."
+                    "Missing required Well liquidity data in subgraph query result. Skipping update..."
                 )
                 continue
 
             # root_bdv = self.root_client.get_root_token_bdv()
-            name_str = f"Liq: ${round_num(bean_eth_liquidity, 0)}"
+            name_str = f"Liq: ${round_num(bean_eth_liquidity + bean_wsteth_liquidity, 0)}"
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
