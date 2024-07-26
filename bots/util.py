@@ -711,9 +711,10 @@ class WellMonitor(Monitor):
             return
 
         for event_log in event_logs:
-            event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
-            if event_str:
-                self.message_function(event_str)
+            if event_log.get("address") == self.pool_address:
+                event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
+                if event_str:
+                    self.message_function(event_str)
     
 def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, web3=None):
     bdv = value = None
