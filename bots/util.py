@@ -25,7 +25,7 @@ from data_access.graphs import (
 from data_access.eth_chain import *
 from data_access.etherscan import get_gas_base_fee
 from data_access.coin_gecko import get_token_price
-from data_access.eth_usd_oracle import get_twa_eth_price
+from data_access.eth_usd_oracle import *
 from tools.util import get_txn_receipt_or_wait
 
 # Strongly encourage Python 3.8+.
@@ -368,6 +368,8 @@ class SeasonsMonitor(Monitor):
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
         eth_price = get_twa_eth_price(self._web3, 3600)
+        wsteth_price = get_twa_wsteth_price(self._web3, 3600)
+        wsteth_eth_price = get_twa_wsteth_to_eth(self._web3, 3600)
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = current_season_stats.reward_beans
         incentive_beans = current_season_stats.incentive_beans
@@ -405,6 +407,7 @@ class SeasonsMonitor(Monitor):
         # Full string message.
         if not short_str:
             ret_string += f"\n🪙 TWA ETH price is ${round_num(eth_price, 2)}"
+            ret_string += f"\n🪙 TWA wstETH price is ${round_num(wsteth_price, 2)} (1 wstETH = {round_num(wsteth_eth_price, 4)} ETH)"
             # Bean Supply stats.
             ret_string += f"\n\n**Supply**"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted"
@@ -708,9 +711,10 @@ class WellMonitor(Monitor):
             return
 
         for event_log in event_logs:
-            event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
-            if event_str:
-                self.message_function(event_str)
+            if event_log.get("address") == self.pool_address:
+                event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
+                if event_str:
+                    self.message_function(event_str)
     
 def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, web3=None):
     bdv = value = None

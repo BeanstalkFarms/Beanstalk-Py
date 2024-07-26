@@ -2663,6 +2663,18 @@ def get_test_entries():
                     HexBytes("0x91a6d8e872c9887412278189089c9936e99450551cc971309ff282f79bfef56f")
                 ]
             }
+        ),
+
+        # Arbitrage between two wells
+        AttributeDict(
+            {
+                "transactionHash": HexBytes(
+                    "0x5720b8ea2c214e049e9569a0da468c06f96f1909049de1089ba916f867836d30"
+                ),
+                "topics": [
+                    HexBytes("0xb39c9bc43f811e1a7ce159c5f147458fdb80266bf23c17322013316e27e086d0")
+                ]
+            }
         )
     ]
     return entries
