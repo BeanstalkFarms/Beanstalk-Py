@@ -32,9 +32,14 @@ class TelegramBasinBot(object):
             self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_eth.start()
+        
+        self.well_monitor_bean_wsteth = util.WellMonitor(
+            self.send_msg, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=False
+        )
+        self.well_monitor_bean_wsteth.start()
 
         self.well_monitor_all = util.AllWellsMonitor(
-            self.send_msg, [BEAN_ETH_WELL_ADDR], discord=False, prod=prod, dry_run=False
+            self.send_msg, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=False, prod=prod, dry_run=False
         )
         self.well_monitor_all.start()
 
@@ -51,6 +56,8 @@ class TelegramBasinBot(object):
     def stop(self):
         self.period_monitor.stop()
         self.well_monitor_bean_eth.stop()
+        self.well_monitor_bean_wsteth.stop()
+        self.well_monitor_all.stop()
 
 
 if __name__ == "__main__":

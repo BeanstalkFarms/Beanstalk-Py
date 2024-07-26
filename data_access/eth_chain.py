@@ -84,6 +84,7 @@ TOKEN_SYMBOL_MAP = {
     UNRIPE_ADDR.lower(): "urBEAN",
     UNRIPE_3CRV_ADDR.lower(): "urBEANETH",
     BEAN_ETH_WELL_ADDR.lower(): "BEANETH",
+    BEAN_WSTETH_WELL_ADDR.lower(): "BEANwstETH",
 }
 
 
@@ -738,6 +739,14 @@ class BeanClient(ChainClient):
     def well_bean_eth_bean_price(self):
         """Current float Bean price in the BEAN:ETH well."""
         return bean_to_float(self.well_bean_eth_pool_info()["price"])
+    
+    def well_bean_wsteth_pool_info(self):
+        """Return pool info as dict."""
+        return self.get_price_info()["pool_infos"][BEAN_WSTETH_WELL_ADDR]
+
+    def well_bean_wsteth_bean_price(self):
+        """Current float Bean price in the BEAN:wstETH well."""
+        return bean_to_float(self.well_bean_wsteth_pool_info()["price"])
 
 
 # class AquiferClient(ChainClient):
@@ -2648,7 +2657,7 @@ def get_test_entries():
         AttributeDict(
             {
                 "transactionHash": HexBytes(
-                    "0xa4b1538758fe42fc48ccf6301c9dfaeb5377da5978d31e621fd60a25204275b4"
+                    "0xa9bd1cad0581721480b925999c8728f6c9d50a140e50003c87dc80a8b6b94a39"
                 ),
                 "topics": [
                     HexBytes("0x91a6d8e872c9887412278189089c9936e99450551cc971309ff282f79bfef56f")

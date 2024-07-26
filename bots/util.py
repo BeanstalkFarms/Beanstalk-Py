@@ -396,6 +396,7 @@ class SeasonsMonitor(Monitor):
         ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
         # Pool info.
+        bean_wsteth_well_pi = self.bean_client.well_bean_wsteth_pool_info()
         bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
         curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
 
@@ -413,6 +414,11 @@ class SeasonsMonitor(Monitor):
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
 
+            ret_string += f"\n🌊 BEANwstETH: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)} - "
+            ret_string += (
+                f"_deltaB [{round_num(token_to_float(bean_wsteth_well_pi['delta_b'], 6), 0)}], "
+            )
+            ret_string += f"price [${round_num(token_to_float(bean_wsteth_well_pi['price'], 6), 4)}]_"
             ret_string += f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
             ret_string += (
                 f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
@@ -569,7 +575,7 @@ class BasinPeriodicMonitor(Monitor):
         whitelisted_wells_str = ""
         other_wells_liquidity = 0
         for well in wells:
-            if well["id"] in {token.lower() for token in {BEAN_ETH_WELL_ADDR}}:
+            if well["id"] in {token.lower() for token in {BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR}}:
                 whitelisted_wells_str += f'\n- 🌱 {TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
             else:
                 other_wells_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"]);
@@ -1259,11 +1265,13 @@ class BeanstalkMonitor(Monitor):
         pool_token = BEAN_ADDR
         if remove_token_addr == CURVE_BEAN_3CRV_ADDR or add_token_addr == CURVE_BEAN_3CRV_ADDR:
             pool_token = CURVE_BEAN_3CRV_ADDR
-        elif remove_token_addr in [BEAN_ETH_WELL_ADDR, UNRIPE_3CRV_ADDR] or add_token_addr in [
-            BEAN_ETH_WELL_ADDR,
+        elif remove_token_addr == BEAN_ETH_WELL_ADDR or add_token_addr == BEAN_ETH_WELL_ADDR:
+            pool_token = BEAN_ETH_WELL_ADDR
+        elif remove_token_addr in [BEAN_WSTETH_WELL_ADDR, UNRIPE_3CRV_ADDR] or add_token_addr in [
+            BEAN_WSTETH_WELL_ADDR,
             UNRIPE_3CRV_ADDR,
         ]:
-            pool_token = BEAN_ETH_WELL_ADDR
+            pool_token = BEAN_WSTETH_WELL_ADDR
 
         event_str = (
             f"🔄 {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
@@ -2224,6 +2232,8 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
+            bean_wsteth_liquidity = 0
+            bean_wsteth_volume = 0
             bean_eth_liquidity = 0
             bean_eth_volume = 0
             wells = self.basin_graph_client.get_wells_stats()
@@ -2232,15 +2242,18 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
                 if well["id"].lower() == BEAN_ETH_WELL_ADDR.lower():
                     bean_eth_liquidity += float(well["totalLiquidityUSD"])
                     bean_eth_volume += float(well["cumulativeTradeVolumeUSD"])
+                elif well["id"].lower() == BEAN_WSTETH_WELL_ADDR.lower():
+                    bean_wsteth_liquidity += float(well["totalLiquidityUSD"])
+                    bean_wsteth_volume += float(well["cumulativeTradeVolumeUSD"])
 
-            if bean_eth_liquidity == 0:
+            if bean_eth_liquidity == 0 or bean_wsteth_liquidity == 0:
                 logging.warning(
-                    "Missing BEAN:ETH Well liquidity data in subgraph query result. Skipping update..."
+                    "Missing required Well liquidity data in subgraph query result. Skipping update..."
                 )
                 continue
 
             # root_bdv = self.root_client.get_root_token_bdv()
-            name_str = f"Liq: ${round_num(bean_eth_liquidity, 0)}"
+            name_str = f"Liq: ${round_num(bean_eth_liquidity + bean_wsteth_liquidity, 0)}"
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
@@ -2454,7 +2467,7 @@ def round_num_auto(number, sig_fig_min=3, min_precision=2, abbreviate=False):
 
 
 def round_token(number, decimals, addr):
-    if addr.lower() == WRAPPED_ETH.lower():
+    if addr.lower() in {token.lower() for token in {WRAPPED_ETH, WSTETH, WBTC}}:
         precision = 2
     else:
         precision = 0
