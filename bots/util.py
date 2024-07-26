@@ -407,7 +407,7 @@ class SeasonsMonitor(Monitor):
         # Full string message.
         if not short_str:
             ret_string += f"\n🪙 TWA ETH price is ${round_num(eth_price, 2)}"
-            ret_string += f"\n🪙 TWA wstETH price is ${round_num(wsteth_price, 2)} (1 wstETH = ${round_num(wsteth_eth_price, 4)} ETH)"
+            ret_string += f"\n🪙 TWA wstETH price is ${round_num(wsteth_price, 2)} (1 wstETH = {round_num(wsteth_eth_price, 4)} ETH)"
             # Bean Supply stats.
             ret_string += f"\n\n**Supply**"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans minted"
