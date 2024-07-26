@@ -2,6 +2,8 @@ import logging
 from data_access.eth_chain import get_web3_instance, get_eth_usd_oracle_contract
 
 
+# Note: Could make these generic by using getTokenUsdTwap function with the token as first parameter
+
 def get_twa_eth_price(web3, lookback_secs):
     """Returns the TWA price of ETH in USD as a float."""
     contract = get_eth_usd_oracle_contract(web3)
