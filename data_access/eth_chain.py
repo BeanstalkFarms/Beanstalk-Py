@@ -82,7 +82,7 @@ TOKEN_SYMBOL_MAP = {
     BEAN_ADDR.lower(): "BEAN",
     CURVE_BEAN_3CRV_ADDR.lower(): "BEAN3CRV",
     UNRIPE_ADDR.lower(): "urBEAN",
-    UNRIPE_3CRV_ADDR.lower(): "urBEANETH",
+    UNRIPE_3CRV_ADDR.lower(): "urBEANwstETH",
     BEAN_ETH_WELL_ADDR.lower(): "BEANETH",
     BEAN_WSTETH_WELL_ADDR.lower(): "BEANwstETH",
 }
