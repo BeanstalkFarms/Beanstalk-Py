@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 import websockets
+import re
 
 from constants.addresses import *
 from data_access.graphs import (
@@ -2472,7 +2473,9 @@ def round_token(number, decimals, addr):
         precision = 2
     else:
         precision = 0
-    return round_num(token_to_float(number, decimals), precision)
+    s = round_num(token_to_float(number, decimals), precision)
+    # Prefix with "<" if only zeros would show
+    return s if re.search(r'[1-9]', s) else f"<{s}"
 
 
 def value_to_emojis(value):
