@@ -572,6 +572,10 @@ class BeanstalkClient(ChainClient):
     def get_season_start_soil(self):
         """Amount of soil added/removed this season."""
         return soil_to_float(self.get_weather()[STARTSOIL_INDEX])
+    
+    def get_season_block(self):
+        """Get the block in which the latest season started"""
+        return call_contract_function_with_retry(self.contract.functions.sunriseBlock())
 
     def get_total_deposited_beans(self):
         """Get current total deposited Beans in the Silo."""
@@ -634,6 +638,11 @@ class BeanstalkClient(ChainClient):
         elif current_season > self.replant_season + self.max_steps:
             return self.final_humidity
         return self.base_humidity - (current_season - self.replant_season) * self.humidity_step_size
+
+    def get_seeds(self, token, block_number='latest'):
+        """Returns the current amount of Seeds awarded for depositing `token` in the silo."""
+        token_settings = call_contract_function_with_retry(self.contract.functions.tokenSettings(token), block_number=block_number)
+        return (token_settings[1] * 10000) / 10 ** STALK_DECIMALS
 
 
 class BeanClient(ChainClient):
@@ -1391,12 +1400,12 @@ def txn_topic_combo_id(entry):
     return entry["transactionHash"].hex() + entry["topics"][0].hex()
 
 
-def call_contract_function_with_retry(function, max_tries=10):
+def call_contract_function_with_retry(function, max_tries=10, block_number='latest'):
     """Try to call a web3 contract object function and retry with exponential backoff."""
     try_count = 1
     while True:
         try:
-            return function.call()
+            return function.call(block_identifier=block_number)
         except Exception as e:
             if try_count < max_tries:
                 try_count += 1
@@ -2700,40 +2709,42 @@ def monitor_beanstalk_events():
         time.sleep(5)
 
 
-def monitor_betting_events():
-    # client = EthEventsClient(EventClientType.BETTING)
-    # while True:
-    #     events = client.get_new_logs(dry_run=False)
-    #     time.sleep(5)
-    web3 = get_web3_arbitrum_instance()
-    filter = safe_create_filter(
-        web3,
-        address=BETTING_ADDR_ARBITRUM,
-        topics=[BETTING_SIGNATURES_LIST],
-        # from_block=10581687, # Use this to search for old events. # Rinkeby
-        # from_block=14205000, # Use this to search for old events. # Mainnet
-        from_block=45862794,
-        to_block="latest",
-    )
-    entries = filter.get_all_entries()
-    for entry in entries:
-        logging.warning(entry)
+# def monitor_betting_events():
+#     # client = EthEventsClient(EventClientType.BETTING)
+#     # while True:
+#     #     events = client.get_new_logs(dry_run=False)
+#     #     time.sleep(5)
+#     web3 = get_web3_arbitrum_instance()
+#     filter = safe_create_filter(
+#         web3,
+#         address=BETTING_ADDR_ARBITRUM,
+#         topics=[BETTING_SIGNATURES_LIST],
+#         # from_block=10581687, # Use this to search for old events. # Rinkeby
+#         # from_block=14205000, # Use this to search for old events. # Mainnet
+#         from_block=45862794,
+#         to_block="latest",
+#     )
+#     entries = filter.get_all_entries()
+#     for entry in entries:
+#         logging.warning(entry)
 
-    # client = RootClient(web3)
-    # client.get_total_supply()
-    # client.get_root_token_bdv()
+#     # client = RootClient(web3)
+#     # client.get_total_supply()
+#     # client.get_root_token_bdv()
 
-    # client = BettingClient(web3)
-    # logging.info(client.get_active_pools())
+#     # client = BettingClient(web3)
+#     # logging.info(client.get_active_pools())
 
 
 if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
+    bs = BeanstalkClient()
+    logging.info(f"bean seeds {bs.get_seeds(BEAN_ADDR)}")
+    logging.info(f"season block {bs.get_season_block()}")
     # monitor_beanstalk_events()
     # monitor_curve_pool_events()
     # bean_client = BeanClient()
     # bean_client.avg_bean_price()
     # curve_client = CurveClient()
     # print(curve_client.get_3crv_price())
-    monitor_betting_events()
