@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 import websockets
+import re
 
 from constants.addresses import *
 from data_access.graphs import (
@@ -23,6 +24,7 @@ from data_access.graphs import (
     DAO_SNAPSHOT_NAME,
 )
 from data_access.eth_chain import *
+from data_access.util import *
 from data_access.etherscan import get_gas_base_fee
 from data_access.coin_gecko import get_token_price
 from data_access.eth_usd_oracle import *
@@ -331,7 +333,7 @@ class SeasonsMonitor(Monitor):
         This is not exact since we do not bother with syncing local and graph time.
         """
         if self._dry_run:
-            time.sleep(5)
+            time.sleep(1)
             return
 
         seconds_until_next_sunrise = SEASON_DURATION - time.time() % SEASON_DURATION
@@ -436,15 +438,29 @@ class SeasonsMonitor(Monitor):
             # Silo balance stats.
             ret_string += f"\n\n**Silo**"
             ret_string += f"\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo"
-            asset_rank = 0
+
+            # Gets current and previous season seeds for each asset
+            season_block = self.beanstalk_client.get_season_block()
+            parallelized = []
             for asset_changes in silo_assets_changes:
-                asset_rank += 1
-                # silo_asset_str = ''
+                parallelized.append(lambda token=asset_changes.token: self.beanstalk_client.get_seeds(token))
+                parallelized.append(lambda token=asset_changes.token, block=season_block - 1: self.beanstalk_client.get_seeds(token, block))
+
+            seed_results = execute_lambdas(*parallelized)
+            logging.info('seed results', seed_results)
+
+            for i in range(len(silo_assets_changes)):
+
+                asset_changes = silo_assets_changes[i]
+                seeds_now = seed_results[2*i]
+                seeds_prev = seed_results[2*i + 1]
+
                 ret_string += f"\n"
                 _, _, token_symbol, decimals = get_erc20_info(
                     asset_changes.token, web3=self._web3
                 ).parse()
                 delta_asset = token_to_float(asset_changes.delta_asset, decimals)
+                delta_seeds = seeds_now - seeds_prev
                 # Asset BDV at final season end, deduced from subgraph data.
                 asset_bdv = bean_to_float(
                     asset_changes.final_season_asset["depositedBDV"]
@@ -452,15 +468,26 @@ class SeasonsMonitor(Monitor):
                 # asset_bdv = bean_to_float(asset_changes.final_season_bdv)
                 current_bdv = asset_changes.final_season_asset["depositedBDV"]
 
-                # VERSION 1
+                ret_string += f"{token_symbol}:"
+
+                # BDV
                 if delta_asset < 0:
-                    ret_string += f"📉 {round_num(abs(delta_asset * asset_bdv), 0)} BDV"
+                    ret_string += f"\n\t📉 BDV: {round_num(abs(delta_asset * asset_bdv), 0)}"
                 elif delta_asset == 0:
-                    ret_string += f"🧾 No change"
+                    ret_string += f"\n\t📊 BDV: No change"
                 else:
-                    ret_string += f"📈 {round_num(abs(delta_asset * asset_bdv), 0)} BDV"
+                    ret_string += f"\n\t📈 BDV: {round_num(abs(delta_asset * asset_bdv), 0)}"
+
+                # Seeds
+                if delta_seeds < 0:
+                    ret_string += f"\n\t📉 Seeds: {round_num(abs(delta_seeds), 3, avoid_zero=True)}"
+                elif delta_seeds == 0:
+                    ret_string += f"\n\t📊 Seeds: No change"
+                else:
+                    ret_string += f"\n\t📈 Seeds: {round_num(abs(delta_seeds), 3, avoid_zero=True)}"
+
                 # ret_string += f' — {token_symbol}  ({round_num(bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
-                ret_string += f" — {token_symbol}  ({round_num_auto(bean_to_float(current_bdv), sig_fig_min=2, abbreviate=True)} BDV)"
+                ret_string += f"\n\t📊 Totals: {round_num_auto(bean_to_float(current_bdv), sig_fig_min=2, abbreviate=True)} BDV, {round_num(seeds_now, 3)} Seeds, {round_num(bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo"
 
             # Field.
             ret_string += f"\n\n**Field**"
@@ -2227,7 +2254,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
     """
 
     def __init__(self, name_function, status_function):
-        super().__init__("BasinStatus", name_function, status_function, 1)
+        super().__init__("BasinStatus", name_function, status_function, 2)
         self.last_name = ""
         self.basin_graph_client = BasinSqlClient()
 
@@ -2236,36 +2263,33 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             self.wait_for_next_cycle()
             self.iterate_display_index()
 
-            bean_wsteth_liquidity = 0
-            bean_wsteth_volume = 0
-            bean_eth_liquidity = 0
-            bean_eth_volume = 0
+            liquidity = 0
+            volume = 0
+            well_count = 0
             wells = self.basin_graph_client.get_wells_stats()
 
             for well in wells:
-                if well["id"].lower() == BEAN_ETH_WELL_ADDR.lower():
-                    bean_eth_liquidity += float(well["totalLiquidityUSD"])
-                    bean_eth_volume += float(well["cumulativeTradeVolumeUSD"])
-                elif well["id"].lower() == BEAN_WSTETH_WELL_ADDR.lower():
-                    bean_wsteth_liquidity += float(well["totalLiquidityUSD"])
-                    bean_wsteth_volume += float(well["cumulativeTradeVolumeUSD"])
+                if well["id"].lower() in [BEAN_ETH_WELL_ADDR.lower(), BEAN_WSTETH_WELL_ADDR.lower()]:
+                    liquidity += float(well["totalLiquidityUSD"])
+                    volume += float(well["cumulativeTradeVolumeUSD"])
+                    well_count += 1
 
-            if bean_eth_liquidity == 0 or bean_wsteth_liquidity == 0:
+            if liquidity == 0:
                 logging.warning(
                     "Missing required Well liquidity data in subgraph query result. Skipping update..."
                 )
                 continue
 
-            # root_bdv = self.root_client.get_root_token_bdv()
-            name_str = f"Liq: ${round_num(bean_eth_liquidity + bean_wsteth_liquidity, 0)}"
+            name_str = f"Liq: ${round_num(liquidity, 0)}"
             if name_str != self.last_name:
                 self.name_function(name_str)
                 self.last_name = name_str
 
             # Rotate data and update status.
             if self.display_index == 0:
-                # self.status_function(f"Cumul Vol: ${round_num(bean_eth_volume/1000, 0)}k")
-                self.status_function(f"BEANETH")
+                self.status_function(f"Cumul Vol: ${round_num(volume/1000000, 2)}m")
+            else:
+                self.status_function(f"{well_count} Wells")
 
 
 class ParadoxPoolsPreviewMonitor(PreviewMonitor):
@@ -2442,10 +2466,12 @@ def sig_compare(signature, signatures):
 
 def round_num(number, precision=2, avoid_zero=False, incl_dollar=False):
     """Round a string or float to requested precision and return as a string."""
-    if avoid_zero and number > 0 and number < 1:
-        return "< $1" if incl_dollar else "<1"
+    if avoid_zero and number == 0:
+        return f"{'$' if incl_dollar else ''}0{'.' + '0' * precision if precision > 0 else ''}"
     ret_string = "$" if incl_dollar else ""
     ret_string += f"{float(number):,.{precision}f}"
+    if avoid_zero and not re.search(r'[1-9]', ret_string):
+        return f"<{' ' if incl_dollar else ''}{ret_string[:-1]}1"
     return ret_string
 
 
@@ -2470,12 +2496,12 @@ def round_num_auto(number, sig_fig_min=3, min_precision=2, abbreviate=False):
     return "%s" % float(f"%.{sig_fig_min}g" % float(number))
 
 
-def round_token(number, decimals, addr):
+def round_token(number, decimals, addr=''):
     if addr.lower() in {token.lower() for token in {WRAPPED_ETH, WSTETH, WBTC}}:
         precision = 2
     else:
         precision = 0
-    return round_num(token_to_float(number, decimals), precision)
+    return round_num(token_to_float(number, decimals), precision, avoid_zero=True)
 
 
 def value_to_emojis(value):
