@@ -2473,9 +2473,15 @@ def round_token(number, decimals, addr):
         precision = 2
     else:
         precision = 0
+
+    amount = token_to_float(number, decimals)
+    if amount == 0.0:
+        # If there are no tokens, simply return 0
+        return f"0{'.' + '0' * precision if precision > 0 else ''}"
+
     s = round_num(token_to_float(number, decimals), precision)
-    # Prefix with "<" if only zeros would show
-    return s if re.search(r'[1-9]', s) else f"<{s}"
+    # Prefix with "<" if there are fewer tokens than the specified precision
+    return s if re.search(r'[1-9]', s) else f"<{s[:-1]}1"
 
 
 def value_to_emojis(value):
