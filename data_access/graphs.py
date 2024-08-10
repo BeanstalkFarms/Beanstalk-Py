@@ -431,9 +431,6 @@ class BasinSqlClient(object):
         query_str = f"""
             query {{
                 deposit(id: "{txn_hash.hex()}-{str(log_index)}") {{
-                    tokens {{
-                        id
-                    }}
                     reserves
                     amountUSD
                 }}

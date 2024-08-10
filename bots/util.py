@@ -789,7 +789,7 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
         )
         if deposit:
             for i in range(len(tokens)):
-                erc20_info = get_erc20_info(deposit["tokens"][i]["id"])
+                erc20_info = get_erc20_info(tokens[i])
                 event_str += f'{round_token(deposit["reserves"][i], erc20_info.decimals, erc20_info.addr)} {erc20_info.symbol}'
                 if i < len(tokens) - 1:
                     event_str += " and"
