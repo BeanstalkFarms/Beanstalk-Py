@@ -1243,7 +1243,7 @@ class BeanstalkMonitor(Monitor):
                 underlying_token_value = self.bean_client.get_curve_lp_token_value(
                     underlying, underlying_decimals
                 )
-            event_str += f"⚰ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}"
+            event_str += f"⚰️ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}"
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
                 event_str += (
@@ -1304,10 +1304,18 @@ class BeanstalkMonitor(Monitor):
         ]:
             pool_token = BEAN_WSTETH_WELL_ADDR
 
-        event_str = (
-            f"🔄 {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
-            f"Converted to {round_num_auto(add_float, min_precision=0)} {add_token_symbol} "
-        )
+        if remove_token_symbol.startswith("ur") and not add_token_symbol.startswith("ur"):
+            # Chop convert
+            event_str = (
+                f"⚰️ {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
+                f"Convert-Chopped to {round_num_auto(add_float, min_precision=0)} {add_token_symbol} "
+            )
+        else:
+            # Normal convert
+            event_str = (
+                f"🔄 {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
+                f"Converted to {round_num_auto(add_float, min_precision=0)} {add_token_symbol} "
+            )
         # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
         event_str += f"({round_num(bdv_float, 0)} BDV)"
         pool_type_str = f""
