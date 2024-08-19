@@ -296,6 +296,7 @@ class SeasonsMonitor(Monitor):
         self.short_msgs = short_msgs
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
+        self._eth_event_client = EthEventsClient(EventClientType.SEASON)
         self.beanstalk_graph_client = BeanstalkSqlClient()
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()
@@ -310,6 +311,10 @@ class SeasonsMonitor(Monitor):
             current_season_stats, last_season_stats = self._block_and_get_seasons_stats()
             # A new season has begun.
             if current_season_stats:
+                # Get the txn hash for this sunrise call
+                sunrise_tx = self._eth_event_client.get_new_logs(dry_run=self._dry_run)[0]
+                current_season_stats.sunrise_hash = sunrise_tx.txn_hash
+
                 # Report season summary to users.
                 self.message_function(
                     self.season_summary_string(

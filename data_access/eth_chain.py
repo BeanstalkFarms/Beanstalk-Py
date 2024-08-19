@@ -258,6 +258,15 @@ add_event_to_dict(
     "ClaimFertilizer(uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
 
+# Season/sunrise events
+SEASON_EVENT_MAP = {}
+SEASON_SIGNATURES_LIST = []
+add_event_to_dict(
+    "Incentivization(indexed address,uint256)",
+    SEASON_EVENT_MAP,
+    SEASON_SIGNATURES_LIST,
+)
+
 # Farmer's market events.
 MARKET_EVENT_MAP = {}
 MARKET_SIGNATURES_LIST = []
@@ -1028,7 +1037,8 @@ class EventClientType(IntEnum):
     BETTING = 5
     UNI_V3_ROOT_BEAN_POOL = 6
     WELL = 7
-    AQUIFER = 8
+    AQUIFER = 8,
+    SEASON = 9
 
 
 class EthEventsClient:
@@ -1065,6 +1075,11 @@ class EthEventsClient:
             self._contract_addresses = [BEANSTALK_ADDR, FERTILIZER_ADDR]
             self._events_dict = BEANSTALK_EVENT_MAP
             self._signature_list = BEANSTALK_SIGNATURES_LIST
+        elif self._event_client_type == EventClientType.SEASON:
+            self._contracts = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
+            self._events_dict = SEASON_EVENT_MAP
+            self._signature_list = SEASON_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.MARKET:
             self._contracts = [get_beanstalk_contract(self._web3)]
             self._contract_addresses = [BEANSTALK_ADDR]

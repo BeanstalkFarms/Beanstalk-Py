@@ -304,12 +304,6 @@ class BeanstalkSqlClient(object):
                     deltaSownBeans
                 }}
             """
-        if incentives:
-            query_str += f"""
-                incentives(first: {num_seasons}, orderDirection: desc, orderBy: createdAt) {{
-                    hash
-                }}
-            """
 
         query_str += "}"
 
