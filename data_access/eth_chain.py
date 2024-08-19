@@ -262,7 +262,7 @@ add_event_to_dict(
 SEASON_EVENT_MAP = {}
 SEASON_SIGNATURES_LIST = []
 add_event_to_dict(
-    "Incentivization(indexed address,uint256)",
+    "Incentivization(address,uint256)",
     SEASON_EVENT_MAP,
     SEASON_SIGNATURES_LIST,
 )

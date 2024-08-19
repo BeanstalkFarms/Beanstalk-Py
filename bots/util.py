@@ -313,7 +313,7 @@ class SeasonsMonitor(Monitor):
             if current_season_stats:
                 # Get the txn hash for this sunrise call
                 sunrise_tx = self._eth_event_client.get_new_logs(dry_run=self._dry_run)[0]
-                current_season_stats.sunrise_hash = sunrise_tx.txn_hash
+                current_season_stats.sunrise_hash = sunrise_tx.txn_hash.hex()
 
                 # Report season summary to users.
                 self.message_function(
@@ -452,7 +452,6 @@ class SeasonsMonitor(Monitor):
                 parallelized.append(lambda token=asset_changes.token, block=season_block - 1: self.beanstalk_client.get_seeds(token, block))
 
             seed_results = execute_lambdas(*parallelized)
-            logging.info('seed results', seed_results)
 
             for i in range(len(silo_assets_changes)):
 
