@@ -312,8 +312,9 @@ class SeasonsMonitor(Monitor):
             # A new season has begun.
             if current_season_stats:
                 # Get the txn hash for this sunrise call
-                sunrise_tx = self._eth_event_client.get_new_logs(dry_run=self._dry_run)[0]
-                current_season_stats.sunrise_hash = sunrise_tx.txn_hash.hex()
+                incentive = self._eth_event_client.get_log_range(current_season_stats.sunrise_block)
+                if len(incentive) > 0:
+                    current_season_stats.sunrise_hash = incentive[0].txn_hash.hex()
 
                 # Report season summary to users.
                 self.message_function(
@@ -510,8 +511,9 @@ class SeasonsMonitor(Monitor):
             ret_string += f"\n{percent_to_moon_emoji(percent_recap)} {round_num(fertilizer_bought, 0)} Fertilizer sold ({round_num(percent_recap*100, 2)}% recapitalized)"
 
             # Txn hash of sunrise/gm call.
-            ret_string += f"\n\n<https://etherscan.io/tx/{current_season_stats.sunrise_hash}>"
-            ret_string += "\n_ _"  # Empty line that does not get stripped.
+            if hasattr(current_season_stats, 'sunrise_hash'):
+                ret_string += f"\n\n<https://etherscan.io/tx/{current_season_stats.sunrise_hash}>"
+                ret_string += "\n_ _"  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
         else:
