@@ -509,7 +509,7 @@ class SeasonStats:
             self.incentive_beans = bean_to_float(
                 graph_seasons_response["seasons"][season_index]["incentiveBeans"]
             )
-            self.sunrise_block = bean_to_float(
+            self.sunrise_block = int(
                 graph_seasons_response["seasons"][season_index]["sunriseBlock"]
             )
         if "siloHourlySnapshots" in graph_seasons_response:

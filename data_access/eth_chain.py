@@ -2760,6 +2760,10 @@ if __name__ == "__main__":
     bs = BeanstalkClient()
     logging.info(f"bean seeds {bs.get_seeds(BEAN_ADDR)}")
     logging.info(f"season block {bs.get_season_block()}")
+    client = EthEventsClient(EventClientType.SEASON)
+    events = client.get_log_range(20566115, 20566115)
+    logging.info(f"found txn: {events[0].txn_hash.hex()}")
+
     # monitor_beanstalk_events()
     # monitor_curve_pool_events()
     # bean_client = BeanClient()
