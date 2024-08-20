@@ -1186,14 +1186,12 @@ class BeanstalkMonitor(Monitor):
             # Pull args from the event log.
             token_address = event_log.args.get("token")
             token_amount_long = event_log.args.get("amount")  # AddDeposit, AddWithdrawal
-            bdv = None
-            if event_log.args.get("bdvs") is not None:
-                bdv = bean_to_float(sum(event_log.args.get("bdvs")))
-            else:
-                bdv = bean_to_float(event_log.args.get("bdv"))
 
             _, _, token_symbol, decimals = get_erc20_info(token_address, web3=self._web3).parse()
             amount = token_to_float(token_amount_long, decimals)
+
+            # Use current bdv rather than the deposited bdv reported in the event
+            bdv = amount * self.beanstalk_client.get_bdv(get_erc20_info(token_address))
 
             value = None
             if bdv > 0:

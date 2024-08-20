@@ -654,6 +654,12 @@ class BeanstalkClient(ChainClient):
         token_settings = call_contract_function_with_retry(self.contract.functions.tokenSettings(token), block_number=block_number)
         return (token_settings[1] * 10000) / 10 ** STALK_DECIMALS
 
+    def get_bdv(self, erc20_info, block_number='latest'):
+        """Returns the current bdv `token`."""
+        token = Web3.to_checksum_address(erc20_info.addr)
+        bdv = call_contract_function_with_retry(self.contract.functions.bdv(token, 10 ** erc20_info.decimals), block_number=block_number)
+        return bean_to_float(bdv)
+
 
 class BeanClient(ChainClient):
     """Common functionality related to the Bean token."""
@@ -2763,6 +2769,7 @@ if __name__ == "__main__":
     client = EthEventsClient(EventClientType.SEASON)
     events = client.get_log_range(20566115, 20566115)
     logging.info(f"found txn: {events[0].txn_hash.hex()}")
+    logging.info(f"lp bdv {bs.get_bdv(get_erc20_info(BEAN_WSTETH_WELL_ADDR), 20566115)}")
 
     # monitor_beanstalk_events()
     # monitor_curve_pool_events()
