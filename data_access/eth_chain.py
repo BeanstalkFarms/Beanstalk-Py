@@ -42,7 +42,6 @@ SOIL_DECIMALS = 6
 STALK_DECIMALS = 10
 SEED_DECIMALS = 6
 POD_DECIMALS = 6
-ROOT_DECIMALS = 18
 DAI_DECIMALS = 18
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
@@ -82,7 +81,7 @@ TOKEN_SYMBOL_MAP = {
     BEAN_ADDR.lower(): "BEAN",
     CURVE_BEAN_3CRV_ADDR.lower(): "BEAN3CRV",
     UNRIPE_ADDR.lower(): "urBEAN",
-    UNRIPE_3CRV_ADDR.lower(): "urBEANwstETH",
+    UNRIPE_LP_ADDR.lower(): "urBEANwstETH",
     BEAN_ETH_WELL_ADDR.lower(): "BEANETH",
     BEAN_WSTETH_WELL_ADDR.lower(): "BEANwstETH",
 }
@@ -309,38 +308,6 @@ add_event_to_dict(
 )
 
 
-# Root token events.
-ROOT_EVENT_MAP = {}
-ROOT_SIGNATURES_LIST = []
-# add_event_to_dict('Mint(address,(address,uint32[],uint256[])[],uint256,uint256,uint256,uint256)',
-#                   ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
-# add_event_to_dict('Redeem(address,(address,uint32[],uint256[])[],uint256,uint256,uint256,uint256)',
-#                   ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
-add_event_to_dict("Transfer(address,address,uint256)", ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
-# Watch for Root account Plants.
-add_event_to_dict("Plant(address,uint256)", ROOT_EVENT_MAP, ROOT_SIGNATURES_LIST)
-
-
-# Root token events.
-BETTING_EVENT_MAP = {}
-BETTING_SIGNATURES_LIST = []
-# Betting contract.
-add_event_to_dict(
-    "BetPlaced(uint256,address,uint256,uint256)", BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST
-)
-# Pool management contract.
-add_event_to_dict(
-    "PoolCreated(uint256,uint256,uint256)", BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST
-)
-# Event not actually in use on chain.
-# add_event_to_dict('PoolStarted(uint256)',
-#                   BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
-add_event_to_dict("PoolGraded(uint256,uint256[])", BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST)
-add_event_to_dict(
-    "WinningsClaimed(uint256,address,uint256)", BETTING_EVENT_MAP, BETTING_SIGNATURES_LIST
-)
-
-
 def generate_sig_hash_map(sig_str_list):
     return {sig.split("(")[0]: Web3.keccak(text=sig).hex() for sig in sig_str_list}
 
@@ -389,9 +356,6 @@ with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/erc20_abi.json")
 ) as erc20_abi_file:
     erc20_abi = json.load(erc20_abi_file)
-# with open(os.path.join(os.path.dirname(__file__),
-#                        '../constants/abi/uniswap_v2_pool_abi.json')) as uniswap_v2_pool_abi_file:
-#     uniswap_v2_pool_abi = json.load(uniswap_v2_pool_abi_file)
 with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/aquifer_abi.json")
 ) as aquifer_abi_file:
@@ -429,14 +393,6 @@ with open(
 ) as fertilizer_abi_file:
     fertilizer_abi = json.load(fertilizer_abi_file)
 with open(
-    os.path.join(os.path.dirname(__file__), "../constants/abi/root_abi.json")
-) as root_abi_file:
-    root_abi = json.load(root_abi_file)
-with open(
-    os.path.join(os.path.dirname(__file__), "../constants/abi/betting_abi.json")
-) as betting_abi_file:
-    betting_abi = json.load(betting_abi_file)
-with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/chainlink_abi.json")
 ) as chainlink_abi_file:
     chainlink_abi = json.load(chainlink_abi_file)
@@ -444,10 +400,6 @@ with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/eth_usd_oracle_abi.json")
 ) as eth_usd_oracle_abi_file:
     eth_usd_oracle_abi = json.load(eth_usd_oracle_abi_file)
-with open(
-    os.path.join(os.path.dirname(__file__), "../constants/abi/betting_admin_abi.json")
-) as betting_admin_abi_file:
-    betting_admin_abi = json.load(betting_admin_abi_file)
 
 
 def get_web3_instance():
@@ -497,7 +449,7 @@ def get_unripe_contract(web3):
 
 def get_unripe_lp_contract(web3):
     """Get a web.eth.contract object for the unripe LP token. Contract is not thread safe."""
-    return get_erc20_contract(web3, UNRIPE_3CRV_ADDR)
+    return get_erc20_contract(web3, UNRIPE_LP_ADDR)
 
 
 def get_beanstalk_contract(web3):
@@ -518,21 +470,6 @@ def get_bean_price_contract(web3):
 def get_fertilizer_contract(web3):
     """Get a web.eth.contract object for the Barn Raise Fertilizer contract. Contract is not thread safe."""
     return web3.eth.contract(address=FERTILIZER_ADDR, abi=fertilizer_abi)
-
-
-def get_root_contract(web3):
-    """Get a web.eth.contract object for the Root Token contract. Contract is not thread safe."""
-    return web3.eth.contract(address=ROOT_ADDR, abi=root_abi)
-
-
-def get_betting_admin_contract(web3):
-    """Get a web.eth.contract object for the betting pools contract. Contract is not thread safe."""
-    return web3.eth.contract(address=BETTING_ADMIN_ADDR, abi=betting_admin_abi)
-
-
-def get_betting_contract(web3):
-    """Get a web.eth.contract object for the betting bets contract. Contract is not thread safe."""
-    return web3.eth.contract(address=BETTING_ADDR, abi=betting_abi)
 
 
 def get_chainlink_contract(web3, price_feed_addr):
@@ -616,7 +553,7 @@ class BeanstalkClient(ChainClient):
         # Note that % recap is same for all unripe tokens.
         return token_to_float(
             call_contract_function_with_retry(
-                self.contract.functions.getRecapFundedPercent(UNRIPE_3CRV_ADDR)
+                self.contract.functions.getRecapFundedPercent(UNRIPE_LP_ADDR)
             ),
             6,
         )
@@ -821,101 +758,6 @@ def get_eth_sent(txn_hash, recipient, web3, log_end_index):
     txn_value = web3.eth.get_transaction(txn_hash).value
     return txn_value
 
-
-class RootClient(ChainClient):
-    """Common functionality related to the Root token."""
-
-    def __init__(self, web3=None):
-        super().__init__(web3)
-        self.price_contract = get_root_contract(self._web3)
-
-    def get_root_token_bdv(self):
-        """Get BDV of the root token and return as float."""
-        logging.info("Getting Root BDV...", exc_info=True)
-        return bean_to_float(
-            call_contract_function_with_retry(self.price_contract.functions.bdvPerRoot())
-        )
-
-    def get_total_supply(self):
-        """Get total supply of the root token and return as float."""
-        logging.info("Getting Root supply...", exc_info=True)
-        return root_to_float(
-            call_contract_function_with_retry(self.price_contract.functions.totalSupply())
-        )
-
-
-class BettingClient(ChainClient):
-    """Common functionality related to the Betting system."""
-
-    def __init__(self, web3=None):
-        super().__init__(web3)
-        self.pools_contract = get_betting_admin_contract(self._web3)
-        # self.bets_contract = get_betting_contract(self._web3)
-
-    def get_pool_count(self):
-        """Get number of active pools and return as int."""
-        logging.info(f"Getting pool count...")
-        return call_contract_function_with_retry(self.pools_contract.functions.getTotalPools())
-
-    def get_pool(self, pool_id):
-        """Get pool struct."""
-        pool_id = int(pool_id)
-        logging.info(f"Getting pool info for pool {pool_id}...")
-        return_list = call_contract_function_with_retry(
-            self.pools_contract.functions.getPool(pool_id)
-        )
-        return {
-            "id": return_list[0],
-            "numberOfTeams": return_list[1],
-            "eventName": return_list[2],
-            "totalBets": return_list[3],
-            "totalAmount": root_to_float(return_list[4]),
-            "status": return_list[8],
-            "startTime": return_list[10],
-        }
-
-    # NOTE(funderberker): Very inefficient. Need better impl contract side.
-    def get_all_pools(self):
-        """
-        Get all pools stored on contract.
-
-        Assumes pool IDs are ascending ints from 0 to getTotalPools().
-        """
-        logging.info(f"Getting all pools...")
-        pool_list = []
-        num_pools = self.get_pool_count()
-        for i in range(num_pools):
-            pool_list.append(self.get_pool(i))
-        return pool_list
-
-    # NOTE(funderberker): Very inefficient. Need better impl contract side.
-    def get_active_pools(self):
-        """Get all pools stored on contract."""
-        logging.info(f"Getting active pools...")
-        active_pools = []
-        pools = self.get_all_pools()
-        current_time = time.time()
-        for pool in pools:
-            if pool["status"] == 1 and pool["startTime"] < current_time:
-                active_pools.append(pool)
-        return active_pools
-
-    def get_pool_team(self, pool_id, team_id):
-        """Get team struct."""
-        pool_id = int(pool_id)
-        team_id = int(team_id)
-        logging.info(f"Getting pool team info for pool {pool_id} and team {team_id}...")
-        return_list = call_contract_function_with_retry(
-            self.pools_contract.functions.getPoolTeam(pool_id, team_id)
-        )
-        return {
-            "id": return_list[0],
-            "name": return_list[1],
-            "status": return_list[2],
-            "totalAmount": root_to_float(return_list[3]),
-        }
-
-
 class UniswapV3Client(ChainClient):
     def __init__(self, address, token_0_decimals, token_1_decimals, web3=None):
         super().__init__(web3)
@@ -923,19 +765,7 @@ class UniswapV3Client(ChainClient):
         self.token_0_decimals = token_0_decimals
         self.token_1_decimals = token_1_decimals
 
-    # UNISWAP V2 logic
-    # def current_root_bdv(self):
-    #     reserve0, reserve1, last_swap_block_time = call_contract_function_with_retry(
-    #         self.contract.functions.getReserves())
-    #     root_reserves = root_to_float(reserve1)
-    #     bean_reserves = bean_to_float(reserve0)
-    #     root_bdv = bean_reserves / root_reserves
-    #     logging.info(f'Current Root BDV: {root_bdv} (last Root:Bean txn block time: '
-    #                  f'{datetime.datetime.fromtimestamp(last_swap_block_time).strftime("%c")})')
-    #     return root_bdv
-
     def price_ratio(self):
-        # sqrtPriceX96 = sqrt(bean/root)
         sqrtPriceX96, _, _, _, _, _, _ = call_contract_function_with_retry(
             self.contract.functions.slot0()
         )
@@ -1036,16 +866,12 @@ class TxnPair:
 
 class EventClientType(IntEnum):
     BEANSTALK = 0
-    MARKET = 1
-    BARN_RAISE = 2
-    CURVE_BEAN_3CRV_POOL = 3
-    ROOT_TOKEN = 4
-    BETTING = 5
-    UNI_V3_ROOT_BEAN_POOL = 6
-    WELL = 7
-    AQUIFER = 8,
-    SEASON = 9
-
+    SEASON = 1
+    MARKET = 2
+    BARN_RAISE = 3
+    CURVE_BEAN_3CRV_POOL = 4
+    WELL = 5
+    AQUIFER = 6
 
 class EthEventsClient:
     def __init__(self, event_client_type, address=""):
@@ -1068,11 +894,6 @@ class EthEventsClient:
             self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
             self._events_dict = CURVE_POOL_EVENT_MAP
             self._signature_list = CURVE_POOL_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.UNI_V3_ROOT_BEAN_POOL:
-            self._contracts = [get_uniswap_v3_contract(UNI_V3_ROOT_BEAN_ADDR, self._web3)]
-            self._contract_addresses = [UNI_V3_ROOT_BEAN_ADDR]
-            self._events_dict = UNISWAP_V3_POOL_EVENT_MAP
-            self._signature_list = UNISWAP_V3_POOL_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contracts = [
                 get_beanstalk_contract(self._web3),
@@ -1096,19 +917,6 @@ class EthEventsClient:
             self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.ROOT_TOKEN:
-            self._contracts = [get_root_contract(self._web3)]
-            self._contract_addresses = [ROOT_ADDR]
-            self._events_dict = ROOT_EVENT_MAP
-            self._signature_list = ROOT_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.BETTING:
-            self._contracts = [
-                get_betting_admin_contract(self._web3),
-                get_betting_contract(self._web3),
-            ]
-            self._contract_addresses = [BETTING_ADMIN_ADDR, BETTING_ADDR]
-            self._events_dict = BETTING_EVENT_MAP
-            self._signature_list = BETTING_SIGNATURES_LIST
         else:
             raise ValueError("Unsupported event client type.")
         self._set_filters()
@@ -1497,10 +1305,6 @@ def seeds_to_float(seeds_long):
 
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
-
-
-def root_to_float(root_long):
-    return token_to_float(root_long, ROOT_DECIMALS)
 
 
 def dai_to_float(dai_long):
@@ -2383,95 +2187,6 @@ def get_test_entries():
                 "transactionIndex": 37,
             }
         ),
-        # Root Minted
-        AttributeDict(
-            {
-                "address": "0x77700005BEA4DE0A78b956517f099260C2CA9a26",
-                "blockHash": HexBytes(
-                    "0xf366304e66ba607dcd0c68f2a31c4e29110d6e263049c0f8aad9aaaa159f0a62"
-                ),
-                "blockNumber": 15985922,
-                "data": "0x00000000000000000000000000000000000000000000006da9742e9c940e2396",
-                "logIndex": 174,
-                "removed": False,
-                "topics": [
-                    HexBytes("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
-                    HexBytes("0x0000000000000000000000000000000000000000000000000000000000000000"),
-                    HexBytes("0x000000000000000000000000c997b8078a2c4aa2ac8e17589583173518f3bc94"),
-                ],
-                "transactionHash": HexBytes(
-                    "0x15f7714af939c4ab6e18a3d5c5676ea1113b60311a8d8b1e2b3a32bec5550027"
-                ),
-                "transactionIndex": 50,
-            }
-        ),
-        # Root Redeemed
-        AttributeDict(
-            {
-                "address": "0x77700005BEA4DE0A78b956517f099260C2CA9a26",
-                "blockHash": HexBytes(
-                    "0xbb89f4c8b5784281043e8df03bfeeec52f7ddc2f2ffd7531fbe0be8717009ac0"
-                ),
-                "blockNumber": 15989807,
-                "data": "0x00000000000000000000000000000000000000000000000068f270a4f2c43b14",
-                "logIndex": 105,
-                "removed": False,
-                "topics": [
-                    HexBytes("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
-                    HexBytes("0x0000000000000000000000007e946603f26b7f46fdb0d106124db35bf14fcdb8"),
-                    HexBytes("0x0000000000000000000000000000000000000000000000000000000000000000"),
-                ],
-                "transactionHash": HexBytes(
-                    "0x31bb9114845ecbd6208d96089c038b1feb8cf48c06deac31f3e90d3d8adeaf36"
-                ),
-                "transactionIndex": 99,
-            }
-        ),
-        # Swap - Uni V3 Root:Bean Pool
-        AttributeDict(
-            {
-                "address": "0x11DD6f9e1a7Bb35A61FAda4AEc645F603050783e",
-                "blockHash": HexBytes(
-                    "0x4f5cd785316e77f9930a20481a22b2a94a6f91d9b222e15ec13b6169edc67430"
-                ),
-                "blockNumber": 16055390,
-                "data": "0xffffffffffffffffffffffffffffffffffffffffffffffc9a61083125be51f4e000000000000000000000000000000000000000000000000000000003bf3debe0000000000000000000000000000000000000000000010c7be067fe30e47d48b0000000000000000000000000000000000000000000000005f8a1d419cf34b9ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc89f",
-                "logIndex": 173,
-                "removed": False,
-                "topics": [
-                    HexBytes("0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"),
-                    HexBytes("0x000000000000000000000000e592427a0aece92de3edee1f18e0157c05861564"),
-                    HexBytes("0x000000000000000000000000b1be0000bfdcddc92a8290202830c4ef689dceaa"),
-                ],
-                "transactionHash": HexBytes(
-                    "0x2e7b6b070f37114acb4492e766c027fc71ad07f1734a8eb738e2d49720395b97"
-                ),
-                "transactionIndex": 90,
-            }
-        ),
-        # Mint - Uni V3 Root:Bean Pool
-        AttributeDict(
-            {
-                "address": "0x11DD6f9e1a7Bb35A61FAda4AEc645F603050783e",
-                "blockHash": HexBytes(
-                    "0x138dbd24b73906520fbdb2cf6103ce69044082bb77a9aae65f3ebd12fe5e1d6d"
-                ),
-                "blockNumber": 16035594,
-                "data": "0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe8800000000000000000000000000000000000000000000000059e3ee9cd1e035cd0000000000000000000000000000000000000000000009e883a26e5ec7f7fb110000000000000000000000000000000000000000000000000000000ba43b7400",
-                "logIndex": 80,
-                "removed": False,
-                "topics": [
-                    HexBytes("0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde"),
-                    HexBytes("0x000000000000000000000000c36442b4a4522e871399cd717abdd847ab11fe88"),
-                    HexBytes("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc800"),
-                    HexBytes("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbc92c"),
-                ],
-                "transactionHash": HexBytes(
-                    "0xf36947e2f14eb33a249001dbd87e8ae4141e8d4585deb1c51e06e922f8d7b495"
-                ),
-                "transactionIndex": 39,
-            }
-        ),
         # # Sow
         # AttributeDict({'address': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'blockHash': HexBytes('0x86f8c30dda2d2a154d5fad9e373d8d57b16a5879b1088d7caa950f8ee13b4cdf'), 'blockNumber': 18042201, 'data': '0x00000000000000000000000000000000000000000000000000034721352df50000000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000d92', 'logIndex': 190, 'removed': False, 'topics': [HexBytes('0xdd43b982e9a6350577cad86db14e254b658fb741d7864a6860409c4526bcc641'), HexBytes('0x000000000000000000000000b9f14efae1d14b6d06816b6e3a5f6e79c87232fa')], 'transactionHash': HexBytes('0xc7b23a3746a1f4f9a344e4e8bf4071e6b77be7c8dad32864f76f2aede980164b'), 'transactionIndex': 58}),
         # Silo v3
@@ -2731,34 +2446,6 @@ def monitor_beanstalk_events():
     while True:
         events = client.get_new_logs(dry_run=False)
         time.sleep(5)
-
-
-# def monitor_betting_events():
-#     # client = EthEventsClient(EventClientType.BETTING)
-#     # while True:
-#     #     events = client.get_new_logs(dry_run=False)
-#     #     time.sleep(5)
-#     web3 = get_web3_arbitrum_instance()
-#     filter = safe_create_filter(
-#         web3,
-#         address=BETTING_ADDR_ARBITRUM,
-#         topics=[BETTING_SIGNATURES_LIST],
-#         # from_block=10581687, # Use this to search for old events. # Rinkeby
-#         # from_block=14205000, # Use this to search for old events. # Mainnet
-#         from_block=45862794,
-#         to_block="latest",
-#     )
-#     entries = filter.get_all_entries()
-#     for entry in entries:
-#         logging.warning(entry)
-
-#     # client = RootClient(web3)
-#     # client.get_total_supply()
-#     # client.get_root_token_bdv()
-
-#     # client = BettingClient(web3)
-#     # logging.info(client.get_active_pools())
-
 
 if __name__ == "__main__":
     """Quick test and demonstrate functionality."""

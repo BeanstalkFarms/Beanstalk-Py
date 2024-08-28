@@ -8,7 +8,6 @@ import tweepy
 from bots import util
 from constants.addresses import *
 
-
 class TwitterBot(object):
     def set_keys_staging(self):
         self.api_key = os.environ["TWITTER_BOT_API_KEY"]
@@ -53,7 +52,6 @@ class TwitterBot(object):
             return
         logging.info(f"Tweeted:\n{msg}\n")
 
-
 class BeanstalkTwitterBot(TwitterBot):
     def __init__(self, prod=False):
         if prod:
@@ -74,51 +72,6 @@ class BeanstalkTwitterBot(TwitterBot):
 
     def stop(self):
         self.sunrise_monitor.stop()
-
-
-class RootTwitterBot(TwitterBot):
-    def __init__(self, prod=False):
-        if prod:
-            self.api_key = os.environ["TWITTER_ROOT_BOT_API_KEY_PROD"]
-            self.api_key_secret = os.environ["TWITTER_ROOT_BOT_API_KEY_SECRET_PROD"]
-            self.access_token = os.environ["TWITTER_ROOT_BOT_ACCESS_TOKEN_PROD"]
-            self.access_token_secret = os.environ["TWITTER_ROOT_BOT_ACCESS_TOKEN_SECRET_PROD"]
-            logging.info("RootTwitterBot configured as a production instance.")
-        else:
-            self.set_keys_staging()
-            logging.info("RootTwitterBot configured as a staging instance.")
-        self.set_client()
-
-        self.token_monitor = util.RootMonitor(self.send_msg, prod=prod, dry_run=False)
-        self.token_monitor.start()
-
-        self.uniswap_monitor = util.RootUniswapMonitor(self.send_msg, prod=prod, dry_run=False)
-        self.uniswap_monitor.start()
-
-    def stop(self):
-        self.token_monitor.stop()
-        self.uniswap_monitor.stop()
-
-
-class ParadoxTwitterBot(TwitterBot):
-    def __init__(self, prod=False):
-        if prod:
-            self.api_key = os.environ["TWITTER_PARADOX_BOT_API_KEY_PROD"]
-            self.api_key_secret = os.environ["TWITTER_PARADOX_BOT_API_KEY_SECRET_PROD"]
-            self.access_token = os.environ["TWITTER_PARADOX_BOT_ACCESS_TOKEN_PROD"]
-            self.access_token_secret = os.environ["TWITTER_PARADOX_BOT_ACCESS_TOKEN_SECRET_PROD"]
-            logging.info("ParadoxTwitterBot configured as a production instance.")
-        else:
-            self.set_keys_staging()
-            logging.info("ParadoxTwitterBot configured as a staging instance.")
-        self.set_client()
-
-        self.betting_monitor = util.BettingMonitor(self.send_msg, prod=prod, dry_run=False)
-        self.betting_monitor.start()
-
-    def stop(self):
-        self.betting_monitor.stop()
-
 
 class BasinTwitterBot(TwitterBot):
     def __init__(self, prod=False):
@@ -144,12 +97,10 @@ class BasinTwitterBot(TwitterBot):
         # self.well_monitor_bean_eth.stop()
         self.period_monitor.stop()
 
-
 def infinity_polling():
     """Sleep forever while monitors run on background threads. Exit via interrupt."""
     while True:
         time.sleep(5)
-
 
 if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
@@ -175,14 +126,10 @@ if __name__ == "__main__":
         prod = False
 
     beanstalk_bot = BeanstalkTwitterBot(prod=prod)
-    # root_bot = RootTwitterBot(prod=prod)
-    # paradox_bot = ParadoxTwitterBot(prod=prod)
     basin_bot = BasinTwitterBot(prod=prod)
     try:
         infinity_polling()
     except (KeyboardInterrupt, SystemExit):
         pass
     beanstalk_bot.stop()
-    # root_bot.stop()
-    # paradox_bot.stop()
     basin_bot.stop()
