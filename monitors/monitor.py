@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import asyncio.exceptions
 
 from bots.util import *

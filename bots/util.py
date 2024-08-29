@@ -9,7 +9,7 @@ import subprocess
 import discord
 from discord.ext import tasks, commands
 
-from data_access.eth_chain import *
+from data_access.contracts.util import *
 
 class DiscordSidebarClient(discord.ext.commands.Bot):
     def __init__(self, monitor, prod=False):

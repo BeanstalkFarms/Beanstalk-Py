@@ -1,6 +1,11 @@
+from abc import abstractmethod
+
 from bots.util import *
 from monitors.monitor import Monitor
-from data_access.eth_chain import *
+from data_access.contracts.util import *
+from data_access.contracts.eth_events import *
+from data_access.contracts.bean import BeanClient
+from data_access.contracts.beanstalk import BeanstalkClient
 from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
 from data_access.contracts.eth_usd_oracle import *

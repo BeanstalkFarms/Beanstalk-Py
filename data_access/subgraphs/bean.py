@@ -2,7 +2,7 @@ from gql import Client
 from gql.transport.aiohttp import AIOHTTPTransport
 
 from data_access.subgraphs.util import *
-from data_access.eth_chain import *
+from data_access.contracts.util import *
 from constants.addresses import *
 from constants.config import *
 

@@ -1,6 +1,6 @@
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor
-from data_access.eth_chain import *
+from data_access.contracts.util import *
 from data_access.subgraphs.basin import BasinGraphClient
 from data_access.util import *
 from constants.addresses import *

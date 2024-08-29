@@ -1,8 +1,9 @@
+from abc import abstractmethod
 from datetime import datetime, timedelta
 
 from bots.util import *
 from monitors.monitor import Monitor
-from data_access.eth_chain import *
+from data_access.contracts.util import *
 from data_access.subgraphs.basin import BasinGraphClient
 from data_access.util import *
 from constants.addresses import *

@@ -2,7 +2,10 @@ from data_access.coin_gecko import get_token_price
 
 from bots.util import *
 from monitors.monitor import Monitor
-from data_access.eth_chain import *
+from data_access.contracts.util import *
+from data_access.contracts.eth_events import *
+from data_access.contracts.bean import BeanClient
+from data_access.contracts.curve import CurveClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *

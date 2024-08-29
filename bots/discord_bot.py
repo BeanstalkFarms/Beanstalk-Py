@@ -15,7 +15,8 @@ from bots import util
 from constants.addresses import *
 from constants.channels import *
 from constants.config import *
-from data_access.eth_chain import EventClientType, is_valid_wallet_address
+from data_access.contracts.eth_events import EventClientType
+from data_access.contracts.util import is_valid_wallet_address
 
 from monitors.barn import BarnRaiseMonitor
 from monitors.beanstalk import BeanstalkMonitor

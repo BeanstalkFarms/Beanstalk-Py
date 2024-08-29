@@ -1,6 +1,7 @@
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor
 from data_access.subgraphs.beanstalk import BeanstalkGraphClient
+from data_access.contracts.beanstalk import BeanstalkClient
 
 class BarnRaisePreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into current Barn Raise status."""

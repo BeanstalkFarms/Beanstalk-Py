@@ -1,6 +1,6 @@
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor
-from data_access.eth_chain import *
+from data_access.contracts.util import *
 from data_access.subgraphs.snapshot import SnapshotGraphClient
 from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *

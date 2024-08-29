@@ -10,7 +10,7 @@ from bots import util
 from constants.config import *
 from constants.channels import *
 from constants.addresses import *
-from data_access.eth_chain import EventClientType
+from data_access.contracts.eth_events import EventClientType
 
 from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
