@@ -1,3 +1,11 @@
+from bots.util import *
+from monitors.monitor import Monitor
+from data_access.eth_chain import *
+from data_access.graphs import *
+from data_access.util import *
+from constants.addresses import *
+from constants.config import *
+
 class AllWellsMonitor(Monitor):
     def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=False):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)

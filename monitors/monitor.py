@@ -1,3 +1,7 @@
+import asyncio.exceptions
+
+from bots.util import *
+
 class Monitor:
     """Base class for monitors. Do not use directly.
 

@@ -13,31 +13,18 @@ from discord.ext import tasks, commands
 
 from bots import util
 from constants.addresses import *
+from constants.channels import *
+from constants.config import *
 from data_access.eth_chain import EventClientType, is_valid_wallet_address
 
-
-DISCORD_CHANNEL_ID_PEG_CROSSES = 911338190198169710
-DISCORD_CHANNEL_ID_SEASONS = 911338078080221215
-DISCORD_CHANNEL_ID_POOL = 915372733758603284
-DISCORD_CHANNEL_ID_BEANSTALK = 918240659914227713
-DISCORD_CHANNEL_ID_MARKET = 940729085095723069
-DISCORD_CHANNEL_ID_REPORT = 943711736391933972
-DISCORD_CHANNEL_ID_BARN_RAISE = 969594841455558717
-DISCORD_CHANNEL_ID_TEST_BOT = 908035718859874374
-TELEGRAM_FWD_CHAT_ID_TEST = "-1001655547288"  # Beanstalk Bot Testing channel
-
-
-# Beanstalk Announcements channel ("-1001544001982")
-TELEGRAM_FWD_CHAT_ID_PRODUCTION = "@beanstalkUSD"
-BUCKET_NAME = "bots_data_8723748"
-PROD_BLOB_NAME = "prod_channel_to_wallets"
-STAGE_BLOB_NAME = "stage_channel_to_wallets"
-WALLET_WATCH_LIMIT = 10
-
-DISCORD_CHANNEL_ID_ANNOUNCEMENTS = 880500642546851850
-DISCORD_CHANNEL_ID_WEEKLY_UPDATES = 1025448845594861718
-DISCORD_CHANNEL_ID_SNAPSHOTS = 975498149223366786
-
+from monitors.barn import BarnRaiseMonitor
+from monitors.beanstalk import BeanstalkMonitor
+from monitors.curve import CurvePoolMonitor
+from monitors.market import MarketMonitor
+from monitors.peg_cross import PegCrossMonitor
+from monitors.seasons import SeasonsMonitor
+from monitors.well import WellMonitor
+from monitors.preview import preview
 
 class Channel(Enum):
     PEG = 0
@@ -49,7 +36,6 @@ class Channel(Enum):
     BARN_RAISE = 6
     TELEGRAM_FWD = 7
 
-
 class DiscordClient(discord.ext.commands.Bot):
     def __init__(self, prod=False, telegram_token=None):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
@@ -58,33 +44,25 @@ class DiscordClient(discord.ext.commands.Bot):
         self.nickname = ""
         self._update_naming.start()
 
-        # NOTE(funderberker): LOCAL TESTING
-        # Retrieve bucket.
-        # bucket = self.retrieve_or_init_bucket()
-
         if prod:
-            # NOTE(funderberker): LOCAL TESTING
-            # self.wallets_blob = bucket.blob(PROD_BLOB_NAME)
-            self._chat_id_report = DISCORD_CHANNEL_ID_REPORT
-            self._chat_id_peg = DISCORD_CHANNEL_ID_PEG_CROSSES
-            self._chat_id_seasons = DISCORD_CHANNEL_ID_SEASONS
-            self._chat_id_pool = DISCORD_CHANNEL_ID_POOL
-            self._chat_id_beanstalk = DISCORD_CHANNEL_ID_BEANSTALK
-            self._chat_id_market = DISCORD_CHANNEL_ID_MARKET
-            self._chat_id_barn_raise = DISCORD_CHANNEL_ID_BARN_RAISE
-            self._chat_id_telegram_fwd = TELEGRAM_FWD_CHAT_ID_PRODUCTION
+            self._chat_id_report = BS_DISCORD_CHANNEL_ID_REPORT
+            self._chat_id_peg = BS_DISCORD_CHANNEL_ID_PEG_CROSSES
+            self._chat_id_seasons = BS_DISCORD_CHANNEL_ID_SEASONS
+            self._chat_id_pool = BS_DISCORD_CHANNEL_ID_POOL
+            self._chat_id_beanstalk = BS_DISCORD_CHANNEL_ID_BEANSTALK
+            self._chat_id_market = BS_DISCORD_CHANNEL_ID_MARKET
+            self._chat_id_barn_raise = BS_DISCORD_CHANNEL_ID_BARN_RAISE
+            self._chat_id_telegram_fwd = BS_TELEGRAM_FWD_CHAT_ID_PRODUCTION
             logging.info("Configured as a production instance.")
         else:
-            # NOTE(funderberker): LOCAL TESTING
-            # self.wallets_blob = bucket.blob(STAGE_BLOB_NAME)
-            self._chat_id_report = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_peg = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_seasons = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_pool = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_beanstalk = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_market = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_barn_raise = DISCORD_CHANNEL_ID_TEST_BOT
-            self._chat_id_telegram_fwd = TELEGRAM_FWD_CHAT_ID_TEST
+            self._chat_id_report = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_peg = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_seasons = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_pool = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_beanstalk = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_market = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_barn_raise = BS_DISCORD_CHANNEL_ID_TEST_BOT
+            self._chat_id_telegram_fwd = BS_TELEGRAM_FWD_CHAT_ID_TEST
             logging.info("Configured as a staging instance.")
 
         # Load wallet map from source. Map may be modified by this thread only (via discord.py lib).
@@ -98,7 +76,7 @@ class DiscordClient(discord.ext.commands.Bot):
 
         self.msg_queue = []
 
-        self.channels_to_fwd = [DISCORD_CHANNEL_ID_ANNOUNCEMENTS, DISCORD_CHANNEL_ID_WEEKLY_UPDATES]
+        self.channels_to_fwd = [BS_DISCORD_CHANNEL_ID_ANNOUNCEMENTS, BS_DISCORD_CHANNEL_ID_WEEKLY_UPDATES]
         self.tele_bot = None
         if telegram_token is not None:
             self.tele_bot = telebot.TeleBot(telegram_token, parse_mode="Markdown")
@@ -106,13 +84,13 @@ class DiscordClient(discord.ext.commands.Bot):
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
         discord_report_handler.setLevel(logging.ERROR)
-        discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
+        discord_report_handler.setFormatter(LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg_peg, prod=prod)
+        self.peg_cross_monitor = PegCrossMonitor(self.send_msg_peg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SeasonsMonitor(
+        self.sunrise_monitor = SeasonsMonitor(
             self.send_msg_seasons,
             channel_to_wallets=self.channel_to_wallets,
             prod=prod,
@@ -120,30 +98,30 @@ class DiscordClient(discord.ext.commands.Bot):
         )
         self.sunrise_monitor.start()
 
-        self.well_monitor = util.WellMonitor(
+        self.well_monitor = WellMonitor(
             self.send_msg_pool, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
         )
         self.well_monitor.start()
         
-        self.well_monitor_2 = util.WellMonitor(
+        self.well_monitor_2 = WellMonitor(
             self.send_msg_pool, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
         )
         self.well_monitor_2.start()
 
-        self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
+        self.curve_bean_3crv_pool_monitor = CurvePoolMonitor(
             self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False
         )
         self.curve_bean_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(
+        self.beanstalk_monitor = BeanstalkMonitor(
             self.send_msg_beanstalk, prod=prod, dry_run=False
         )
         self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
+        self.market_monitor = MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
         self.market_monitor.start()
 
-        self.barn_raise_monitor = util.BarnRaiseMonitor(
+        self.barn_raise_monitor = BarnRaiseMonitor(
             self.send_msg_barn_raise,
             report_events=True,
             report_summaries=False,
@@ -244,7 +222,7 @@ class DiscordClient(discord.ext.commands.Bot):
     @tasks.loop(seconds=10, reconnect=True)
     async def _update_naming(self):
         if not self.nickname:
-            self.nickname = await util.update_discord_bot_name("BeanBot", self)
+            self.nickname = await preview.update_discord_bot_name("BeanBot", self)
             # NOTE(funderberker): will not update with holiday emojis.
 
     @_update_naming.before_loop
@@ -512,11 +490,11 @@ def channel_id(ctx):
 
 if __name__ == "__main__":
     logging.basicConfig(
-        format=f"Discord Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        format=f"Discord Bot : {LOGGING_FORMAT_STR_SUFFIX}",
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(
-                "discord_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+                "discord_bot.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
             ),
             logging.StreamHandler(),
         ],

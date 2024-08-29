@@ -1,3 +1,14 @@
+from enum import Enum
+from abc import abstractmethod
+
+from bots.util import *
+from monitors.monitor import Monitor
+from data_access.eth_chain import *
+from data_access.graphs import *
+from data_access.util import *
+from constants.addresses import *
+from constants.config import *
+
 class PegCrossType(Enum):
     NO_CROSS = 0
     CROSS_ABOVE = 1
@@ -56,16 +67,16 @@ class PegCrossMonitor(Monitor):
         if not self.last_known_cross:
             logging.info(
                 "Peg cross timestamp initialized with last peg cross = "
-                f"{last_cross[TIMESTAMP_KEY]}"
+                f"{last_cross['timestamp']}"
             )
             self.last_known_cross = last_cross
             return [PegCrossType.NO_CROSS]
 
         # If the cross is not newer than the last known cross or id is not greater, return.
         # These checks are necessary due to unpredictable variations in the graph.
-        if last_cross[TIMESTAMP_KEY] <= self.last_known_cross[TIMESTAMP_KEY] or int(
-            last_cross[ID_KEY]
-        ) <= int(self.last_known_cross[ID_KEY]):
+        if last_cross["timestamp"] <= self.last_known_cross["timestamp"] or int(
+            last_cross["id"]
+        ) <= int(self.last_known_cross["id"]):
             return [PegCrossType.NO_CROSS]
 
         # If multiple crosses have occurred since last known cross.

@@ -8,83 +8,15 @@ import os
 import time
 import websockets
 
-# NOTE(funderberker): LOCAL TESTING
 from web3 import Web3
-
 from web3 import HTTPProvider
-
 from web3 import exceptions as web3_exceptions
 from web3.logs import DISCARD
 
 from constants.addresses import *
+from constants.config import *
 from data_access.coin_gecko import get_token_price
 import tools.util
-
-# Alchemy node key.
-try:
-    API_KEY = os.environ["ALCHEMY_ETH_API_KEY_PROD"]
-except KeyError:
-    API_KEY = os.environ["ALCHEMY_ETH_API_KEY"]
-
-
-# # Local node testing address for foundry anvil node using https.
-# LOCAL_TESTING_URL = 'http://localhost:8545/'
-# LOCAL_TESTING_URL = 'https://anvil1.bean.money:443/'
-# # Goerli testing address.
-# GOERLI_API_KEY = os.environ['ALCHEMY_GOERLI_API_KEY']
-URL = "https://eth-mainnet.g.alchemy.com/v2/" + API_KEY
-
-# Decimals for conversion from chain int values to float decimal values.
-ETH_DECIMALS = 18
-LP_DECIMALS = 18
-BEAN_DECIMALS = 6
-SOIL_DECIMALS = 6
-STALK_DECIMALS = 10
-SEED_DECIMALS = 6
-POD_DECIMALS = 6
-DAI_DECIMALS = 18
-USDC_DECIMALS = 6
-USDT_DECIMALS = 6
-CRV_DECIMALS = 18
-LUSD_DECIMALS = 18
-CURVE_POOL_TOKENS_DECIMALS = 18
-WELL_LP_DECIMALS = 18
-
-
-UNI_V2_POOL_FEE = 0.003  # %
-
-# Indices of tokens in Curve factory pool [bean, 3crv].
-FACTORY_3CRV_INDEX_BEAN = 0
-FACTORY_3CRV_INDEX_3CRV = 1
-# Indices of underlying tokens in Curve factory pool [bean, dai, usdc, usdt].
-FACTORY_3CRV_UNDERLYING_INDEX_BEAN = 0
-FACTORY_3CRV_UNDERLYING_INDEX_DAI = 1
-FACTORY_3CRV_UNDERLYING_INDEX_USDC = 2
-FACTORY_3CRV_UNDERLYING_INDEX_USDT = 3
-# Indices of tokens in Curve factory pool [bean, LUSD].
-FACTORY_LUSD_INDEX_BEAN = 0
-FACTORY_LUSD_INDEX_LUSD = 1
-
-# Number of txn hashes to keep in memory to prevent duplicate processing.
-TXN_MEMORY_SIZE_LIMIT = 100
-
-# Newline character to get around limits of f-strings.
-NEWLINE_CHAR = "\n"
-
-# Index of values in tuples returned from web3 contract calls.
-STARTSOIL_INDEX = 0
-
-ERC20_TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)").hex()
-
-# Incomplete of Beanstalk Terming of Tokens for human use.
-TOKEN_SYMBOL_MAP = {
-    BEAN_ADDR.lower(): "BEAN",
-    CURVE_BEAN_3CRV_ADDR.lower(): "BEAN3CRV",
-    UNRIPE_ADDR.lower(): "urBEAN",
-    UNRIPE_LP_ADDR.lower(): "urBEANwstETH",
-    BEAN_ETH_WELL_ADDR.lower(): "BEANETH",
-    BEAN_WSTETH_WELL_ADDR.lower(): "BEANwstETH",
-}
 
 
 # NOTE(funderberker): Pretty lame that we cannot automatically parse these from the ABI files.
@@ -409,7 +341,7 @@ def get_web3_instance():
     # NOTE(funderberker): We are using websockets but we are not using any continuous watching
     # functionality. Monitoring is done through periodic get_new_events calls.
     # return Web3(WebsocketProvider(URL, websocket_timeout=60))
-    return Web3(HTTPProvider(URL))
+    return Web3(HTTPProvider(RPC_URL))
 
 
 def get_uniswap_v3_contract(address, web3):
@@ -517,7 +449,7 @@ class BeanstalkClient(ChainClient):
 
     def get_season_start_soil(self):
         """Amount of soil added/removed this season."""
-        return soil_to_float(self.get_weather()[STARTSOIL_INDEX])
+        return soil_to_float(self.get_weather()[0])
     
     def get_season_block(self):
         """Get the block in which the latest season started"""
@@ -837,22 +769,6 @@ class BarnRaiseClient(ChainClient):
     #     to the raised amount.
     #     """
     #     return self.token_contract
-
-
-def avg_eth_to_bean_swap_price(eth_in, bean_out, eth_price):
-    """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
-    # Approximate fee by reducing input amount by pool fee %.
-    eth_in = eth_in * (1 - UNI_V2_POOL_FEE)
-    return eth_price * (eth_in / bean_out)
-
-
-def avg_bean_to_eth_swap_price(bean_in, eth_out, eth_price):
-    """Returns the $/bean cost for a swap txn using the $/ETH price and approximate fee."""
-    # Approximate fee by reducing input amount by pool fee %.
-    bean_in = bean_in * (1 - UNI_V2_POOL_FEE)
-    return eth_price * (eth_out / bean_in)
-
-
 class TxnPair:
     """The logs, in order, associated with a transaction."""
 

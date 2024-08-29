@@ -11,13 +11,7 @@ from discord.ext import tasks, commands
 
 from bots import util
 from constants.addresses import *
-
-DISCORD_CHANNEL_ID_TEST = 1117767077420339220
-DISCORD_CHANNEL_ID_DAILY = 1117768293625888868
-DISCORD_CHANNEL_ID_BEAN_ETH = 1117768417861193819
-DISCORD_CHANNEL_ID_BEAN_WSTETH = 1262891110439587890
-DISCORD_CHANNEL_ID_WELLS_OTHER = 1257633554427543633
-
+from constants.channels import *
 
 class Channel(Enum):
     REPORT = 0
@@ -33,18 +27,18 @@ class DiscordClient(discord.ext.commands.Bot):
         self.nickname = ""
 
         if prod:
-            self._chat_id_report = DISCORD_CHANNEL_ID_TEST
-            self._chat_id_daily = DISCORD_CHANNEL_ID_DAILY
-            self._chat_id_bean_eth = DISCORD_CHANNEL_ID_BEAN_ETH
-            self._chat_id_bean_wsteth = DISCORD_CHANNEL_ID_BEAN_WSTETH
-            self._chat_id_other_wells = DISCORD_CHANNEL_ID_WELLS_OTHER
+            self._chat_id_report = DEX_DISCORD_CHANNEL_ID_TEST
+            self._chat_id_daily = DEX_DISCORD_CHANNEL_ID_DAILY
+            self._chat_id_bean_eth = DEX_DISCORD_CHANNEL_ID_BEAN_ETH
+            self._chat_id_bean_wsteth = DEX_DISCORD_CHANNEL_ID_BEAN_WSTETH
+            self._chat_id_other_wells = DEX_DISCORD_CHANNEL_ID_WELLS_OTHER
             logging.info("Configured as a production instance.")
         else:
-            self._chat_id_report = DISCORD_CHANNEL_ID_TEST
-            self._chat_id_daily = DISCORD_CHANNEL_ID_TEST
-            self._chat_id_bean_eth = DISCORD_CHANNEL_ID_TEST
-            self._chat_id_bean_wsteth = DISCORD_CHANNEL_ID_TEST
-            self._chat_id_other_wells = DISCORD_CHANNEL_ID_TEST
+            self._chat_id_report = DEX_DISCORD_CHANNEL_ID_TEST
+            self._chat_id_daily = DEX_DISCORD_CHANNEL_ID_TEST
+            self._chat_id_bean_eth = DEX_DISCORD_CHANNEL_ID_TEST
+            self._chat_id_bean_wsteth = DEX_DISCORD_CHANNEL_ID_TEST
+            self._chat_id_other_wells = DEX_DISCORD_CHANNEL_ID_TEST
             logging.info("Configured as a staging instance.")
 
         self.msg_queue = []
@@ -210,7 +204,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(
-                "discord_basin_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+                "discord_basin_bot.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
             ),
             logging.StreamHandler(),
         ],

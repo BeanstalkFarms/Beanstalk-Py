@@ -67,7 +67,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(
-                "telegram_basin_bot.log", maxBytes=util.ONE_HUNDRED_MEGABYTES, backupCount=1
+                "telegram_basin_bot.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
             ),
             logging.StreamHandler(),
         ],

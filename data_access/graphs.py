@@ -7,7 +7,8 @@ import time
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-from constants.addresses import BEANSTALK_ADDR
+from constants.addresses import *
+from constants.config import *
 from data_access.eth_chain import bean_to_float, pods_to_float, soil_to_float, token_to_float
 
 # Reduce log spam from the gql package.
@@ -16,12 +17,7 @@ from gql.transport.aiohttp import log as requests_logger
 requests_logger.setLevel(logging.WARNING)
 
 
-FIELDS_PLACEHOLDER = "FIELDS"
-
-# Names of common graph fields.
-PRICE_FIELD = "price"
-TIMESTAMP_FIELD = "timestamp"
-LAST_PEG_CROSS_FIELD = "lastCross"
+FIELDS_PLACEHOLDER = "_FIELDS_"
 
 # Somewhat arbitrary prediction of number of assets that have to be pulled to be sure that all
 # assets of interest across 1 most recent season are retrieved. This is a function of number of
@@ -38,19 +34,6 @@ MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
 # Newline character to get around limits of f-strings.
 NEWLINE_CHAR = "\n"
 
-# DAO_SNAPSHOT_NAME = 'beanstalkfarmscommittee.eth'
-DAO_SNAPSHOT_NAME = "beanstalkdao.eth"
-FARMS_SNAPSHOT_NAME = "beanstalkfarms.eth"
-
-# BEAN_GRAPH_ENDPOINT = f'https://api.thegraph.com/subgraphs/name/cujowolf/bean'
-BEAN_GRAPH_ENDPOINT = "https://graph.node.bean.money/subgraphs/name/bean"
-# BEANSTALK_GRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/cujowolf/beanstalk'
-# BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk'
-BEANSTALK_GRAPH_ENDPOINT = "https://graph.node.bean.money/subgraphs/name/beanstalk"
-# BEANSTALK_GRAPH_ENDPOINT = 'https://graph.node.bean.money/subgraphs/name/beanstalk-testing'
-SNAPSHOT_GRAPH_ENDPOINT = "https://hub.snapshot.org/graphql"
-BASIN_GRAPH_ENDPOINT = "https://graph.node.bean.money/subgraphs/name/basin"
-
 
 class BeanSqlClient(object):
     def __init__(self):
@@ -61,13 +44,13 @@ class BeanSqlClient(object):
 
     def bean_price(self):
         """Returns float representing the most recent cost of a BEAN in USD."""
-        return float(self.get_bean_field(PRICE_FIELD))
+        return float(self.get_bean_field("price"))
 
     def get_bean_field(self, field):
         """Get a single field from the bean object."""
         return self.get_bean_fields(fields=[field])[field]
 
-    def get_bean_fields(self, fields=[PRICE_FIELD]):
+    def get_bean_fields(self, fields=["price"]):
         """Retrieve the specified fields for the bean token.
 
         Args:
