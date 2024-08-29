@@ -1,6 +1,6 @@
 import logging
-from data_access.eth_chain import get_web3_instance, get_eth_usd_oracle_contract
 
+from data_access.contracts.util import *
 
 # Note: Could make these generic by using getTokenUsdTwap function with the token as first parameter
 

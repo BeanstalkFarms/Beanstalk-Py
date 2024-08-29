@@ -1,5 +1,5 @@
 from data_access.etherscan import get_gas_base_fee
-from data_access.eth_usd_oracle import get_twa_eth_price
+from data_access.contracts.eth_usd_oracle import get_twa_eth_price
 
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor

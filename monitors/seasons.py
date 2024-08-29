@@ -3,7 +3,7 @@ from monitors.monitor import Monitor
 from data_access.eth_chain import *
 from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
-from data_access.eth_usd_oracle import *
+from data_access.contracts.eth_usd_oracle import *
 from constants.addresses import *
 from constants.config import *
 
