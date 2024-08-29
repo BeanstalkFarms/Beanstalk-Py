@@ -7,7 +7,7 @@ from constants.addresses import *
 from constants.config import *
 
 class AllWellsMonitor(Monitor):
-    def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=False):
+    def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=None):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._ignorelist = ignorelist
         self._discord = discord
@@ -74,7 +74,7 @@ class WellMonitor(Monitor):
     ^^ make this assumption less strict, instead only skip valuation if no BDV
     """
 
-    def __init__(self, message_function, address, bean_reporting=False, prod=False, dry_run=False):
+    def __init__(self, message_function, address, bean_reporting=False, prod=False, dry_run=None):
         super().__init__(f"specific well", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
         self.pool_address = address

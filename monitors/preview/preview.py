@@ -1,6 +1,3 @@
-import discord
-from discord.ext import tasks, commands
-
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *

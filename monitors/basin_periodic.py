@@ -11,7 +11,7 @@ from constants.config import *
 class BasinPeriodicMonitor(Monitor):
     """Periodically summarized and report Basin status."""
 
-    def __init__(self, message_function, prod=False, dry_run=False):
+    def __init__(self, message_function, prod=False, dry_run=None):
         super().__init__(f"basin", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.update_period = 60 * 60 * 24
         self.update_ref_time = int(

@@ -26,7 +26,7 @@ class Channel(Enum):
 
 
 class DiscordClient(discord.ext.commands.Bot):
-    def __init__(self, prod=False):
+    def __init__(self, prod=False, dry_run=None):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
         self.nickname = ""
 
@@ -54,22 +54,22 @@ class DiscordClient(discord.ext.commands.Bot):
         logging.getLogger().addHandler(discord_report_handler)
 
         self.period_monitor = BasinPeriodicMonitor(
-            self.send_msg_daily, prod=prod, dry_run=False
+            self.send_msg_daily, prod=prod, dry_run=dry_run
         )
         self.period_monitor.start()
 
         self.well_monitor_bean_eth = WellMonitor(
-            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
+            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_eth.start()
         
         self.well_monitor_bean_wsteth = WellMonitor(
-            self.send_msg_bean_wsteth, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=False
+            self.send_msg_bean_wsteth, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_wsteth.start()
 
         self.well_monitor_all = AllWellsMonitor(
-            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=True, prod=prod, dry_run=False
+            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_all.start()
 
@@ -224,8 +224,11 @@ if __name__ == "__main__":
     except KeyError:
         token = os.environ["DISCORD_BASIN_BOT_TOKEN"]
         prod = False
+        dry_run = os.environ.get("DRY_RUN")
+        if dry_run:
+            dry_run = dry_run.split(',')
 
-    discord_client = DiscordClient(prod=prod)
+    discord_client = DiscordClient(prod=prod, dry_run=dry_run)
 
     try:
         discord_client.run(token)
