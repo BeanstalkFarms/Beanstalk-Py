@@ -68,40 +68,6 @@ add_event_to_dict(
 add_event_to_dict("Shift(uint256[],address,uint256,address)", WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 add_event_to_dict("Sync(uint256[],uint256,address)", WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 
-UNISWAP_V2_POOL_EVENT_MAP = {}
-UNISWAP_V2_POOL_SIGNATURES_LIST = []
-add_event_to_dict(
-    "Mint(address,uint256,uint256)", UNISWAP_V2_POOL_EVENT_MAP, UNISWAP_V2_POOL_SIGNATURES_LIST
-)
-add_event_to_dict(
-    "Burn(address,uint256,uint256,address)",
-    UNISWAP_V2_POOL_EVENT_MAP,
-    UNISWAP_V2_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "Swap(address,uint256,uint256,uint256,uint256,address)",
-    UNISWAP_V2_POOL_EVENT_MAP,
-    UNISWAP_V2_POOL_SIGNATURES_LIST,
-)
-
-UNISWAP_V3_POOL_EVENT_MAP = {}
-UNISWAP_V3_POOL_SIGNATURES_LIST = []
-add_event_to_dict(
-    "Mint(address,address,int24,int24,uint128,uint256,uint256)",
-    UNISWAP_V3_POOL_EVENT_MAP,
-    UNISWAP_V3_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "Burn(address,int24,int24,uint128,uint256,uint256)",
-    UNISWAP_V3_POOL_EVENT_MAP,
-    UNISWAP_V3_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "Swap(address,address,int256,int256,uint160,uint128,int24)",
-    UNISWAP_V3_POOL_EVENT_MAP,
-    UNISWAP_V3_POOL_SIGNATURES_LIST,
-)
-
 
 CURVE_POOL_EVENT_MAP = {}
 CURVE_POOL_SIGNATURES_LIST = []
@@ -299,17 +265,9 @@ with open(
 ) as well_abi_file:
     well_abi = json.load(well_abi_file)
 with open(
-    os.path.join(os.path.dirname(__file__), "../constants/abi/uniswap_v3_pool_abi.json")
-) as uniswap_v3_pool_abi_file:
-    uniswap_v3_pool_abi = json.load(uniswap_v3_pool_abi_file)
-with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/curve_pool_abi.json")
 ) as curve_pool_abi_file:
     curve_pool_abi = json.load(curve_pool_abi_file)
-with open(
-    os.path.join(os.path.dirname(__file__), "../constants/abi/bean_abi.json")
-) as bean_abi_file:
-    bean_abi = json.load(bean_abi_file)
 with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/beanstalk_abi.json")
 ) as beanstalk_abi_file:
@@ -327,10 +285,6 @@ with open(
 ) as fertilizer_abi_file:
     fertilizer_abi = json.load(fertilizer_abi_file)
 with open(
-    os.path.join(os.path.dirname(__file__), "../constants/abi/chainlink_abi.json")
-) as chainlink_abi_file:
-    chainlink_abi = json.load(chainlink_abi_file)
-with open(
     os.path.join(os.path.dirname(__file__), "../constants/abi/eth_usd_oracle_abi.json")
 ) as eth_usd_oracle_abi_file:
     eth_usd_oracle_abi = json.load(eth_usd_oracle_abi_file)
@@ -344,11 +298,6 @@ def get_web3_instance():
     # functionality. Monitoring is done through periodic get_new_events calls.
     # return Web3(WebsocketProvider(URL, websocket_timeout=60))
     return Web3(HTTPProvider(RPC_URL))
-
-
-def get_uniswap_v3_contract(address, web3):
-    """Get a web.eth.contract object for arbitrary Uniswap v3 pool. Contract is not thread safe."""
-    return web3.eth.contract(address=address, abi=uniswap_v3_pool_abi)
 
 
 def get_well_contract(web3, address):
@@ -373,7 +322,7 @@ def get_curve_3pool_contract(web3):
 
 def get_bean_contract(web3):
     """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
-    return web3.eth.contract(address=BEAN_ADDR, abi=bean_abi)
+    return web3.eth.contract(address=BEAN_ADDR, abi=erc20_abi)
 
 
 def get_unripe_contract(web3):
@@ -406,13 +355,10 @@ def get_fertilizer_contract(web3):
     return web3.eth.contract(address=FERTILIZER_ADDR, abi=fertilizer_abi)
 
 
-def get_chainlink_contract(web3, price_feed_addr):
-    """Get a web.eth.contract object for chainlink price feed. Contract is not thread safe."""
-    return web3.eth.contract(address=price_feed_addr, abi=chainlink_abi)
-
 def get_eth_usd_oracle_contract(web3):
     """Get a web.eth.contract object for in-house eth usd price feed. Contract is not thread safe."""
     return web3.eth.contract(address=ETH_USD_ORACLE_ADDR, abi=eth_usd_oracle_abi)
+
 
 def get_erc20_contract(web3, address):
     """Get a web3.eth.contract object for a standard ERC20 token contract."""
@@ -645,14 +591,6 @@ class BeanClient(ChainClient):
         return bean_to_float(self.well_bean_wsteth_pool_info()["price"])
 
 
-# class AquiferClient(ChainClient):
-#     """Client for interacting with Aquifer contract."""
-
-#     def __init__(self, address, web3=None):
-#         super().__init__(web3)
-#         self.contract = get_aquifer_contract(self._web3)
-
-
 class WellClient(ChainClient):
     """Client for interacting with well contracts."""
 
@@ -691,21 +629,6 @@ def get_eth_sent(txn_hash, recipient, web3, log_end_index):
 
     txn_value = web3.eth.get_transaction(txn_hash).value
     return txn_value
-
-class UniswapV3Client(ChainClient):
-    def __init__(self, address, token_0_decimals, token_1_decimals, web3=None):
-        super().__init__(web3)
-        self.contract = get_uniswap_v3_contract(address, self._web3)
-        self.token_0_decimals = token_0_decimals
-        self.token_1_decimals = token_1_decimals
-
-    def price_ratio(self):
-        sqrtPriceX96, _, _, _, _, _, _ = call_contract_function_with_retry(
-            self.contract.functions.slot0()
-        )
-        return uni_v3_sqrtPriceX96_to_float(
-            sqrtPriceX96, self.token_0_decimals, self.token_1_decimals
-        )
 
 
 class CurveClient(ChainClient):
@@ -1240,20 +1163,6 @@ def crv_to_float(crv_long):
 
 def lusd_to_float(lusd_long):
     return token_to_float(lusd_long, LUSD_DECIMALS)
-
-
-def uni_v3_fixed_to_floating_point(fixed_point):
-    # Why 192? According to their docs it is a Q64.96 value.
-    return fixed_point / (2**192)
-
-
-def uni_v3_sqrtPriceX96_to_float(fixed_point, decimals_0, decimals_1):
-    """Return float representing price ratio of token1/token0."""
-    unnormalized_ratio = uni_v3_fixed_to_floating_point(fixed_point**2)
-    if decimals_0 > decimals_1:
-        return unnormalized_ratio * (10 ** (decimals_0 - decimals_1))
-    else:
-        return unnormalized_ratio / (10 ** (decimals_1 - decimals_0))
 
 
 def get_test_entries(dry_run=None):

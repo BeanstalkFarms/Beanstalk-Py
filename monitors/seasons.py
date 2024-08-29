@@ -81,8 +81,6 @@ class SeasonsMonitor(Monitor):
 
         Repeatedly makes graph calls to check sunrise status.
         """
-        # TODO(funderberker): Put in max number of checks here before giving up and wait for
-        # next sunrise.
         while self._thread_active:
             current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
             # If a new season is detected and sunrise was sufficiently recent.
