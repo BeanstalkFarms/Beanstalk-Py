@@ -21,7 +21,7 @@ from monitors.market import MarketMonitor
 from monitors.barn import BarnRaiseMonitor
 
 class TelegramBot(object):
-    def __init__(self, token, prod=False):
+    def __init__(self, token, prod=False, dry_run=None):
         if prod:
             self._chat_id = BS_TELE_CHAT_ID_PRODUCTION
             logging.info("Configured as a production instance.")
@@ -35,32 +35,32 @@ class TelegramBot(object):
         self.peg_cross_monitor = PegCrossMonitor(self.send_msg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = SeasonsMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.sunrise_monitor = SeasonsMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.sunrise_monitor.start()
 
         self.well_monitor = WellMonitor(
-            self.send_msg, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
+            self.send_msg, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor.start()
 
         self.well_monitor_2 = WellMonitor(
-            self.send_msg, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
+            self.send_msg, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_2.start()
 
         self.curve_bean_3crv_pool_monitor = CurvePoolMonitor(
-            self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False
+            self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=dry_run
         )
         self.curve_bean_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = BeanstalkMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.beanstalk_monitor = BeanstalkMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.beanstalk_monitor.start()
 
-        self.market_monitor = MarketMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.market_monitor = MarketMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.market_monitor.start()
 
         self.barn_raise_monitor = BarnRaiseMonitor(
-            self.send_msg, report_events=True, report_summaries=False, prod=prod, dry_run=False
+            self.send_msg, report_events=True, report_summaries=False, prod=prod, dry_run=dry_run
         )
         self.barn_raise_monitor.start()
 
@@ -113,8 +113,11 @@ if __name__ == "__main__":
     except KeyError:
         token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
+        dry_run = os.environ.get("DRY_RUN")
+        if dry_run:
+            dry_run = dry_run.split(',')
 
-    bot = TelegramBot(token=token, prod=prod)
+    bot = TelegramBot(token=token, prod=prod, dry_run=dry_run)
     try:
         bot.tele_bot.infinity_polling()
     except (KeyboardInterrupt, SystemExit):

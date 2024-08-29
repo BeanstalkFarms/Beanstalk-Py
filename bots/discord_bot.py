@@ -36,7 +36,7 @@ class Channel(Enum):
     TELEGRAM_FWD = 7
 
 class DiscordClient(discord.ext.commands.Bot):
-    def __init__(self, prod=False, telegram_token=None):
+    def __init__(self, prod=False, telegram_token=None, dry_run=None):
         super().__init__(command_prefix=commands.when_mentioned_or("!"))
         # self.add_cog(WalletMonitoring(self))
         configure_bot_commands(self)
@@ -93,31 +93,31 @@ class DiscordClient(discord.ext.commands.Bot):
             self.send_msg_seasons,
             channel_to_wallets=self.channel_to_wallets,
             prod=prod,
-            dry_run=False,
+            dry_run=dry_run,
         )
         self.sunrise_monitor.start()
 
         self.well_monitor = WellMonitor(
-            self.send_msg_pool, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
+            self.send_msg_pool, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor.start()
         
         self.well_monitor_2 = WellMonitor(
-            self.send_msg_pool, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
+            self.send_msg_pool, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_2.start()
 
         self.curve_bean_3crv_pool_monitor = CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False
+            self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=dry_run
         )
         self.curve_bean_3crv_pool_monitor.start()
 
         self.beanstalk_monitor = BeanstalkMonitor(
-            self.send_msg_beanstalk, prod=prod, dry_run=False
+            self.send_msg_beanstalk, prod=prod, dry_run=dry_run
         )
         self.beanstalk_monitor.start()
 
-        self.market_monitor = MarketMonitor(self.send_msg_market, prod=prod, dry_run=False)
+        self.market_monitor = MarketMonitor(self.send_msg_market, prod=prod, dry_run=dry_run)
         self.market_monitor.start()
 
         self.barn_raise_monitor = BarnRaiseMonitor(
@@ -125,7 +125,7 @@ class DiscordClient(discord.ext.commands.Bot):
             report_events=True,
             report_summaries=False,
             prod=prod,
-            dry_run=False,
+            dry_run=dry_run,
         )
         self.barn_raise_monitor.start()
 
@@ -511,8 +511,11 @@ if __name__ == "__main__":
         token = os.environ["DISCORD_BOT_TOKEN"]
         telegram_token = None
         prod = False
+        dry_run = os.environ.get("DRY_RUN")
+        if dry_run:
+            dry_run = dry_run.split(',')
 
-    discord_client = DiscordClient(prod=prod, telegram_token=telegram_token)
+    discord_client = DiscordClient(prod=prod, telegram_token=telegram_token, dry_run=dry_run)
 
     try:
         discord_client.run(token)

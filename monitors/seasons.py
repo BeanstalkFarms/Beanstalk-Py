@@ -1,3 +1,4 @@
+from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
 from data_access.graphs import *
@@ -8,7 +9,7 @@ from constants.config import *
 
 class SeasonsMonitor(Monitor):
     def __init__(
-        self, message_function, short_msgs=False, channel_to_wallets=None, prod=False, dry_run=False
+        self, message_function, short_msgs=False, channel_to_wallets=None, prod=False, dry_run=None
     ):
         super().__init__(
             "Seasons", message_function, SUNRISE_CHECK_PERIOD, prod=prod, dry_run=dry_run

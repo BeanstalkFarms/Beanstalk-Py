@@ -13,7 +13,7 @@ class BarnRaiseMonitor(Monitor):
         report_events=True,
         report_summaries=False,
         prod=False,
-        dry_run=False,
+        dry_run=None,
     ):
         super().__init__(
             "BarnRaise", message_function, BARN_RAISE_CHECK_RATE, prod=prod, dry_run=dry_run

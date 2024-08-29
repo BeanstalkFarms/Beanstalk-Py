@@ -18,7 +18,7 @@ class PegCrossMonitor(Monitor):
     """Monitor bean graph for peg crosses and send out messages on detection."""
 
     def __init__(self, message_function, prod=False):
-        super().__init__("Peg", message_function, PEG_CHECK_PERIOD, prod=prod, dry_run=False)
+        super().__init__("Peg", message_function, PEG_CHECK_PERIOD, prod=prod, dry_run=None)
         self.bean_graph_client = BeanSqlClient()
         self.last_known_cross = None
 

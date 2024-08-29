@@ -9,7 +9,7 @@ from constants.config import *
 class BeanstalkMonitor(Monitor):
     """Monitor the Beanstalk contract for events."""
 
-    def __init__(self, message_function, prod=False, dry_run=False):
+    def __init__(self, message_function, prod=False, dry_run=None):
         super().__init__(
             "Beanstalk", message_function, BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run
         )

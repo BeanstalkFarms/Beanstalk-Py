@@ -15,7 +15,7 @@ from monitors.basin_periodic import BasinPeriodicMonitor
 from monitors.well import WellMonitor, AllWellsMonitor
 
 class TelegramBasinBot(object):
-    def __init__(self, token, prod=False):
+    def __init__(self, token, prod=False, dry_run=None):
         if prod:
             self._chat_id = DEX_TELE_CHAT_ID_PRODUCTION
             logging.info("Configured as a production instance.")
@@ -26,21 +26,21 @@ class TelegramBasinBot(object):
         apihelper.SESSION_TIME_TO_LIVE = 5 * 60
         self.tele_bot = telebot.TeleBot(token, parse_mode="Markdown")
 
-        self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.period_monitor.start()
 
         self.well_monitor_bean_eth = WellMonitor(
-            self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
+            self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_eth.start()
         
         self.well_monitor_bean_wsteth = WellMonitor(
-            self.send_msg, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=False
+            self.send_msg, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_wsteth.start()
 
         self.well_monitor_all = AllWellsMonitor(
-            self.send_msg, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=False, prod=prod, dry_run=False
+            self.send_msg, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=False, prod=prod, dry_run=dry_run
         )
         self.well_monitor_all.start()
 
@@ -84,8 +84,11 @@ if __name__ == "__main__":
     except KeyError:
         token = os.environ["TELEGRAM_BOT_TOKEN"]
         prod = False
+        dry_run = os.environ.get("DRY_RUN")
+        if dry_run:
+            dry_run = dry_run.split(',')
 
-    bot = TelegramBasinBot(token=token, prod=prod)
+    bot = TelegramBasinBot(token=token, prod=prod, dry_run=dry_run)
     try:
         bot.tele_bot.infinity_polling()
     except (KeyboardInterrupt, SystemExit):

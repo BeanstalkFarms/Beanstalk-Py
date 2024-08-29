@@ -12,7 +12,7 @@ class Monitor:
         prod: bool indicating if this is a production instance or not.
     """
 
-    def __init__(self, name, message_function, query_rate, prod=False, dry_run=False):
+    def __init__(self, name, message_function, query_rate, prod=False, dry_run=None):
         self.name = name
         self.message_function = message_function
         self.query_rate = query_rate

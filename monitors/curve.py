@@ -11,7 +11,7 @@ from constants.config import *
 class CurvePoolMonitor(Monitor):
     """Monitor a Curve pool for events."""
 
-    def __init__(self, message_function, pool_type, prod=False, dry_run=False):
+    def __init__(self, message_function, pool_type, prod=False, dry_run=None):
         if pool_type is EventClientType.CURVE_BEAN_3CRV_POOL:
             name = "Bean:3CRV Curve Pool"
         else:

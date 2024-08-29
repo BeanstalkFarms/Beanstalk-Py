@@ -1280,7 +1280,7 @@ def get_test_entries(dry_run=None):
 def monitor_curve_pool_events():
     client = EthEventsClient(EventClientType.CURVE_BEAN_3CRV_POOL)
     while True:
-        events = client.get_new_logs(dry_run=False)
+        events = client.get_new_logs(dry_run=None)
         time.sleep(5)
 
 
@@ -1290,7 +1290,7 @@ def monitor_curve_pool_events():
 def monitor_beanstalk_events():
     client = EthEventsClient(EventClientType.BEANSTALK)
     while True:
-        events = client.get_new_logs(dry_run=False)
+        events = client.get_new_logs(dry_run=None)
         time.sleep(5)
 
 if __name__ == "__main__":

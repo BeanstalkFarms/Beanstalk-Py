@@ -57,7 +57,7 @@ class TwitterBot(object):
         logging.info(f"Tweeted:\n{msg}\n")
 
 class BeanstalkTwitterBot(TwitterBot):
-    def __init__(self, prod=False):
+    def __init__(self, prod=False, dry_run=None):
         if prod:
             self.api_key = os.environ["TWITTER_BOT_API_KEY_PROD"]
             self.api_key_secret = os.environ["TWITTER_BOT_API_KEY_SECRET_PROD"]
@@ -70,7 +70,7 @@ class BeanstalkTwitterBot(TwitterBot):
         self.set_client()
 
         self.sunrise_monitor = SeasonsMonitor(
-            self.send_msg, short_msgs=True, prod=prod, dry_run=False
+            self.send_msg, short_msgs=True, prod=prod, dry_run=dry_run
         )
         self.sunrise_monitor.start()
 
@@ -78,7 +78,7 @@ class BeanstalkTwitterBot(TwitterBot):
         self.sunrise_monitor.stop()
 
 class BasinTwitterBot(TwitterBot):
-    def __init__(self, prod=False):
+    def __init__(self, prod=False, dry_run=None):
         if prod:
             self.api_key = os.environ["TWITTER_BASIN_BOT_API_KEY_PROD"]
             self.api_key_secret = os.environ["TWITTER_BASIN_BOT_API_KEY_SECRET_PROD"]
@@ -90,7 +90,7 @@ class BasinTwitterBot(TwitterBot):
             logging.info("BasinTwitterBot configured as a staging instance.")
         self.set_client()
 
-        self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.period_monitor.start()
 
     def stop(self):
@@ -124,9 +124,12 @@ if __name__ == "__main__":
         prod = True
     except KeyError:
         prod = False
+        dry_run = os.environ.get("DRY_RUN")
+        if dry_run:
+            dry_run = dry_run.split(',')
 
-    beanstalk_bot = BeanstalkTwitterBot(prod=prod)
-    basin_bot = BasinTwitterBot(prod=prod)
+    beanstalk_bot = BeanstalkTwitterBot(prod=prod, dry_run=dry_run)
+    basin_bot = BasinTwitterBot(prod=prod, dry_run=dry_run)
     try:
         infinity_polling()
     except (KeyboardInterrupt, SystemExit):
