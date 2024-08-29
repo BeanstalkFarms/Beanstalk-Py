@@ -7,38 +7,39 @@ import telebot
 from telebot import apihelper
 
 from bots import util
+from constants.config import *
+from constants.channels import *
 from constants.addresses import *
 
-TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
-TELE_CHAT_ID_PRODUCTION = "@basintracker"  # Basin Tracker channel
-
+from monitors.basin_periodic import BasinPeriodicMonitor
+from monitors.well import WellMonitor, AllWellsMonitor
 
 class TelegramBasinBot(object):
     def __init__(self, token, prod=False):
         if prod:
-            self._chat_id = TELE_CHAT_ID_PRODUCTION
+            self._chat_id = DEX_TELE_CHAT_ID_PRODUCTION
             logging.info("Configured as a production instance.")
         else:
-            self._chat_id = TELE_CHAT_ID_STAGING
+            self._chat_id = DEX_TELE_CHAT_ID_STAGING
             logging.info("Configured as a staging instance.")
 
         apihelper.SESSION_TIME_TO_LIVE = 5 * 60
         self.tele_bot = telebot.TeleBot(token, parse_mode="Markdown")
 
-        self.period_monitor = util.BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
         self.period_monitor.start()
 
-        self.well_monitor_bean_eth = util.WellMonitor(
+        self.well_monitor_bean_eth = WellMonitor(
             self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_eth.start()
         
-        self.well_monitor_bean_wsteth = util.WellMonitor(
+        self.well_monitor_bean_wsteth = WellMonitor(
             self.send_msg, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_wsteth.start()
 
-        self.well_monitor_all = util.AllWellsMonitor(
+        self.well_monitor_all = AllWellsMonitor(
             self.send_msg, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=False, prod=prod, dry_run=False
         )
         self.well_monitor_all.start()
@@ -63,7 +64,7 @@ class TelegramBasinBot(object):
 if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
     logging.basicConfig(
-        format=f"Telegram Basin Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        format=f"Telegram Basin Bot : {LOGGING_FORMAT_STR_SUFFIX}",
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(

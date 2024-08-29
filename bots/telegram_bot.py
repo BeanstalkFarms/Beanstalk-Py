@@ -7,53 +7,59 @@ import telebot
 from telebot import apihelper
 
 from bots import util
+from constants.config import *
+from constants.channels import *
 from constants.addresses import *
 from data_access.eth_chain import EventClientType
 
-TELE_CHAT_ID_STAGING = "-1001655547288"  # Beanstalk Bot Testing channel
-TELE_CHAT_ID_PRODUCTION = "-1001770089535"  # Beanstalk Tracker channel
-
+from monitors.peg_cross import PegCrossMonitor
+from monitors.seasons import SeasonsMonitor
+from monitors.well import WellMonitor
+from monitors.curve import CurvePoolMonitor
+from monitors.beanstalk import BeanstalkMonitor
+from monitors.market import MarketMonitor
+from monitors.barn import BarnRaiseMonitor
 
 class TelegramBot(object):
     def __init__(self, token, prod=False):
         if prod:
-            self._chat_id = TELE_CHAT_ID_PRODUCTION
+            self._chat_id = BS_TELE_CHAT_ID_PRODUCTION
             logging.info("Configured as a production instance.")
         else:
-            self._chat_id = TELE_CHAT_ID_STAGING
+            self._chat_id = BS_TELE_CHAT_ID_STAGING
             logging.info("Configured as a staging instance.")
 
         apihelper.SESSION_TIME_TO_LIVE = 5 * 60
         self.tele_bot = telebot.TeleBot(token, parse_mode="Markdown")
 
-        self.peg_cross_monitor = util.PegCrossMonitor(self.send_msg, prod=prod)
+        self.peg_cross_monitor = PegCrossMonitor(self.send_msg, prod=prod)
         self.peg_cross_monitor.start()
 
-        self.sunrise_monitor = util.SeasonsMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.sunrise_monitor = SeasonsMonitor(self.send_msg, prod=prod, dry_run=False)
         self.sunrise_monitor.start()
 
-        self.well_monitor = util.WellMonitor(
+        self.well_monitor = WellMonitor(
             self.send_msg, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
         )
         self.well_monitor.start()
 
-        self.well_monitor_2 = util.WellMonitor(
+        self.well_monitor_2 = WellMonitor(
             self.send_msg, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=False
         )
         self.well_monitor_2.start()
 
-        self.curve_bean_3crv_pool_monitor = util.CurvePoolMonitor(
+        self.curve_bean_3crv_pool_monitor = CurvePoolMonitor(
             self.send_msg, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=False
         )
         self.curve_bean_3crv_pool_monitor.start()
 
-        self.beanstalk_monitor = util.BeanstalkMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.beanstalk_monitor = BeanstalkMonitor(self.send_msg, prod=prod, dry_run=False)
         self.beanstalk_monitor.start()
 
-        self.market_monitor = util.MarketMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.market_monitor = MarketMonitor(self.send_msg, prod=prod, dry_run=False)
         self.market_monitor.start()
 
-        self.barn_raise_monitor = util.BarnRaiseMonitor(
+        self.barn_raise_monitor = BarnRaiseMonitor(
             self.send_msg, report_events=True, report_summaries=False, prod=prod, dry_run=False
         )
         self.barn_raise_monitor.start()
@@ -87,7 +93,7 @@ class TelegramBot(object):
 if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
     logging.basicConfig(
-        format=f"Telegram Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        format=f"Telegram Bot : {LOGGING_FORMAT_STR_SUFFIX}",
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(

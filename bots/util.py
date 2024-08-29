@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 import re
+import subprocess
 
 import discord
 from discord.ext import tasks, commands

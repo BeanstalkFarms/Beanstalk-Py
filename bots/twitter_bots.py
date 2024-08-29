@@ -6,7 +6,11 @@ import time
 import tweepy
 
 from bots import util
+from constants.config import *
 from constants.addresses import *
+
+from monitors.seasons import SeasonsMonitor
+from monitors.basin_periodic import BasinPeriodicMonitor
 
 class TwitterBot(object):
     def set_keys_staging(self):
@@ -65,7 +69,7 @@ class BeanstalkTwitterBot(TwitterBot):
             logging.info("BeanstalkTwitterBot configured as a staging instance.")
         self.set_client()
 
-        self.sunrise_monitor = util.SeasonsMonitor(
+        self.sunrise_monitor = SeasonsMonitor(
             self.send_msg, short_msgs=True, prod=prod, dry_run=False
         )
         self.sunrise_monitor.start()
@@ -86,12 +90,8 @@ class BasinTwitterBot(TwitterBot):
             logging.info("BasinTwitterBot configured as a staging instance.")
         self.set_client()
 
-        self.period_monitor = util.BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
+        self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=False)
         self.period_monitor.start()
-
-        # self.well_monitor_bean_eth = util.WellMonitor(
-        #     self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False)
-        # self.well_monitor_bean_eth.start()
 
     def stop(self):
         # self.well_monitor_bean_eth.stop()
@@ -105,7 +105,7 @@ def infinity_polling():
 if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
     logging.basicConfig(
-        format=f"Twitter Bots : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        format=f"Twitter Bots : {LOGGING_FORMAT_STR_SUFFIX}",
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(
