@@ -819,12 +819,8 @@ class EthEventsClient:
 
         # Track which unique logs have already been processed from this event batch.
         for entry in new_entries:
-            # # This should only be triggered when pulling dry run test entries set directly since it
-            # # will include entries from other contracts.
-            # if entry.address != self._contract_address:
-            #     continue
-            # The event topic associated with this entry.
-            if not dry_run:
+            # There can be zero topics for dry run
+            if len(entry["topics"]) > 0:
                 topic_hash = entry["topics"][0].hex()
                 # Do not process topics outside of this classes topics of interest.
                 if topic_hash not in self._events_dict:
