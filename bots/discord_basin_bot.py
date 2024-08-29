@@ -12,6 +12,10 @@ from discord.ext import tasks, commands
 from bots import util
 from constants.addresses import *
 from constants.channels import *
+from constants.config import *
+
+from monitors.basin_periodic import BasinPeriodicMonitor
+from monitors.well import WellMonitor, AllWellsMonitor
 
 class Channel(Enum):
     REPORT = 0
@@ -46,25 +50,25 @@ class DiscordClient(discord.ext.commands.Bot):
         # Update root logger to send logging Errors in a Discord channel.
         discord_report_handler = util.MsgHandler(self.send_msg_report)
         discord_report_handler.setLevel(logging.ERROR)
-        discord_report_handler.setFormatter(util.LOGGING_FORMATTER)
+        discord_report_handler.setFormatter(LOGGING_FORMATTER)
         logging.getLogger().addHandler(discord_report_handler)
 
-        self.period_monitor = util.BasinPeriodicMonitor(
+        self.period_monitor = BasinPeriodicMonitor(
             self.send_msg_daily, prod=prod, dry_run=False
         )
         self.period_monitor.start()
 
-        self.well_monitor_bean_eth = util.WellMonitor(
+        self.well_monitor_bean_eth = WellMonitor(
             self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_eth.start()
         
-        self.well_monitor_bean_wsteth = util.WellMonitor(
+        self.well_monitor_bean_wsteth = WellMonitor(
             self.send_msg_bean_wsteth, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=False
         )
         self.well_monitor_bean_wsteth.start()
 
-        self.well_monitor_all = util.AllWellsMonitor(
+        self.well_monitor_all = AllWellsMonitor(
             self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=True, prod=prod, dry_run=False
         )
         self.well_monitor_all.start()
@@ -200,7 +204,7 @@ def channel_id(ctx):
 
 if __name__ == "__main__":
     logging.basicConfig(
-        format=f"Discord Basin Bot : {util.LOGGING_FORMAT_STR_SUFFIX}",
+        format=f"Discord Basin Bot : {LOGGING_FORMAT_STR_SUFFIX}",
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(

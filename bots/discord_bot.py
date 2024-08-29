@@ -24,7 +24,6 @@ from monitors.market import MarketMonitor
 from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
 from monitors.well import WellMonitor
-from monitors.preview import preview
 
 class Channel(Enum):
     PEG = 0
@@ -222,7 +221,7 @@ class DiscordClient(discord.ext.commands.Bot):
     @tasks.loop(seconds=10, reconnect=True)
     async def _update_naming(self):
         if not self.nickname:
-            self.nickname = await preview.update_discord_bot_name("BeanBot", self)
+            self.nickname = await util.update_discord_bot_name("BeanBot", self)
             # NOTE(funderberker): will not update with holiday emojis.
 
     @_update_naming.before_loop

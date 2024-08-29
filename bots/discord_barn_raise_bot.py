@@ -3,7 +3,10 @@ import logging.handlers
 import os
 import signal
 
+from constants.config import ONE_HUNDRED_MEGABYTES
+
 from bots import util
+from monitors.preview.barn import BarnRaisePreviewMonitor
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -30,7 +33,7 @@ if __name__ == "__main__":
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    client = util.DiscordSidebarClient(util.BarnRaisePreviewMonitor)
+    client = util.DiscordSidebarClient(BarnRaisePreviewMonitor)
 
     try:
         client.run(token)

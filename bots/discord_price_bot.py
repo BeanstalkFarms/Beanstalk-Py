@@ -3,8 +3,10 @@ import logging.handlers
 import os
 import signal
 
-from bots import util
+from constants.config import ONE_HUNDRED_MEGABYTES
 
+from bots import util
+from monitors.preview.price import PricePreviewMonitor
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -31,7 +33,7 @@ if __name__ == "__main__":
         token = os.environ["DISCORD_BOT_TOKEN"]
         prod = False
 
-    client = util.DiscordSidebarClient(util.PricePreviewMonitor)
+    client = util.DiscordSidebarClient(PricePreviewMonitor)
 
     try:
         client.run(token)
