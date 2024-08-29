@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.basin import BasinGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -21,7 +21,7 @@ class BasinPeriodicMonitor(Monitor):
         )  # 15 * 60 * 60 # timestamp to check period against (11:00 EST)
         # updated_secs_ago = time.time() - (time.time() % self.update_period) - self.update_ref_time
         self.last_update = time.time()  # arbitrary init
-        self.basin_graph_client = BasinSqlClient()
+        self.basin_graph_client = BasinGraphClient()
 
     def _monitor_method(self):
         while True:

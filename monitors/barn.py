@@ -1,7 +1,7 @@
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -28,7 +28,7 @@ class BarnRaiseMonitor(Monitor):
         self.bean_client = BeanClient()
         self.barn_raise_client = BarnRaiseClient()
         self._eth_event_client = EthEventsClient(EventClientType.BARN_RAISE)
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.beanstalk_graph_client = BeanstalkGraphClient()
         self.last_total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
     def _monitor_method(self):

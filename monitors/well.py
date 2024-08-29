@@ -1,7 +1,7 @@
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.basin import BasinGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -14,7 +14,7 @@ class AllWellsMonitor(Monitor):
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
         # All addresses
         self._eth_all_wells = EthEventsClient(EventClientType.WELL, address=None)
-        self.basin_graph_client = BasinSqlClient()
+        self.basin_graph_client = BasinGraphClient()
         self.bean_client = BeanClient()
     
     def _monitor_method(self):
@@ -79,7 +79,7 @@ class WellMonitor(Monitor):
         self.pool_type = EventClientType.WELL
         self.pool_address = address
         self._eth_event_client = EthEventsClient(self.pool_type, self.pool_address)
-        self.basin_graph_client = BasinSqlClient()
+        self.basin_graph_client = BasinGraphClient()
         self.bean_client = BeanClient()
         self.bean_reporting = bean_reporting
 

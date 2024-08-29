@@ -1,7 +1,7 @@
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.basin import BasinGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -16,7 +16,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
     def __init__(self, name_function, status_function):
         super().__init__("BasinStatus", name_function, status_function, 2)
         self.last_name = ""
-        self.basin_graph_client = BasinSqlClient()
+        self.basin_graph_client = BasinGraphClient()
 
     def _monitor_method(self):
         while self._thread_active:

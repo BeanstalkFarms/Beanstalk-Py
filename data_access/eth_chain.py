@@ -1173,7 +1173,7 @@ def get_test_entries(dry_run=None):
     time.sleep(1)
 
     if dry_run:
-        if dry_run == 'all':
+        if dry_run[0] == 'all':
             return dry_run_entries.entries
         else:
             entries = []

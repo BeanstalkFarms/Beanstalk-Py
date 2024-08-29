@@ -1,7 +1,8 @@
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.snapshot import SnapshotGraphClient
+from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -17,8 +18,8 @@ class SnapshotPreviewMonitor(PreviewMonitor):
         self.last_status = ""
 
     def _monitor_method(self):
-        self.snapshot_client = SnapshotClient()
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.snapshot_client = SnapshotGraphClient()
+        self.beanstalk_graph_client = BeanstalkGraphClient()
         while self._thread_active:
             active_proposals = self.snapshot_client.get_active_proposals()
             if len(active_proposals) == 0:

@@ -1,7 +1,7 @@
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
 from data_access.eth_usd_oracle import *
 from constants.addresses import *
@@ -19,7 +19,7 @@ class SeasonsMonitor(Monitor):
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
         self._eth_event_client = EthEventsClient(EventClientType.SEASON)
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.beanstalk_graph_client = BeanstalkGraphClient()
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()
         # Most recent season processed. Do not initialize.

@@ -3,7 +3,7 @@ import tools
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -19,7 +19,7 @@ class MarketMonitor(Monitor):
         self.bean_client = BeanClient(self._web3)
         self.bean_contract = get_bean_contract(self._web3)
         self.beanstalk_contract = get_beanstalk_contract(self._web3)
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.beanstalk_graph_client = BeanstalkGraphClient()
 
     def _monitor_method(self):
         last_check_time = 0

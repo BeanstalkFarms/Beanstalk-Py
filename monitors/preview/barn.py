@@ -1,6 +1,6 @@
 from bots.util import *
 from monitors.preview.preview import PreviewMonitor
-from data_access.graphs import *
+from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 
 class BarnRaisePreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into current Barn Raise status."""
@@ -10,11 +10,11 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
         self.last_name = ""
         self.beanstalk_client = None
         self.beanstalk_graph_client = None
-        # self.snapshot_sql_client = SnapshotSqlClient()
+        # self.snapshot_sql_client = SnapshotGraphClient()
 
     def _monitor_method(self):
         self.beanstalk_client = BeanstalkClient()
-        self.beanstalk_graph_client = BeanstalkSqlClient()
+        self.beanstalk_graph_client = BeanstalkGraphClient()
         while self._thread_active:
             self.wait_for_next_cycle()
             self.iterate_display_index()

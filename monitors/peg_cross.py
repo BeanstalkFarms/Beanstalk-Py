@@ -4,7 +4,7 @@ from abc import abstractmethod
 from bots.util import *
 from monitors.monitor import Monitor
 from data_access.eth_chain import *
-from data_access.graphs import *
+from data_access.subgraphs.bean import BeanGraphClient
 from data_access.util import *
 from constants.addresses import *
 from constants.config import *
@@ -19,7 +19,7 @@ class PegCrossMonitor(Monitor):
 
     def __init__(self, message_function, prod=False):
         super().__init__("Peg", message_function, PEG_CHECK_PERIOD, prod=prod, dry_run=None)
-        self.bean_graph_client = BeanSqlClient()
+        self.bean_graph_client = BeanGraphClient()
         self.last_known_cross = None
 
     def _monitor_method(self):
