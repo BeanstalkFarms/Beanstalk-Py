@@ -23,15 +23,8 @@ if __name__ == "__main__":
 
     util.configure_main_thread_exception_logging()
 
-    # Automatically detect if this is a production environment.
-    try:
-        token = os.environ["DISCORD_BARN_RAISE_BOT_TOKEN_PROD"]
-        prod = True
-        logging.info("Configured as a production instance.")
-    except KeyError:
-        # Note this is the shared discord staging bot.
-        token = os.environ["DISCORD_BOT_TOKEN"]
-        prod = False
+    token = os.environ["DISCORD_BARN_RAISE_BOT_TOKEN"]
+    prod = os.environ["IS_PROD"].lower() == "true"
 
     client = util.DiscordSidebarClient(BarnRaisePreviewMonitor)
 

@@ -77,16 +77,11 @@ if __name__ == "__main__":
 
     util.configure_main_thread_exception_logging()
 
-    # Automatically detect if this is a production environment.
-    try:
-        token = os.environ["TELEGRAM_BASIN_BOT_TOKEN_PROD"]
-        prod = True
-    except KeyError:
-        token = os.environ["TELEGRAM_BOT_TOKEN"]
-        prod = False
-        dry_run = os.environ.get("DRY_RUN")
-        if dry_run:
-            dry_run = dry_run.split(',')
+    token = os.environ["TELEGRAM_DEX_BOT_TOKEN"]
+    prod = os.environ["IS_PROD"].lower() == "true"
+    dry_run = os.environ.get("DRY_RUN")
+    if dry_run:
+        dry_run = dry_run.split(',')
 
     bot = TelegramBasinBot(token=token, prod=prod, dry_run=dry_run)
     try:

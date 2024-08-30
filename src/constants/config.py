@@ -5,7 +5,6 @@ from constants.addresses import *
 from web3 import Web3
 
 # Misc configuration constants
-# TODO: some of these may be better suited as part of the docker .env
 
 # Strongly encourage Python 3.8+.
 # If not 3.8+ uncaught exceptions on threads will not be logged.
@@ -54,13 +53,8 @@ DISCORD_NICKNAME_LIMIT = 32
 # For WalletMonitoring - I dont think this is actually used
 WALLET_WATCH_LIMIT = 10
 
-# Alchemy node key.
-try:
-    API_KEY = os.environ["ALCHEMY_ETH_API_KEY_PROD"]
-except KeyError:
-    API_KEY = os.environ["ALCHEMY_ETH_API_KEY"]
-
-RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/" + API_KEY
+# Alchemy rpc
+RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/" + os.environ["ALCHEMY_ETH_API_KEY"]
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18

@@ -503,18 +503,12 @@ if __name__ == "__main__":
 
     util.configure_main_thread_exception_logging()
 
-    # Automatically detect if this is a production environment.
-    try:
-        token = os.environ["DISCORD_BOT_TOKEN_PROD"]
-        telegram_token = os.environ["TELEGRAM_BOT_TOKEN_PROD"]
-        prod = True
-    except KeyError:
-        token = os.environ["DISCORD_BOT_TOKEN"]
-        telegram_token = None
-        prod = False
-        dry_run = os.environ.get("DRY_RUN")
-        if dry_run:
-            dry_run = dry_run.split(',')
+    token = os.environ["DISCORD_BS_BOT_TOKEN"]
+    telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN") # Can be None
+    prod = os.environ["IS_PROD"].lower() == "true"
+    dry_run = os.environ.get("DRY_RUN")
+    if dry_run:
+        dry_run = dry_run.split(',')
 
     discord_client = DiscordClient(prod=prod, telegram_token=telegram_token, dry_run=dry_run)
 
