@@ -1,0 +1,67 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment (prod/dev)'
+        required: true
+      branch:
+        description: 'Branch name'
+        required: true
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.check_env.outputs.environment }}
+      branch: ${{ steps.check_env.outputs.branch }}
+    steps:
+      - name: Set defaults for push event
+        id: set_defaults
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+            echo "BRANCH=main" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+            echo "BRANCH=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+          fi
+
+      - name: Validate environment input
+        id: check_env
+        run: |
+          # Check if the environment is either 'prod' or 'dev'
+          if [[ "$ENVIRONMENT" != "prod" && "$ENVIRONMENT" != "dev" ]]; then
+            echo "Error: Environment must be 'prod' or 'dev'."
+            exit 1
+          fi
+
+          # Additional check for 'prod' deployment to be from 'main' branch only
+          if [[ "$ENVIRONMENT" == "prod" && "$BRANCH" != "main" ]]; then
+            echo "Error: Production deployments can only be made from the 'main' branch."
+            exit 1
+          fi
+
+          # Output for use in the subsequent job
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Execute Remote Deployment Script
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.USERNAME }}@${{ secrets.SERVER_HOST }} \
+          "bash ${{secrets.DEPLOY_SCRIPT_PATH}} ${{ needs.validation.outputs.branch }} ${{ needs.validation.outputs.environment }}"
