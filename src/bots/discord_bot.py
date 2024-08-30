@@ -504,7 +504,7 @@ if __name__ == "__main__":
     util.configure_main_thread_exception_logging()
 
     token = os.environ["DISCORD_BS_BOT_TOKEN"]
-    telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN") # Can be None
+    telegram_token = os.environ.get("TELEGRAM_BS_BOT_TOKEN") # Can be None
     prod = os.environ["IS_PROD"].lower() == "true"
     dry_run = os.environ.get("DRY_RUN")
     if dry_run:

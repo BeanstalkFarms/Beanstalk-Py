@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     util.configure_main_thread_exception_logging()
 
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    token = os.environ["TELEGRAM_BS_BOT_TOKEN"]
     prod = os.environ["IS_PROD"].lower() == "true"
     dry_run = os.environ.get("DRY_RUN")
     if dry_run:
