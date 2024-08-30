@@ -109,7 +109,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(
-                "twitter_bots.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
+                "logs/twitter_bots.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
             ),
             logging.StreamHandler(),
         ],

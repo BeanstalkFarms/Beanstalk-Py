@@ -16,7 +16,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         handlers=[
             logging.handlers.RotatingFileHandler(
-                "discord_eth_bot.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
+                "logs/discord_eth_bot.log", maxBytes=ONE_HUNDRED_MEGABYTES, backupCount=1
             ),
             logging.StreamHandler(),
         ],
