@@ -59,10 +59,10 @@ class TwitterBot(object):
 class BeanstalkTwitterBot(TwitterBot):
     def __init__(self, prod=False, dry_run=None):
         if prod:
-            self.api_key = os.environ["TWITTER_BOT_API_KEY"]
-            self.api_key_secret = os.environ["TWITTER_BOT_API_KEY_SECRET"]
-            self.access_token = os.environ["TWITTER_BOT_ACCESS_TOKEN"]
-            self.access_token_secret = os.environ["TWITTER_BOT_ACCESS_TOKEN_SECRET"]
+            self.api_key = os.environ["TWITTER_BS_BOT_API_KEY"]
+            self.api_key_secret = os.environ["TWITTER_BS_BOT_API_KEY_SECRET"]
+            self.access_token = os.environ["TWITTER_BS_BOT_ACCESS_TOKEN"]
+            self.access_token_secret = os.environ["TWITTER_BS_BOT_ACCESS_TOKEN_SECRET"]
             logging.info("BeanstalkTwitterBot configured as a production instance.")
         else:
             self.set_keys_staging()
