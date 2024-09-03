@@ -127,17 +127,6 @@ class DiscordClient(discord.ext.commands.Bot):
             self.current_guilds.append(guild)
             logging.info(f"Guild found: {guild.id}")
 
-        # Log the commit of this run.
-        logging.info(
-            "Git commit is "
-            + subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=os.path.dirname(os.path.realpath(__file__)),
-            )
-            .decode("ascii")
-            .strip()
-        )
-
     @tasks.loop(seconds=0.4, reconnect=True)
     async def send_queued_messages(self):
         """Send messages in queue.
