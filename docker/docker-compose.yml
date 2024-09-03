@@ -1,0 +1,8 @@
+services:
+  py:
+    image: bots-py:${DOCKER_ENV}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ../logs:/app/logs/
