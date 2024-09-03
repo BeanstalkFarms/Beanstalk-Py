@@ -47,17 +47,6 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         self.status_text = text
 
     async def on_ready(self):
-        # Log the commit of this run.
-        logging.info(
-            "Git commit is "
-            + subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=os.path.dirname(os.path.realpath(__file__)),
-            )
-            .decode("ascii")
-            .strip()
-        )
-
         self.user_id = self.user.id
         # self.beanstalk_guild = self.get_guild(BEANSTALK_GUILD_ID)
         # Guild IDs for all servers this bot is in.
