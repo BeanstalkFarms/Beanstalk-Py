@@ -118,7 +118,6 @@ if __name__ == "__main__":
 
     util.configure_main_thread_exception_logging()
 
-    token = os.environ["TWITTER_BOT_API_KEY"]
     prod = os.environ["IS_PROD"].lower() == "true"
     dry_run = os.environ.get("DRY_RUN")
     if dry_run:
