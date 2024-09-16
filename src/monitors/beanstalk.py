@@ -8,6 +8,8 @@ from data_access.util import *
 from constants.addresses import *
 from constants.config import *
 
+from collections import defaultdict
+
 class BeanstalkMonitor(Monitor):
     """Monitor the Beanstalk contract for events."""
 
@@ -66,32 +68,61 @@ class BeanstalkMonitor(Monitor):
             return
         # Else handle txn logs individually using default strings.
 
-        # Prune *transfer* deposit logs. They are uninteresting clutter.
-        # Note that this assumes that a transfer event never includes a novel deposit.
-        remove_event_logs = get_logs_by_names(["RemoveDeposit", "RemoveDeposits"], event_logs)
-        deposit_event_logs = get_logs_by_names("AddDeposit", event_logs)
-        for remove_event_log in remove_event_logs:
-            for deposit_event_log in deposit_event_logs:
-                if deposit_event_log.args.get("token") == remove_event_log.args.get("token"):
-                    # and deposit_event_log.args.get('amount') == \
-                    # (remove_event_log.args.get('amount'))):
-                    # Remove event log from event logs
-                    try:
-                        event_logs.remove(remove_event_log)
-                    except ValueError:
-                        pass
-                    try:
-                        event_logs.remove(deposit_event_log)
-                    except ValueError:
-                        pass
-                    logging.info(
-                        f"Ignoring a AddDeposit RemoveDeposit(s) pair {txn_hash.hex()}, possible transfer or silo migration"
-                    )
+        # Determine net deposit/withdraw of each token
+        net_deposits = defaultdict(int)
+        silo_deposit_logs = get_logs_by_names(["AddDeposit", "RemoveDeposit", "RemoveDeposits"], event_logs)
+        for event_log in silo_deposit_logs:
+            sign = 1 if event_log.event == "AddDeposit" else -1
+            token_address = event_log.args.get("token")
+            token_amount_long = event_log.args.get("amount")
+            net_deposits[token_address] += sign * token_amount_long
+            event_logs.remove(event_log)
+        
+        # logging.info(f"net token amounts {net_deposits}")
+        for token in net_deposits:
+            event_str = self.silo_event_str(token, net_deposits[token], txn_hash)
+            if event_str:
+                self.message_function(event_str)
 
         for event_log in event_logs:
             event_str = self.single_event_str(event_log)
             if event_str:
                 self.message_function(event_str)
+    
+    def silo_event_str(self, token_addr, net_amount, txn_hash):
+        """Logs a Silo Deposit/Withdraw"""
+
+        event_str = ""
+
+        if net_amount > 0:
+            event_str += f"📥 Silo Deposit"
+        elif net_amount < 0:
+            event_str += f"📭 Silo Withdrawal"
+        else:
+            return ""
+
+        bean_price = self.bean_client.avg_bean_price()
+        token_info = get_erc20_info(token_addr)
+        amount = token_to_float(abs(net_amount), token_info.decimals)
+
+        # Use current bdv rather than the deposited bdv reported in the event
+        bdv = amount * self.beanstalk_client.get_bdv(token_info)
+
+        value = None
+        if bdv > 0:
+            value = bdv * bean_price
+
+        event_str += f" - {round_num_auto(amount, min_precision=0)} {token_info.symbol}"
+        # Some legacy events may not set BDV, skip valuation. Also do not value unripe assets.
+        if value is not None and not token_addr.startswith(UNRIPE_TOKEN_PREFIX):
+            event_str += f" ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
+            event_str += f"\n{value_to_emojis(value)}"
+
+        event_str += f"\n<https://etherscan.io/tx/{txn_hash.hex()}>"
+        # Empty line that does not get stripped.
+        event_str += "\n_ _"
+        return event_str
+
 
     def single_event_str(self, event_log):
         """Create a string representing a single event log.
@@ -103,39 +134,9 @@ class BeanstalkMonitor(Monitor):
         event_str = ""
         bean_price = self.bean_client.avg_bean_price()
 
-        # Ignore these events. They are uninteresting clutter.
+        # Ignore these events
         if event_log.event in ["RemoveWithdrawal", "RemoveWithdrawals" "Plant", "Pick"]:
             return ""
-
-        # Deposit & Withdraw events.
-        elif event_log.event in ["AddDeposit", "RemoveDeposit", "RemoveDeposits"]:
-            # Pull args from the event log.
-            token_address = event_log.args.get("token")
-            token_amount_long = event_log.args.get("amount")  # AddDeposit, AddWithdrawal
-
-            _, _, token_symbol, decimals = get_erc20_info(token_address, web3=self._web3).parse()
-            amount = token_to_float(token_amount_long, decimals)
-
-            # Use current bdv rather than the deposited bdv reported in the event
-            bdv = amount * self.beanstalk_client.get_bdv(get_erc20_info(token_address))
-
-            value = None
-            if bdv > 0:
-                value = bdv * bean_price
-
-            if event_log.event in ["AddDeposit"]:
-                event_str += f"📥 Silo Deposit"
-            elif event_log.event in ["RemoveDeposit", "RemoveDeposits"]:
-                event_str += f"📭 Silo Withdrawal"
-            else:
-                return ""
-
-            event_str += f" - {round_num_auto(amount, min_precision=0)} {token_symbol}"
-            # Some legacy events may not set BDV, skip valuation. Also do not value unripe assets.
-            if value is not None and not token_address.startswith(UNRIPE_TOKEN_PREFIX):
-                event_str += f" ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
-                event_str += f"\n{value_to_emojis(value)}"
-
         # Sow event.
         elif event_log.event in ["Sow", "Harvest"]:
             # Pull args from the event log.

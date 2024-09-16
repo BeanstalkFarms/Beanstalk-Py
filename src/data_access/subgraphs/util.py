@@ -33,10 +33,10 @@ def execute(client, query_str, max_tries=10):
     try_count = 0
     retry_delay = 1  # seconds
     while not max_tries or try_count < max_tries:
-        logging.info(f"GraphQL query:" f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
+        # logging.info(f"GraphQL query:" f'{query_str.replace(NEWLINE_CHAR, "").replace("    ", "")}')
         try:
             result = client.execute(query)
-            logging.info(f"GraphQL result:{result}")
+            # logging.info(f"GraphQL result:{result}")
             return result
         except asyncio.TimeoutError:
             logging.warning(

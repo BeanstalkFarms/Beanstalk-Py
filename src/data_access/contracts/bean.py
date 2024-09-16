@@ -14,7 +14,7 @@ class BeanClient(ChainClient):
 
         Pricing data is returned as an array. See abi for structure.
         """
-        logging.info("Getting bean price...", exc_info=True)
+        # logging.info("Getting bean price...", exc_info=True)
         raw_price_info = call_contract_function_with_retry(self.price_contract.functions.price())
         return BeanClient.map_price_info(raw_price_info)
 

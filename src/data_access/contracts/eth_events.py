@@ -366,7 +366,7 @@ class EthEventsClient:
         # Track which unique logs have already been processed from this event batch.
         for entry in new_entries:
             # There can be zero topics for dry run
-            if len(entry["topics"]) > 0:
+            if len(entry.get("topics", [])) > 0:
                 topic_hash = entry["topics"][0].hex()
                 # Do not process topics outside of this classes topics of interest.
                 if topic_hash not in self._events_dict:
@@ -377,14 +377,14 @@ class EthEventsClient:
                     continue
 
             # Print out entry.
-            logging.info(f"{self._event_client_type.name} entry:\n{str(entry)}\n")
+            # logging.info(f"{self._event_client_type.name} entry:\n{str(entry)}\n")
 
             # Do not process the same txn multiple times.
             txn_hash = entry["transactionHash"]
             if txn_hash in txn_hash_set:
                 continue
 
-            logging.info(f"{self._event_client_type.name} processing {txn_hash.hex()} logs.")
+            # logging.info(f"{self._event_client_type.name} processing {txn_hash.hex()} logs.")
 
             # Retrieve the full txn and txn receipt.
             receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
@@ -431,10 +431,10 @@ class EthEventsClient:
             # Add all remaining txn logs to log map.
             txn_hash_set.add(txn_hash)
             txn_logs_list.append(TxnPair(txn_hash, decoded_logs))
-            logging.info(
-                f"Transaction: {txn_hash}\nAll txn logs of interest:\n"
-                f"{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}"
-            )
+            # logging.info(
+            #     f"Transaction: {txn_hash}\nAll txn logs of interest:\n"
+            #     f"{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}"
+            # )
 
         return txn_logs_list
 
