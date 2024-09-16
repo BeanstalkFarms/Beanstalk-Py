@@ -359,6 +359,8 @@ def get_test_entries(dry_run=None):
     if dry_run:
         if dry_run[0] == 'all':
             return dry_run_entries.entries
+        elif dry_run[0] == 'seasons':
+            return []
         else:
             entries = []
             for i in range(len(dry_run)):

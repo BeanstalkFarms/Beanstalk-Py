@@ -83,7 +83,7 @@ async def update_discord_bot_name(name, bot):
         next_name = pruned_name
     # Note(funderberker): Is this rate limited?s
     for guild in bot.current_guilds:
-        logging.info(f"Attempting to set nickname in guild with id {guild.id}")
+        # logging.info(f"Attempting to set nickname in guild with id {guild.id}")
         await guild.me.edit(nick=next_name)
         logging.info(f"Bot nickname changed to {next_name} in guild with id {guild.id}")
     return next_name

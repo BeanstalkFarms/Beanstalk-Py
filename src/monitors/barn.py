@@ -102,7 +102,8 @@ class BarnRaiseMonitor(Monitor):
         """Process a single event log for the Barn Raise."""
         # Mint single.
         if (
-            event_log.event in ["TransferSingle", "TransferBatch"]
+            event_log.address == FERTILIZER_ADDR
+            and event_log.event in ["TransferSingle", "TransferBatch"]
             and event_log.args["from"] == NULL_ADDR
         ):
             if event_log.event == "TransferSingle":
@@ -111,11 +112,11 @@ class BarnRaiseMonitor(Monitor):
             elif event_log.event == "TransferBatch":
                 amount = sum([int(value) for value in event_log.args.values])
 
-            weth_amount = token_to_float(
-                get_eth_sent(event_log.transactionHash, event_log.address, self._web3, event_log.logIndex), 18
+            wsteth_amount = token_to_float(
+                get_tokens_sent(WSTETH, event_log.transactionHash, event_log.address, event_log.logIndex), 18
             )
 
-            event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(weth_amount, 3)} WETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity"
+            event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(wsteth_amount, 3)} wstETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity"
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
             # The subgraph is slower to update, so may need to calculate total bought here.
@@ -135,3 +136,4 @@ class BarnRaiseMonitor(Monitor):
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         self.message_function(event_str)
+        logging.info(f"\n\n\nfull barn message here {event_str}\n\n\n")

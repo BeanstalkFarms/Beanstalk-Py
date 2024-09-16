@@ -126,7 +126,7 @@ class BeanstalkGraphClient(object):
         assets_changes = []
         for i in range(len(previous_silo_assets)):
             assets_changes.append(AssetChanges(previous_silo_assets[i], current_silo_assets[i]))
-        logging.info(f"assets_changes: {assets_changes}")
+        # logging.info(f"assets_changes: {assets_changes}")
         return assets_changes
 
     def seasons_stats(
@@ -309,14 +309,14 @@ class SeasonStats:
             )
             # List of each asset at the start of the season. Note that this is offset by 1 from subgraph data.
             self.pre_assets = []
-            logging.info(
-                f'siloAssetHourlySnapshots: {graph_seasons_response["siloAssetHourlySnapshots"]}'
-            )
+            # logging.info(
+            #     f'siloAssetHourlySnapshots: {graph_seasons_response["siloAssetHourlySnapshots"]}'
+            # )
             for asset_season_snapshot in graph_seasons_response["siloAssetHourlySnapshots"]:
                 # Shift back by one season since asset amounts represent current/end of season values.
                 if int(asset_season_snapshot["season"]) == self.season - 1:
                     self.pre_assets.append(asset_season_snapshot)
-            logging.info(f"self.pre_assets: {self.pre_assets}")
+            # logging.info(f"self.pre_assets: {self.pre_assets}")
         if "fieldHourlySnapshots" in graph_seasons_response:
             self.temperature = float(
                 graph_seasons_response["fieldHourlySnapshots"][season_index]["temperature"]
