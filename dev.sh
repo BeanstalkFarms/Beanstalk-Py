@@ -6,6 +6,7 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 
 # Configure dry run (test transactions)
 # Provide comma separated hashes, or "all" to run through the whole collection
+# Provide "seasons" to trigger the seasons monitor
 if [ -n "$2" ]; then
   export DRY_RUN="$2"
 fi

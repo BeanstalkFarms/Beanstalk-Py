@@ -65,7 +65,7 @@ class SeasonsMonitor(Monitor):
         Assumes sunrise timing cycle beings with Unix Epoch (1/1/1970 00:00:00 UTC).
         This is not exact since we do not bother with syncing local and graph time.
         """
-        if self._dry_run:
+        if self._dry_run == ["seasons"]:
             time.sleep(1)
             return
 
