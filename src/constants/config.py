@@ -30,7 +30,7 @@ SEASON_DURATION = 3600  # seconds
 PREVIEW_CHECK_PERIOD = 4  # seconds
 # For all check periods there is a built in assumption that we will update at least once per block
 # TODO: if the above comment is true, this is a problem on L2
-APPROX_BLOCK_TIME = 12  # seconds
+APPROX_BLOCK_TIME = 200  # seconds
 # How long to wait between peg checks.
 PEG_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
