@@ -116,7 +116,7 @@ class BarnRaiseMonitor(Monitor):
                 get_tokens_sent(WSTETH, event_log.transactionHash, event_log.address, event_log.logIndex), 18
             )
 
-            event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(wsteth_amount, 3)} wstETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity"
+            event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(wsteth_amount, 3)} wstETH @ 20% Humidity"
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
             # The subgraph is slower to update, so may need to calculate total bought here.

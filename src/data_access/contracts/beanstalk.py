@@ -7,12 +7,6 @@ class BeanstalkClient(ChainClient):
     def __init__(self, web3=None):
         super().__init__(web3)
         self.contract = get_beanstalk_contract(self._web3)
-        self.replant_season = 6074
-        self.base_humidity = 2500 / 10
-        self.final_humidity = 200 / 10
-        self.humidity_step_size = 0.5  # %
-        # Number of seasons to min humidity.
-        self.max_steps = (self.base_humidity - self.final_humidity) / self.humidity_step_size
 
     def get_season(self):
         """Get current season."""
@@ -59,33 +53,6 @@ class BeanstalkClient(ChainClient):
             6,
         )
 
-    def get_remaining_recapitalization(self):
-        """Return the USDC amount remaining to full capitalization."""
-        return usdc_to_float(
-            call_contract_function_with_retry(self.contract.functions.remainingRecapitalization())
-        )
-
-    def get_target_amount(self, remaining_recap, recap_funded_percent):
-        return remaining_recap / (1 - recap_funded_percent)
-
-    def get_amount_funded(self, remaining_recap, recap_funded_percent):
-        """Return amount in USDC that has already been recapitalized.
-
-        WARNING: This is imperfect. Will vary slightly based on unknown conditions of Beanstalk.
-        Use graph to acquire supply when possible.
-        """
-        target = self.get_target_amount(remaining_recap, recap_funded_percent)
-        return target - remaining_recap
-
-    def get_humidity(self):
-        """Calculate and return current humidity."""
-        current_season = self.get_season()
-        if current_season <= self.replant_season:
-            return self.base_humidity
-        elif current_season > self.replant_season + self.max_steps:
-            return self.final_humidity
-        return self.base_humidity - (current_season - self.replant_season) * self.humidity_step_size
-
     def get_seeds(self, token, block_number='latest'):
         """Returns the current amount of Seeds awarded for depositing `token` in the silo."""
         token = Web3.to_checksum_address(token)
@@ -109,39 +76,9 @@ class BeanstalkClient(ChainClient):
 class BarnRaiseClient(ChainClient):
     """Common functionality related to the Barn Raise Fertilizer contract."""
 
-    def __init__(self, web3=None, beanstalk_client=None):
+    def __init__(self, web3=None):
         super().__init__(web3)
         self.contract = get_fertilizer_contract(self._web3)
-        # self.token_contract = get_fertilizer_token_contract(self._web3)
-        # Set immutable variables.
-        self.barn_raise_start = 1654516800  # seconds, epoch
-        self.unpause_start = 1660564800  # seconds, epoch # August 15 2022, 12pm
-        self.replant_season = 6074
-        # self.pre_sale_humidity = 5000 / 10
-        self.base_humidity = 2500 / 10
-        self.step_size = 0.5  # %
-        self.step_duration = 3600  # seconds
-        if beanstalk_client is not None:
-            self.beanstalk_client = beanstalk_client
-        else:
-            self.beanstalk_client = BeanstalkClient()
-
-    def get_humidity(self):
-        """Calculate and return current humidity."""
-        # If unpause has not yet occurred, return 0.
-        return self.beanstalk_client.get_humidity()
-
-    def weather_at_step(self, step_number):
-        """Return the weather at a given step."""
-        return step_number + self.base_weather
-
-    def seconds_until_step_end(self):
-        """Calculate and return the seconds until the current humidity step ends."""
-        unpaused_time = time.time() - self.unpause_start
-        # If barn raise has not yet started, return time to unpause.
-        if unpaused_time < 0:
-            return abs(unpaused_time)
-        return unpaused_time % self.step_duration
 
     def remaining(self):
         """Amount of USDC still needed to be raised as decimal float."""

@@ -31,7 +31,7 @@ class BarnRaisePreviewMonitor(PreviewMonitor):
             # Rotate data and update status.
             if self.display_index == 0:
                 self.status_function(
-                    f"Humidity: {round_num(self.beanstalk_client.get_humidity(), 1)}%"
+                    f"Humidity: 20%"
                 )
             elif self.display_index == 1:
                 self.status_function(f"{round_num(percent_funded*100, 2)}% Recapitalized")
