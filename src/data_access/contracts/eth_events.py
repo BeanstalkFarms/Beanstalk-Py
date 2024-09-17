@@ -217,8 +217,6 @@ class EthEventsClient:
                     self._web3,
                     address=address,
                     topics=[self._signature_list],
-                    # from_block=10581687, # Use this to search for old events. # Rinkeby
-                    # from_block=18722171,  # Use this to search for old events. # Mainnet
                     from_block="latest",
                     to_block="latest",
                 )

@@ -52,7 +52,7 @@ it is used in these libraries and what the different classes look like.
 
 `txn_input == '0x8bee54990000000000000000000000003c5aac016ef2f178e8699d6208796a2d67557fe2'`
 
-https://etherscan.io/tx/0x7f6b1c80301461b743a7b8137963b4e91f4015d8b3a3398f2dbebc4f5e6538d2
+https://arbiscan.io/tx/0x7f6b1c80301461b743a7b8137963b4e91f4015d8b3a3398f2dbebc4f5e6538d2
 
 ### Transaction
 `AttributeDict({'accessList': [], 'blockHash': HexBytes('0x5ed9d97812da3e8ec8d6a4bc3d7191d5ddb319d4fe28ca3315e256b56e04a353'), 'blockNumber': 13819425, 'chainId': '0x1', 'from': '0xC81635aBBF6EC73d0271F237a78b6456D6766132', 'gas': 134557, 'gasPrice': 109766341103,'hash': HexBytes('0x3ee69e0eba363b93fb0f27c81126c1082e41d4d64bcfaa96b5e7b4a4b5438ba4'), 'input': '0x8bee5499000000000000000000000000c81635abbf6ec73d0271f237a78b6456d6766132','maxFeePerGas': 126976614339, 'maxPriorityFeePerGas': 1500000000, 'nonce': 59, 'r': HexBytes('0x404cc33dff15b14eacb9cc47b9fc46c02b6153533eac5d49698c00660e34b96f'), 's': HexBytes('0x73e97b3a43767f9a8bcdc081af5fa201e92809c8215c06b923a994cde9e0ef3b'), 'to': '0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5', 'transactionIndex': 426, 'type': '0x2', 'v': 0, 'value': 0})`

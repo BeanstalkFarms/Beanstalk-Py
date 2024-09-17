@@ -118,7 +118,7 @@ class BeanstalkMonitor(Monitor):
             event_str += f" ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
             event_str += f"\n{value_to_emojis(value)}"
 
-        event_str += f"\n<https://etherscan.io/tx/{txn_hash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{txn_hash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         return event_str
@@ -187,7 +187,7 @@ class BeanstalkMonitor(Monitor):
             )
             return ""
 
-        event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_log.transactionHash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         return event_str
@@ -249,7 +249,7 @@ class BeanstalkMonitor(Monitor):
         event_str += f"\n_{latest_pool_price_str(self.bean_client, pool_token)}_ "
         if not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX):
             event_str += f"\n{value_to_emojis(value)}"
-        event_str += f"\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         return event_str
@@ -265,5 +265,5 @@ class BeanstalkMonitor(Monitor):
         bean_price = self.bean_client.avg_bean_price()
         event_str = f"💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts ({round_num(bean_amount * bean_price, 0, avoid_zero=True, incl_dollar=True)})"
         event_str += f"\n{value_to_emojis(bean_amount * bean_price)}"
-        event_str += f"\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
         return event_str

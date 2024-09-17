@@ -47,7 +47,7 @@ class MarketMonitor(Monitor):
             # Ignore second+ events for a single multi-event transaction.
             if not event_str:
                 continue
-            event_str += f"\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+            event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
             # Empty line that does not get stripped.
             event_str += "\n_ _"
             self.message_function(event_str)

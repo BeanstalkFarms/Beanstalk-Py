@@ -50,7 +50,7 @@ class OtherWellsMonitor(Monitor):
             erc20_info_1 = get_erc20_info(tokens[1])
 
             def erc20_linkstr(info):
-                result = f"[{info.symbol}](<https://etherscan.io/address/{info.addr.lower()}>)"
+                result = f"[{info.symbol}](<https://arbiscan.io/address/{info.addr.lower()}>)"
                 # Embellish with discord emojis
                 if self._discord:
                     if info.symbol == "BEAN":
@@ -255,7 +255,7 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
                 event_str += f"\n_{liqudity_usd}_ "
         event_str += f"\n{value_to_emojis(value)}"
 
-    event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+    event_str += f"\n<https://arbiscan.io/tx/{event_log.transactionHash.hex()}>"
     # Empty line that does not get stripped.
     event_str += "\n_ _"
     return event_str

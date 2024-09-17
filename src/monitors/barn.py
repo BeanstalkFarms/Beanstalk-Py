@@ -85,7 +85,7 @@ class BarnRaiseMonitor(Monitor):
                         except IndexError:
                             break
                         # msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
-                        msg_str += f"\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} (https://etherscan.io/tx/{event.transactionHash.hex()})"
+                        msg_str += f"\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} (https://arbiscan.io/tx/{event.transactionHash.hex()})"
 
                     self.message_function(msg_str)
 
@@ -132,7 +132,7 @@ class BarnRaiseMonitor(Monitor):
         else:
             return
 
-        event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_log.transactionHash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         self.message_function(event_str)

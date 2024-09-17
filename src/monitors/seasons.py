@@ -223,7 +223,7 @@ class SeasonsMonitor(Monitor):
 
             # Txn hash of sunrise/gm call.
             if hasattr(current_season_stats, 'sunrise_hash'):
-                ret_string += f"\n\n<https://etherscan.io/tx/{current_season_stats.sunrise_hash}>"
+                ret_string += f"\n\n<https://arbiscan.io/tx/{current_season_stats.sunrise_hash}>"
                 ret_string += "\n_ _"  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
