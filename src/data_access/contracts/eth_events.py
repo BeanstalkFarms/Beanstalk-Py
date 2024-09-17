@@ -58,39 +58,6 @@ add_event_to_dict("Shift(uint256[],address,uint256,address)", WELL_EVENT_MAP, WE
 add_event_to_dict("Sync(uint256[],uint256,address)", WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 
 
-CURVE_POOL_EVENT_MAP = {}
-CURVE_POOL_SIGNATURES_LIST = []
-add_event_to_dict(
-    "TokenExchange(address,int128,uint256,int128,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "TokenExchangeUnderlying(address,int128,uint256,int128,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "AddLiquidity(address,uint256[2],uint256[2],uint256,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveLiquidity(address,uint256[2],uint256[2],uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveLiquidityOne(address,uint256,uint256,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveLiquidityImbalance(address,uint256[2],uint256[2],uint256,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-
 BEANSTALK_EVENT_MAP = {}
 BEANSTALK_SIGNATURES_LIST = []
 add_event_to_dict(
@@ -246,9 +213,8 @@ class EventClientType(IntEnum):
     SEASON = 1
     MARKET = 2
     BARN_RAISE = 3
-    CURVE_BEAN_3CRV_POOL = 4
-    WELL = 5
-    AQUIFER = 6
+    WELL = 4
+    AQUIFER = 5
 
 class TxnPair:
     """The logs, in order, associated with a transaction."""
@@ -276,11 +242,6 @@ class EthEventsClient:
             self._contract_addresses = [address]
             self._events_dict = WELL_EVENT_MAP
             self._signature_list = WELL_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
-            self._contracts = [get_bean_3crv_pool_contract(self._web3)]
-            self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
-            self._events_dict = CURVE_POOL_EVENT_MAP
-            self._signature_list = CURVE_POOL_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contracts = [
                 get_beanstalk_contract(self._web3),
@@ -412,21 +373,6 @@ class EthEventsClient:
                     except web3_exceptions.ABIEventFunctionNotFound:
                         continue
                     decoded_logs.extend(decoded_type_logs)
-
-            # Prune unrelated logs - logs that are of the same event types we watch, but are
-            # not related to Beanstalk (i.e. swaps of non-Bean tokens).
-            decoded_logs_copy = decoded_logs.copy()
-            decoded_logs.clear()
-            for log in decoded_logs_copy:
-                # if log.event == 'Swap':
-                #     # Only process uniswap swaps with the ETH:BEAN pool.
-                #     if log.address != UNI_V2_BEAN_ETH_ADDR:
-                #         continue
-                if log.event == "TokenExchangeUnderlying" or log.event == "TokenExchange":
-                    # Only process curve exchanges in supported BEAN pools.
-                    if log.address not in [CURVE_BEAN_3CRV_ADDR]:
-                        continue
-                decoded_logs.append(log)
 
             # Add all remaining txn logs to log map.
             txn_hash_set.add(txn_hash)

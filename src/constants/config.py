@@ -61,25 +61,13 @@ ETH_DECIMALS = 18
 LP_DECIMALS = 18
 BEAN_DECIMALS = 6
 SOIL_DECIMALS = 6
-STALK_DECIMALS = 10
+STALK_DECIMALS = 16
 SEED_DECIMALS = 6
 POD_DECIMALS = 6
-DAI_DECIMALS = 18
+WBTC_DECIMALS = 8
 USDC_DECIMALS = 6
 USDT_DECIMALS = 6
-CRV_DECIMALS = 18
-LUSD_DECIMALS = 18
-CURVE_POOL_TOKENS_DECIMALS = 18
 WELL_LP_DECIMALS = 18
-
-# Indices of tokens in Curve factory pool [bean, 3crv].
-FACTORY_3CRV_INDEX_BEAN = 0
-FACTORY_3CRV_INDEX_3CRV = 1
-# Indices of underlying tokens in Curve factory pool [bean, dai, usdc, usdt].
-FACTORY_3CRV_UNDERLYING_INDEX_BEAN = 0
-FACTORY_3CRV_UNDERLYING_INDEX_DAI = 1
-FACTORY_3CRV_UNDERLYING_INDEX_USDC = 2
-FACTORY_3CRV_UNDERLYING_INDEX_USDT = 3
 
 # Number of txn hashes to keep in memory to prevent duplicate processing.
 TXN_MEMORY_SIZE_LIMIT = 100
@@ -92,11 +80,14 @@ ERC20_TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)")
 # Incomplete of Beanstalk Terming of Tokens for human use.
 TOKEN_SYMBOL_MAP = {
     BEAN_ADDR.lower(): "BEAN",
-    CURVE_BEAN_3CRV_ADDR.lower(): "BEAN3CRV",
+    BEAN_ETH_ADDR.lower(): "BEANETH",
+    BEAN_WSTETH_ADDR.lower(): "BEANwstETH",
+    BEAN_WEETH_ADDR.lower(): "BEANweETH",
+    BEAN_WBTC_ADDR.lower(): "BEANWBTC",
+    BEAN_USDC_ADDR.lower(): "BEANUSDC",
+    BEAN_USDT_ADDR.lower(): "BEANUSDT",
     UNRIPE_ADDR.lower(): "urBEAN",
-    UNRIPE_LP_ADDR.lower(): "urBEANwstETH",
-    BEAN_ETH_WELL_ADDR.lower(): "BEANETH",
-    BEAN_WSTETH_WELL_ADDR.lower(): "BEANwstETH",
+    UNRIPE_LP_ADDR.lower(): "urBEANwstETH"
 }
 
 GRAPH_FIELDS_PLACEHOLDER = "_FIELDS_"

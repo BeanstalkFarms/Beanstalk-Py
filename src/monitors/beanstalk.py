@@ -171,9 +171,7 @@ class BeanstalkMonitor(Monitor):
             # If underlying assets are Bean-based LP represented in price aggregator.
             # If not in aggregator, will return none and not display value.
             else:
-                underlying_token_value = self.bean_client.get_curve_lp_token_value(
-                    underlying, underlying_decimals
-                )
+                underlying_token_value = self.bean_client.get_lp_token_value(underlying, underlying_decimals)
             event_str += f"⚰️ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}"
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
@@ -225,15 +223,13 @@ class BeanstalkMonitor(Monitor):
                 add_float = token_to_float(event_log.args.get("toAmount"), add_decimals)
 
         pool_token = BEAN_ADDR
-        if remove_token_addr == CURVE_BEAN_3CRV_ADDR or add_token_addr == CURVE_BEAN_3CRV_ADDR:
-            pool_token = CURVE_BEAN_3CRV_ADDR
-        elif remove_token_addr == BEAN_ETH_WELL_ADDR or add_token_addr == BEAN_ETH_WELL_ADDR:
-            pool_token = BEAN_ETH_WELL_ADDR
-        elif remove_token_addr in [BEAN_WSTETH_WELL_ADDR, UNRIPE_LP_ADDR] or add_token_addr in [
-            BEAN_WSTETH_WELL_ADDR,
+        if remove_token_addr == BEAN_ETH_ADDR or add_token_addr == BEAN_ETH_ADDR:
+            pool_token = BEAN_ETH_ADDR
+        elif remove_token_addr in [BEAN_WSTETH_ADDR, UNRIPE_LP_ADDR] or add_token_addr in [
+            BEAN_WSTETH_ADDR,
             UNRIPE_LP_ADDR,
         ]:
-            pool_token = BEAN_WSTETH_WELL_ADDR
+            pool_token = BEAN_WSTETH_ADDR
 
         if remove_token_symbol.startswith("ur") and not add_token_symbol.startswith("ur"):
             # Chop convert
@@ -249,7 +245,6 @@ class BeanstalkMonitor(Monitor):
             )
         # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
         event_str += f"({round_num(bdv_float, 0)} BDV)"
-        pool_type_str = f""
         event_str += f"\n_{latest_pool_price_str(self.bean_client, pool_token)}_ "
         if not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX):
             event_str += f"\n{value_to_emojis(value)}"

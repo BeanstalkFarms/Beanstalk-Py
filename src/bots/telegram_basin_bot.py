@@ -30,17 +30,17 @@ class TelegramBasinBot(object):
         self.period_monitor.start()
 
         self.well_monitor_bean_eth = WellMonitor(
-            self.send_msg, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=dry_run
+            self.send_msg, BEAN_ETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_eth.start()
         
         self.well_monitor_bean_wsteth = WellMonitor(
-            self.send_msg, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=dry_run
+            self.send_msg, BEAN_WSTETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_wsteth.start()
 
         self.well_monitor_all = AllWellsMonitor(
-            self.send_msg, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=False, prod=prod, dry_run=dry_run
+            self.send_msg, [BEAN_ETH_ADDR, BEAN_WSTETH_ADDR], discord=False, prod=prod, dry_run=dry_run
         )
         self.well_monitor_all.start()
 

@@ -40,8 +40,8 @@ class BeanClient(ChainClient):
             pool_dict["lp_bdv"] = pool_info[7]  # LP Token price in BDV
             price_dict["pool_infos"][pool_dict["pool"]] = pool_dict
         return price_dict
-
-    def get_curve_lp_token_value(self, token_address, decimals, liquidity_long=None):
+    
+    def get_lp_token_value(self, token_address, decimals, liquidity_long=None):
         """Return the $/LP token value of an LP token at address as a float."""
         if liquidity_long is None:
             try:
@@ -77,21 +77,10 @@ class BeanClient(ChainClient):
         else:
             return price_info["pool_infos"][addr]
 
-    def curve_bean_3crv_pool_info(self):
-        """Return pool info as dict."""
-        return self.get_price_info()["pool_infos"][CURVE_BEAN_3CRV_ADDR]
-
-    def curve_bean_3crv_bean_price(self):
-        """Current float Bean price in the Curve Bean:3CRV pool."""
-        return bean_to_float(self.curve_bean_3crv_pool_info()["price"])
-
-    def curve_bean_3crv_lp_value(self):
-        """Current float LP Token price of the Curve Bean:3CRV pool in USD."""
-        return bean_to_float(self.curve_bean_3crv_pool_info()["lp_usd"])
-
+    # TODO: generalize these
     def well_bean_eth_pool_info(self):
         """Return pool info as dict."""
-        return self.get_price_info()["pool_infos"][BEAN_ETH_WELL_ADDR]
+        return self.get_price_info()["pool_infos"][BEAN_ETH_ADDR]
 
     def well_bean_eth_bean_price(self):
         """Current float Bean price in the BEAN:ETH well."""
@@ -99,7 +88,7 @@ class BeanClient(ChainClient):
     
     def well_bean_wsteth_pool_info(self):
         """Return pool info as dict."""
-        return self.get_price_info()["pool_infos"][BEAN_WSTETH_WELL_ADDR]
+        return self.get_price_info()["pool_infos"][BEAN_WSTETH_ADDR]
 
     def well_bean_wsteth_bean_price(self):
         """Current float Bean price in the BEAN:wstETH well."""

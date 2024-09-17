@@ -163,4 +163,4 @@ if __name__ == "__main__":
     client = EthEventsClient(EventClientType.SEASON)
     events = client.get_log_range(20566115, 20566115)
     logging.info(f"found txn: {events[0].txn_hash.hex()}")
-    logging.info(f"lp bdv {bs.get_bdv(get_erc20_info(BEAN_WSTETH_WELL_ADDR), 20566115)}")
+    logging.info(f"lp bdv {bs.get_bdv(get_erc20_info(BEAN_WSTETH_ADDR), 20566115)}")

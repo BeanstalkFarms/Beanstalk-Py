@@ -25,10 +25,6 @@ with open(
 ) as well_abi_file:
     well_abi = json.load(well_abi_file)
 with open(
-    os.path.join(os.path.dirname(__file__), "../../constants/abi/curve_pool_abi.json")
-) as curve_pool_abi_file:
-    curve_pool_abi = json.load(curve_pool_abi_file)
-with open(
     os.path.join(os.path.dirname(__file__), "../../constants/abi/beanstalk_abi.json")
 ) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
@@ -74,16 +70,6 @@ def get_well_contract(web3, address):
 def get_aquifer_contract(web3):
     """Get a web.eth.contract object for the aquifer. Contract is not thread safe."""
     return web3.eth.contract(address=AQUIFER_ADDR, abi=aquifer_abi)
-
-
-def get_bean_3crv_pool_contract(web3):
-    """Get a web.eth.contract object for the curve BEAN:3CRV pool. Contract is not thread safe."""
-    return web3.eth.contract(address=CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
-
-
-def get_curve_3pool_contract(web3):
-    """Get a web.eth.contract object for a curve 3pool contract. Contract is not thread safe."""
-    return web3.eth.contract(address=POOL_3POOL_ADDR, abi=curve_pool_abi)
 
 
 def get_bean_contract(web3):
@@ -329,24 +315,12 @@ def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
 
 
-def dai_to_float(dai_long):
-    return token_to_float(dai_long, DAI_DECIMALS)
-
-
 def usdc_to_float(usdc_long):
     return token_to_float(usdc_long, USDC_DECIMALS)
 
 
 def usdt_to_float(usdt_long):
     return token_to_float(usdt_long, USDT_DECIMALS)
-
-
-def crv_to_float(crv_long):
-    return token_to_float(crv_long, CRV_DECIMALS)
-
-
-def lusd_to_float(lusd_long):
-    return token_to_float(lusd_long, LUSD_DECIMALS)
 
 
 def get_test_entries(dry_run=None):

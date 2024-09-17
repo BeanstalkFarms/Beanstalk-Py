@@ -20,7 +20,6 @@ from data_access.contracts.util import is_valid_wallet_address
 
 from monitors.barn import BarnRaiseMonitor
 from monitors.beanstalk import BeanstalkMonitor
-from monitors.curve import CurvePoolMonitor
 from monitors.market import MarketMonitor
 from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
@@ -99,19 +98,14 @@ class DiscordClient(discord.ext.commands.Bot):
         self.sunrise_monitor.start()
 
         self.well_monitor = WellMonitor(
-            self.send_msg_pool, BEAN_ETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
+            self.send_msg_pool, BEAN_ETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor.start()
         
         self.well_monitor_2 = WellMonitor(
-            self.send_msg_pool, BEAN_WSTETH_WELL_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
+            self.send_msg_pool, BEAN_WSTETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_2.start()
-
-        self.curve_bean_3crv_pool_monitor = CurvePoolMonitor(
-            self.send_msg_pool, EventClientType.CURVE_BEAN_3CRV_POOL, prod=prod, dry_run=dry_run
-        )
-        self.curve_bean_3crv_pool_monitor.start()
 
         self.beanstalk_monitor = BeanstalkMonitor(
             self.send_msg_beanstalk, prod=prod, dry_run=dry_run
@@ -147,7 +141,6 @@ class DiscordClient(discord.ext.commands.Bot):
         self.sunrise_monitor.stop()
         self.well_monitor.stop()
         self.well_monitor_2.stop()
-        self.curve_bean_3crv_pool_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
         self.barn_raise_monitor.stop()

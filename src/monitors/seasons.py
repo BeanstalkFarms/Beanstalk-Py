@@ -133,7 +133,6 @@ class SeasonsMonitor(Monitor):
         # Pool info.
         bean_wsteth_well_pi = self.bean_client.well_bean_wsteth_pool_info()
         bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
-        curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
 
         ret_string += f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} TWA deltaB'
 
@@ -160,11 +159,6 @@ class SeasonsMonitor(Monitor):
                 f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
             )
             ret_string += f"price [${round_num(token_to_float(bean_eth_well_pi['price'], 6), 4)}]_"
-            ret_string += (
-                f"\n🔸 BEAN3CRV: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)} - "
-            )
-            ret_string += f"_deltaB [{round_num(token_to_float(curve_pool_pi['delta_b'], 6), 0)}], "
-            ret_string += f"price [${round_num(token_to_float(curve_pool_pi['price'], 6), 4)}]_"
 
             # Silo balance stats.
             ret_string += f"\n\n**Silo**"
@@ -243,7 +237,7 @@ class SeasonsMonitor(Monitor):
         # Short string version (for Twitter).
         else:
             ret_string += f"\n\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
-            ret_string += f"\n🔸 BEAN3CRV liquidity: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)}"
+            # TODO: update twitter version to include other pools also
 
             ret_string += f"\n"
             ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted"

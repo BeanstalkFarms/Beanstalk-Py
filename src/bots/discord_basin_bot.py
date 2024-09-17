@@ -59,17 +59,17 @@ class DiscordClient(discord.ext.commands.Bot):
         self.period_monitor.start()
 
         self.well_monitor_bean_eth = WellMonitor(
-            self.send_msg_bean_eth, BEAN_ETH_WELL_ADDR, prod=prod, dry_run=dry_run
+            self.send_msg_bean_eth, BEAN_ETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_eth.start()
         
         self.well_monitor_bean_wsteth = WellMonitor(
-            self.send_msg_bean_wsteth, BEAN_WSTETH_WELL_ADDR, prod=prod, dry_run=dry_run
+            self.send_msg_bean_wsteth, BEAN_WSTETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_wsteth.start()
 
         self.well_monitor_all = AllWellsMonitor(
-            self.send_msg_wells_other, [BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR], discord=True, prod=prod, dry_run=dry_run
+            self.send_msg_wells_other, [BEAN_ETH_ADDR, BEAN_WSTETH_ADDR], discord=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_all.start()
 
