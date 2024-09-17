@@ -95,7 +95,7 @@ class SeasonsMonitor(Monitor):
                 self.current_season_id = current_season_stats.season
                 logging.info(f"New season detected with id {self.current_season_id}")
                 return current_season_stats, last_season_stats
-            time.sleep(SUNRISE_CHECK_PERIOD)
+            time.sleep(self.query_rate)
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):

@@ -39,7 +39,7 @@ class BarnRaiseMonitor(Monitor):
 
         while self._thread_active:
             # Wait until check rate time has passed.
-            if time.time() < last_check_time + BARN_RAISE_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()

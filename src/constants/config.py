@@ -27,20 +27,17 @@ SNAPSHOT_GRAPH_ENDPOINT = "https://hub.snapshot.org/graphql"
 # The duration of a season. Assumes that seasons align with Unix epoch.
 SEASON_DURATION = 3600  # seconds
 # How long to wait between discord preview bot updates.
-PREVIEW_CHECK_PERIOD = 4  # seconds
-# For all check periods there is a built in assumption that we will update at least once per block
-# TODO: if the above comment is true, this is a problem on L2
-APPROX_BLOCK_TIME = 12  # seconds
-# How long to wait between peg checks.
-PEG_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
-# How long to wait between checks for a sunrise when we expect a new season to begin.
-SUNRISE_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
-# Rate at which to check chain for new Well interactions.
-POOL_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
+PREVIEW_CHECK_PERIOD = 5  # seconds
 # Rate at which to check for events on the Beanstalk contract.
-BEANSTALK_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
+BEANSTALK_CHECK_RATE = 5  # seconds
+# How long to wait between peg checks.
+PEG_CHECK_PERIOD = 5  # seconds
+# How long to wait between checks for a sunrise when we expect a new season to begin.
+SUNRISE_CHECK_PERIOD = 5  # seconds
+# Rate at which to check chain for new Well interactions.
+POOL_CHECK_RATE = 5  # seconds
 # How long to wait between checks for fert purchases.
-BARN_RAISE_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
+BARN_RAISE_CHECK_RATE = 10  # seconds
 # Bytes in 100 megabytes.
 ONE_HUNDRED_MEGABYTES = 100 * 1000000
 # Initial time to wait before reseting dead monitor.

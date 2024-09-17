@@ -23,7 +23,7 @@ class AllWellsMonitor(Monitor):
     def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + POOL_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
@@ -89,7 +89,7 @@ class WellMonitor(Monitor):
     def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + POOL_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()

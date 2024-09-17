@@ -12,7 +12,7 @@ class EthPreviewMonitor(PreviewMonitor):
     """Monitor data that offers a view into Eth mainnet."""
 
     def __init__(self, name_function, status_function):
-        super().__init__("ETH", name_function, status_function, check_period=APPROX_BLOCK_TIME)
+        super().__init__("ETH", name_function, status_function)
         self.beanstalk_client = BeanstalkClient()
 
     def _monitor_method(self):

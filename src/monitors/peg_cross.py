@@ -34,7 +34,7 @@ class PegCrossMonitor(Monitor):
             if not time.time() > min_update_time:
                 time.sleep(1)
                 continue
-            min_update_time = time.time() + PEG_CHECK_PERIOD
+            min_update_time = time.time() + self.query_rate
 
             try:
                 cross_types = self._check_for_peg_crosses()
