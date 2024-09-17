@@ -131,8 +131,8 @@ class SeasonsMonitor(Monitor):
         ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
         # Pool info.
-        bean_wsteth_well_pi = self.bean_client.well_bean_wsteth_pool_info()
-        bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
+        bean_wsteth_well_pi = self.bean_client.get_pool_info(BEAN_WSTETH_ADDR)
+        bean_eth_well_pi = self.bean_client.get_pool_info(BEAN_ETH_ADDR)
 
         ret_string += f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} TWA deltaB'
 
@@ -236,20 +236,16 @@ class SeasonsMonitor(Monitor):
 
         # Short string version (for Twitter).
         else:
-            ret_string += f"\n\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
+            ret_string += f"\n\n🌊 BEANwstETH liquidity: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)}"
+            ret_string += f"\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
             # TODO: update twitter version to include other pools also
 
             ret_string += f"\n"
-            ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted"
-            # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'
+            if reward_beans > 0:
+                ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted"
+            if sown_beans > 0:
+                ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods"
 
-            # silo_bdv = 0
-            # for asset in current_season_stats.pre_assets:
-            #     token = self._web3.toChecksumAddress(asset['token'])
-            #     _,_, token_symbol, decimals = get_erc20_info(token, web3=self._web3).parse()
-            #     silo_bdv += bean_to_float(asset['depositedBDV'])
-            # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
-            ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods"
             ret_string += f"\n🌡 {round_num(current_season_stats.temperature, 0)}% Temperature"
             ret_string += f"\n🧮 {round_num(pod_rate, 0)}% Pod Rate"
         return ret_string
