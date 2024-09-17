@@ -35,7 +35,7 @@ APPROX_BLOCK_TIME = 12  # seconds
 PEG_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
 # How long to wait between checks for a sunrise when we expect a new season to begin.
 SUNRISE_CHECK_PERIOD = APPROX_BLOCK_TIME  # seconds
-# Rate at which to check chain for new Uniswap V2 pool interactions.
+# Rate at which to check chain for new Well interactions.
 POOL_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
 # Rate at which to check for events on the Beanstalk contract.
 BEANSTALK_CHECK_RATE = APPROX_BLOCK_TIME  # seconds
@@ -53,8 +53,7 @@ DISCORD_NICKNAME_LIMIT = 32
 # For WalletMonitoring - I dont think this is actually used
 WALLET_WATCH_LIMIT = 10
 
-# Alchemy rpc
-RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/" + os.environ["ALCHEMY_ETH_API_KEY"]
+RPC_URL = "https://" + os.environ["RPC_URL"]
 
 # Decimals for conversion from chain int values to float decimal values.
 ETH_DECIMALS = 18

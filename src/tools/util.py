@@ -8,7 +8,7 @@ from web3.datastructures import AttributeDict
 from web3.logs import DISCARD
 
 
-URL = "wss://eth-mainnet.g.alchemy.com/v2/" + os.environ["ALCHEMY_ETH_API_KEY"]
+URL = "wss://" + os.environ["RPC_URL"]
 web3 = Web3(WebsocketProvider(URL, websocket_timeout=60))
 
 
