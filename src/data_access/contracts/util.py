@@ -185,7 +185,7 @@ def get_erc20_info(addr, web3=None):
         contract = get_erc20_contract(web3, address=addr)
         name = call_contract_function_with_retry(contract.functions.name())
         # Use custom in-house Beanstalk Symbol name, if set, otherwise default to on-chain symbol.
-        symbol = TOKEN_SYMBOL_MAP.get(addr) or call_contract_function_with_retry(
+        symbol = SILO_TOKENS_MAP.get(addr) or call_contract_function_with_retry(
             contract.functions.symbol()
         )
         decimals = call_contract_function_with_retry(contract.functions.decimals())
@@ -304,14 +304,6 @@ def seeds_to_float(seeds_long):
 
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
-
-
-def usdc_to_float(usdc_long):
-    return token_to_float(usdc_long, USDC_DECIMALS)
-
-
-def usdt_to_float(usdt_long):
-    return token_to_float(usdt_long, USDT_DECIMALS)
 
 
 def get_test_entries(dry_run=None):

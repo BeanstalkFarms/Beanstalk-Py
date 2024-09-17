@@ -134,8 +134,7 @@ class BeanstalkGraphClient(object):
         num_seasons=2,
         seasons=True,
         siloHourlySnapshots=True,
-        fieldHourlySnapshots=True,
-        incentives=True,
+        fieldHourlySnapshots=True
     ):
         """Get a standard set of data corresponding to current season.
 
@@ -171,7 +170,7 @@ class BeanstalkGraphClient(object):
                 siloAssetHourlySnapshots(
                     orderBy: season
                     orderDirection: desc
-                    first: {(num_seasons + 2) * MAX_ASSET_SNAPSHOTS_PER_SEASON}
+                    first: {num_seasons * len(SILO_TOKENS_MAP)}
                     where: {{depositedAmount_gt: "0",
                              siloAsset_: {{silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
                            }}

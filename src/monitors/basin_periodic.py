@@ -73,7 +73,7 @@ class BasinPeriodicMonitor(Monitor):
         other_wells_liquidity = 0
         for well in wells:
             if well["id"] in {token.lower() for token in WHITELISTED_WELLS}:
-                whitelisted_wells_str += f'\n- 🌱 {TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
+                whitelisted_wells_str += f'\n- 🌱 {SILO_TOKENS_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
             else:
                 other_wells_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"]);
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])

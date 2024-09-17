@@ -49,15 +49,6 @@ class SeasonsMonitor(Monitor):
                     )
                 )
 
-            # if self.channel_to_wallets:
-            #     self.update_all_wallet_watchers()
-
-            # # For testing.
-            # # Note that this will not handle deltas correctly.
-            # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
-            # self.message_function(self.season_summary_string(last_season_stats, current_season_stats, short_str=self.short_msgs))
-            # time.sleep(10)
-
     def _wait_until_expected_sunrise(self):
         """Wait until beanstalk is eligible for a sunrise call.
 
@@ -147,6 +138,7 @@ class SeasonsMonitor(Monitor):
             ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown"
 
             # Liquidity stats.
+            # TODO: add all whitelisted wells here
             ret_string += f"\n\n**Liquidity**"
 
             ret_string += f"\n🌊 BEANwstETH: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)} - "
@@ -236,6 +228,7 @@ class SeasonsMonitor(Monitor):
 
         # Short string version (for Twitter).
         else:
+            # TODO: generalize liquidity. Maybe just display total?
             ret_string += f"\n\n🌊 BEANwstETH liquidity: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)}"
             ret_string += f"\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
 

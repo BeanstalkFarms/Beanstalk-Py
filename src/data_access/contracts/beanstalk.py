@@ -81,8 +81,8 @@ class BarnRaiseClient(ChainClient):
         self.contract = get_fertilizer_contract(self._web3)
 
     def remaining(self):
-        """Amount of USDC still needed to be raised as decimal float."""
-        return usdc_to_float(call_contract_function_with_retry(self.contract.functions.remaining()))
+        """Amount of USD still needed to be raised as decimal float."""
+        return token_to_float(call_contract_function_with_retry(self.contract.functions.remaining()), 6)
 
     # def purchased(self):
     #     """Amount of fertilizer that has been purchased.

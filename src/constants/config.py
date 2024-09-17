@@ -60,9 +60,6 @@ SOIL_DECIMALS = 6
 STALK_DECIMALS = 16
 SEED_DECIMALS = 6
 POD_DECIMALS = 6
-WBTC_DECIMALS = 8
-USDC_DECIMALS = 6
-USDT_DECIMALS = 6
 WELL_LP_DECIMALS = 18
 
 # Number of txn hashes to keep in memory to prevent duplicate processing.
@@ -74,7 +71,7 @@ NEWLINE_CHAR = "\n"
 ERC20_TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)").hex()
 
 # Incomplete of Beanstalk Terming of Tokens for human use.
-TOKEN_SYMBOL_MAP = {
+SILO_TOKENS_MAP = {
     BEAN_ADDR.lower(): "BEAN",
     BEAN_ETH_ADDR.lower(): "BEANETH",
     BEAN_WSTETH_ADDR.lower(): "BEANwstETH",

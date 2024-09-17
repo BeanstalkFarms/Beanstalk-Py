@@ -222,6 +222,7 @@ class BeanstalkMonitor(Monitor):
                 remove_float = token_to_float(event_log.args.get("fromAmount"), remove_decimals)
                 add_float = token_to_float(event_log.args.get("toAmount"), add_decimals)
 
+        # TODO: generalize convert
         pool_token = BEAN_ADDR
         if remove_token_addr == BEAN_ETH_ADDR or add_token_addr == BEAN_ETH_ADDR:
             pool_token = BEAN_ETH_ADDR
