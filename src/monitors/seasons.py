@@ -238,7 +238,6 @@ class SeasonsMonitor(Monitor):
         else:
             ret_string += f"\n\n🌊 BEANwstETH liquidity: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)}"
             ret_string += f"\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
-            # TODO: update twitter version to include other pools also
 
             ret_string += f"\n"
             if reward_beans > 0:

@@ -65,9 +65,9 @@ class MarketMonitor(Monitor):
         cost_in_beans = bean_to_float(event_log.args.get("costInBeans"))
 
         if cost_in_beans or event_log.event == "PodListingCreated":
-            pod_amount = pods_to_float(event_log.args.get("amount"))
+            pod_amount = pods_to_float(event_log.args.get("podAmount"))
         else:
-            bean_amount = bean_to_float(event_log.args.get("amount"))
+            bean_amount = bean_to_float(event_log.args.get("beanAmount"))
 
         price_per_pod = pods_to_float(event_log.args.get("pricePerPod"))
         if cost_in_beans:
@@ -125,7 +125,7 @@ class MarketMonitor(Monitor):
         ):
             if event_log.event == "PodListingCancelled":
                 listing_graph_id = (
-                    event_log.args.get("account").lower() + "-" + str(event_log.args.get("index"))
+                    event_log.args.get("lister").lower() + "-" + str(event_log.args.get("index"))
                 )
                 pod_listing = self.beanstalk_graph_client.get_pod_listing(listing_graph_id)
                 # If this listing did not exist, ignore cancellation.

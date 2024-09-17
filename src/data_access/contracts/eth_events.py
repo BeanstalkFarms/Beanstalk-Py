@@ -30,6 +30,7 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     # NOTE ERROR logging here silently breaks all logging. very cool python feature.
     # logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
 
+# TODO: need to update signatures here
 
 AQUIFER_EVENT_MAP = {}
 AQUIFER_SIGNATURES_LIST = []
@@ -66,11 +67,11 @@ add_event_to_dict(
 add_event_to_dict(
     "Harvest(address,uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
-# Depositing an asset => AddDeposit()
-# Withdrawing an asset => RemoveDeposit()
-# Claiming an asset => RemoveWithdrawal()
-# add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)', # SILO V2
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
+add_event_to_dict(
+    "AddDeposit(address,address,int96,uint256,uint256)",
+    BEANSTALK_EVENT_MAP,
+    BEANSTALK_SIGNATURES_LIST,
+)
 add_event_to_dict(
     "RemoveDeposit(address,address,int96,uint256,uint256)",  # SILO v3
     BEANSTALK_EVENT_MAP,
@@ -82,27 +83,10 @@ add_event_to_dict(
     BEANSTALK_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "AddDeposit(address,address,int96,uint256,uint256)",
-    BEANSTALK_EVENT_MAP,
-    BEANSTALK_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveWithdrawal(address,address,uint32,uint256)",
-    BEANSTALK_EVENT_MAP,
-    BEANSTALK_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveWithdrawals(address,address,uint32[],uint256)",
-    BEANSTALK_EVENT_MAP,
-    BEANSTALK_SIGNATURES_LIST,
-)
-add_event_to_dict(
     "Convert(address,address,address,uint256,uint256)",
     BEANSTALK_EVENT_MAP,
     BEANSTALK_SIGNATURES_LIST,
 )
-# add_event_to_dict('StalkBalanceChanged(address,int256,int256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict(
     "Chop(address,address,uint256,uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
@@ -162,51 +146,6 @@ add_event_to_dict(
     FERTILIZER_EVENT_MAP,
     FERTILIZER_SIGNATURES_LIST,
 )
-
-
-def generate_sig_hash_map(sig_str_list):
-    return {sig.split("(")[0]: Web3.keccak(text=sig).hex() for sig in sig_str_list}
-
-
-# Silo Convert signature.
-convert_function_sig_strs = ["convert(bytes,uint32[],uint256[])"]
-convert_sigs = generate_sig_hash_map(convert_function_sig_strs)
-
-# Method signatures. We handle some logs differently when derived from different methods.
-# Silo conversion signatures.
-silo_conversion_sig_strs = [
-    "convertDepositedLP(uint256,uint256,uint32[],uint256[])",
-    "convertDepositedBeans(uint256,uint256,uint32[],uint256[])",
-]
-silo_conversion_sigs = generate_sig_hash_map(silo_conversion_sig_strs)
-# Signatures of methods with the explicit bean deposit (most txns include embedded deposit).
-bean_deposit_sig_strs = [
-    "depositBeans(uint256)",
-    "buyAndDepositBeans(uint256,uint256)",
-    "claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))",
-    "claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))",
-]
-bean_deposit_sigs = generate_sig_hash_map(bean_deposit_sig_strs)
-# Buy Fertilizer signature.
-buy_fert_function_sig_strs = [
-    "buyAndMint(uint256)",
-    "mint(uint256)",
-    "mintFertilizer(uint128,uint256,uint8)",
-    "farm(bytes[])",
-]
-buy_fert_sigs = generate_sig_hash_map(buy_fert_function_sig_strs)
-
-# Claim type signatures.
-# claim_sigs = ['claim', 'claimAndUnwrapBeans', 'claimConvertAddAndDepositLP', 'claimAndSowBeans', 'claimBuyAndSowBeans', 'claimAndCreatePodOrder', 'claimAndFillPodListing', 'claimBuyBeansAndCreatePodOrder', 'claimBuyBeansAndFillPodListing', 'claimAddAndDepositLP', 'claimAndDepositBeans', 'claimAndDepositLP', 'claimAndWithdrawBeans', 'claimAndWithdrawLP', 'claimBuyAndDepositBeans']
-claim_deposit_beans_sig_strs = [
-    "claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool))",
-    "claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool)))",
-]
-claim_deposit_beans_sigs = generate_sig_hash_map(claim_deposit_beans_sig_strs)
-
-# Signatures of methods of interest for testing.
-test_deposit_sig_strs = ["harvest(uint256[])", "updateSilo(address)"]
-test_deposit_sigs = generate_sig_hash_map(test_deposit_sig_strs)
 
 class EventClientType(IntEnum):
     BEANSTALK = 0
