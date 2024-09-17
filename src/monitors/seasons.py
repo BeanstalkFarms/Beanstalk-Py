@@ -8,7 +8,6 @@ from data_access.contracts.bean import BeanClient
 from data_access.contracts.beanstalk import BeanstalkClient
 from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
-from data_access.contracts.eth_usd_oracle import *
 from constants.addresses import *
 from constants.config import *
 
@@ -100,9 +99,10 @@ class SeasonsMonitor(Monitor):
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
-        eth_price = get_twa_eth_price(self._web3, 3600)
-        wsteth_price = get_twa_wsteth_price(self._web3, 3600)
-        wsteth_eth_price = get_twa_wsteth_to_eth(self._web3, 3600)
+        eth_price = self.beanstalk_client.get_token_usd_twap(WRAPPED_ETH, 3600)
+        wsteth_price = self.beanstalk_client.get_token_usd_twap(WSTETH, 3600)
+        wsteth_eth_price = wsteth_price / eth_price
+
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = current_season_stats.reward_beans
         incentive_beans = current_season_stats.incentive_beans

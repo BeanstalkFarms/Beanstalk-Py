@@ -36,12 +36,6 @@ class BeanstalkClient(ChainClient):
             call_contract_function_with_retry(self.contract.functions.totalDepositedBeans())
         )
 
-    def get_total_deposited_uni_v2_bean_eth_lp(self):
-        """Get current total deposited Uniswap V2 BEAN:ETH LP in the Silo."""
-        return lp_to_float(
-            call_contract_function_with_retry(self.contract.functions.totalDepositedLP())
-        )
-
     def get_total_deposited(self, address, decimals):
         """Return the total deposited of the token at address as a float."""
         return token_to_float(
@@ -103,6 +97,14 @@ class BeanstalkClient(ChainClient):
         token = Web3.to_checksum_address(erc20_info.addr)
         bdv = call_contract_function_with_retry(self.contract.functions.bdv(token, 10 ** erc20_info.decimals), block_number=block_number)
         return bean_to_float(bdv)
+    
+    def get_token_usd_price(self, token_addr, block_number='latest'):
+        response = call_contract_function_with_retry(self.contract.functions.getTokenUsdPrice(token_addr), block_number=block_number)
+        return float(response / 10**6)
+    
+    def get_token_usd_twap(self, token_addr, lookback, block_number='latest'):
+        response = call_contract_function_with_retry(self.contract.functions.getTokenUsdTwap(token_addr, lookback), block_number=block_number)
+        return float(response / 10**6)
 
 class BarnRaiseClient(ChainClient):
     """Common functionality related to the Barn Raise Fertilizer contract."""

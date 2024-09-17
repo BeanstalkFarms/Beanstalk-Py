@@ -40,10 +40,6 @@ with open(
     os.path.join(os.path.dirname(__file__), "../../constants/abi/fertilizer_abi.json")
 ) as fertilizer_abi_file:
     fertilizer_abi = json.load(fertilizer_abi_file)
-with open(
-    os.path.join(os.path.dirname(__file__), "../../constants/abi/eth_usd_oracle_abi.json")
-) as eth_usd_oracle_abi_file:
-    eth_usd_oracle_abi = json.load(eth_usd_oracle_abi_file)
 
 class ChainClient:
     """Base class for clients of Eth chain data."""
@@ -98,18 +94,13 @@ def get_beanstalk_v2_contract(web3):
 
 
 def get_bean_price_contract(web3):
-    """Get a web.eth.contract object for the Bean price oracle contract. Contract is not thread safe."""
-    return web3.eth.contract(address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
+    """Get a web.eth.contract object for the Bean price contract. Contract is not thread safe."""
+    return web3.eth.contract(address=BEANSTALK_PRICE_ADDR, abi=bean_price_abi)
 
 
 def get_fertilizer_contract(web3):
     """Get a web.eth.contract object for the Barn Raise Fertilizer contract. Contract is not thread safe."""
     return web3.eth.contract(address=FERTILIZER_ADDR, abi=fertilizer_abi)
-
-
-def get_eth_usd_oracle_contract(web3):
-    """Get a web.eth.contract object for in-house eth usd price feed. Contract is not thread safe."""
-    return web3.eth.contract(address=ETH_USD_ORACLE_ADDR, abi=eth_usd_oracle_abi)
 
 
 def get_erc20_contract(web3, address):
