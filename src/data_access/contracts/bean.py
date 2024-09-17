@@ -38,7 +38,7 @@ class BeanClient(ChainClient):
             pool_dict["delta_b"] = pool_info[5]
             pool_dict["lp_usd"] = pool_info[6]  # LP Token price in USD
             pool_dict["lp_bdv"] = pool_info[7]  # LP Token price in BDV
-            price_dict["pool_infos"][pool_dict["pool"]] = pool_dict
+            price_dict["pool_infos"][pool_info[0]] = pool_dict
         return price_dict
     
     def get_lp_token_value(self, token_address, decimals, liquidity_long=None):

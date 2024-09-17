@@ -74,7 +74,7 @@ class BarnRaiseMonitor(Monitor):
                     for event in all_events_in_time_range:
                         usdc_amount = int(event.args.value)
                         total_raised += usdc_amount
-                    msg_str = f"🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns"
+                    msg_str = f"🚛 In the past {round_num(time_range/3600, 1)} hours, ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns"
                     remaining = self.barn_raise_client.remaining()
                     msg_str += f"\n🪴 {round_num(remaining, 0)} Fertilizer remaining"
                     msg_str += f"\n"

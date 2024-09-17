@@ -121,9 +121,13 @@ class SeasonsMonitor(Monitor):
         ret_string = f"⏱ Season {last_season_stats.season + 1} has started!"
         ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
-        # Pool info.
-        bean_wsteth_well_pi = self.bean_client.get_pool_info(BEAN_WSTETH_ADDR)
-        bean_eth_well_pi = self.bean_client.get_pool_info(BEAN_ETH_ADDR)
+        # Well info.
+        wells_info = []
+        for well_addr in WHITELISTED_WELLS:
+            wells_info.append(self.bean_client.get_pool_info(well_addr))
+
+        # Sort highest liquidity wells first
+        wells_info = sorted(wells_info, key=lambda x: x['liquidity'], reverse=True)
 
         ret_string += f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} TWA deltaB'
 
@@ -138,19 +142,14 @@ class SeasonsMonitor(Monitor):
             ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown"
 
             # Liquidity stats.
-            # TODO: add all whitelisted wells here
             ret_string += f"\n\n**Liquidity**"
 
-            ret_string += f"\n🌊 BEANwstETH: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)} - "
-            ret_string += (
-                f"_deltaB [{round_num(token_to_float(bean_wsteth_well_pi['delta_b'], 6), 0)}], "
-            )
-            ret_string += f"price [${round_num(token_to_float(bean_wsteth_well_pi['price'], 6), 4)}]_"
-            ret_string += f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
-            ret_string += (
-                f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
-            )
-            ret_string += f"price [${round_num(token_to_float(bean_eth_well_pi['price'], 6), 4)}]_"
+            for well_info in wells_info:
+                ret_string += f"\n🌊 {SILO_TOKENS_MAP[well_info.pool.lower()]}: ${round_num(token_to_float(well_info['liquidity'], 6), 0)} - "
+                ret_string += (
+                    f"_deltaB [{round_num(token_to_float(well_info['delta_b'], 6), 0)}], "
+                )
+                ret_string += f"price [${round_num(token_to_float(well_info['price'], 6), 4)}]_"
 
             # Silo balance stats.
             ret_string += f"\n\n**Silo**"
@@ -228,9 +227,12 @@ class SeasonsMonitor(Monitor):
 
         # Short string version (for Twitter).
         else:
-            # TODO: generalize liquidity. Maybe just display total?
-            ret_string += f"\n\n🌊 BEANwstETH liquidity: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)}"
-            ret_string += f"\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
+            # Display total liquidity only
+            total_liquidity = 0
+            for well_info in wells_info:
+                total_liquidity += token_to_float(well_info['liquidity'], 6)
+            total_liquidity = round_num(total_liquidity, 0)
+            ret_string += f"\n\n🌊 Total Liquidity: ${total_liquidity}"
 
             ret_string += f"\n"
             if reward_beans > 0:
