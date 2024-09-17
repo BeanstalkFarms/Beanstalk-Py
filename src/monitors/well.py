@@ -9,7 +9,8 @@ from data_access.util import *
 from constants.addresses import *
 from constants.config import *
 
-class AllWellsMonitor(Monitor):
+# Monitors all wells except those in the ignorelist
+class OtherWellsMonitor(Monitor):
     def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=None):
         super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._ignorelist = ignorelist
@@ -63,11 +64,8 @@ class AllWellsMonitor(Monitor):
             event_str += "\n_ _"
             return event_str
 
-# Monitors a specific Well.
-# NOTE arguments for doing 1 monitor for all wells and 1 monitor per well. In first pass wells will each get their
-#      own discord channel, which will require human intervention in this code anyway, so going to go for 1 channel
-#      per well for now.
-class WellMonitor(Monitor):
+# Monitors a set of Wells that are output to the same channel
+class WellsMonitor(Monitor):
     """Monitor Wells for events.
 
     This provides events in Beanstalk exchange channel as well as Basin per-well channels.
@@ -77,11 +75,11 @@ class WellMonitor(Monitor):
     ^^ make this assumption less strict, instead only skip valuation if no BDV
     """
 
-    def __init__(self, message_function, address, bean_reporting=False, prod=False, dry_run=None):
+    def __init__(self, message_function, addresses, bean_reporting=False, prod=False, dry_run=None):
         super().__init__(f"specific well", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
-        self.pool_address = address
-        self._eth_event_client = EthEventsClient(self.pool_type, self.pool_address)
+        self.pool_addresses = addresses
+        self._eth_event_client = EthEventsClient(self.pool_type, self.pool_addresses)
         self.basin_graph_client = BasinGraphClient()
         self.bean_client = BeanClient()
         self.bean_reporting = bean_reporting
@@ -106,7 +104,7 @@ class WellMonitor(Monitor):
             return
 
         for event_log in event_logs:
-            if event_log.get("address") == self.pool_address:
+            if event_log.get("address") in self.pool_addresses:
                 event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
                 if event_str:
                     self.message_function(event_str)

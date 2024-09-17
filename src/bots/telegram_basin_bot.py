@@ -12,7 +12,7 @@ from constants.channels import *
 from constants.addresses import *
 
 from monitors.basin_periodic import BasinPeriodicMonitor
-from monitors.well import WellMonitor, AllWellsMonitor
+from monitors.well import WellsMonitor, OtherWellsMonitor
 
 class TelegramBasinBot(object):
     def __init__(self, token, prod=False, dry_run=None):
@@ -29,17 +29,17 @@ class TelegramBasinBot(object):
         self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.period_monitor.start()
 
-        self.well_monitor_bean_eth = WellMonitor(
+        self.well_monitor_bean_eth = WellsMonitor(
             self.send_msg, BEAN_ETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_eth.start()
         
-        self.well_monitor_bean_wsteth = WellMonitor(
+        self.well_monitor_bean_wsteth = WellsMonitor(
             self.send_msg, BEAN_WSTETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_wsteth.start()
 
-        self.well_monitor_all = AllWellsMonitor(
+        self.well_monitor_all = OtherWellsMonitor(
             self.send_msg, [BEAN_ETH_ADDR, BEAN_WSTETH_ADDR], discord=False, prod=prod, dry_run=dry_run
         )
         self.well_monitor_all.start()

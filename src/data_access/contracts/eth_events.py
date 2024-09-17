@@ -166,7 +166,7 @@ class TxnPair:
         self.logs = logs
 
 class EthEventsClient:
-    def __init__(self, event_client_type, address=""):
+    def __init__(self, event_client_type, addresses):
         # Track recently seen txns to avoid processing same txn multiple times.
         self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
@@ -177,8 +177,8 @@ class EthEventsClient:
             self._events_dict = AQUIFER_EVENT_MAP
             self._signature_list = AQUIFER_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.WELL:
-            self._contracts = [get_well_contract(self._web3, address)]
-            self._contract_addresses = [address]
+            self._contracts = [get_well_contract(self._web3, None)]
+            self._contract_addresses = addresses
             self._events_dict = WELL_EVENT_MAP
             self._signature_list = WELL_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.BEANSTALK:

@@ -15,7 +15,7 @@ from constants.channels import *
 from constants.config import *
 
 from monitors.basin_periodic import BasinPeriodicMonitor
-from monitors.well import WellMonitor, AllWellsMonitor
+from monitors.well import WellsMonitor, OtherWellsMonitor
 
 class Channel(Enum):
     REPORT = 0
@@ -58,17 +58,17 @@ class DiscordClient(discord.ext.commands.Bot):
         )
         self.period_monitor.start()
 
-        self.well_monitor_bean_eth = WellMonitor(
+        self.well_monitor_bean_eth = WellsMonitor(
             self.send_msg_bean_eth, BEAN_ETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_eth.start()
         
-        self.well_monitor_bean_wsteth = WellMonitor(
+        self.well_monitor_bean_wsteth = WellsMonitor(
             self.send_msg_bean_wsteth, BEAN_WSTETH_ADDR, prod=prod, dry_run=dry_run
         )
         self.well_monitor_bean_wsteth.start()
 
-        self.well_monitor_all = AllWellsMonitor(
+        self.well_monitor_all = OtherWellsMonitor(
             self.send_msg_wells_other, [BEAN_ETH_ADDR, BEAN_WSTETH_ADDR], discord=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_all.start()

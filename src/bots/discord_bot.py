@@ -23,7 +23,7 @@ from monitors.beanstalk import BeanstalkMonitor
 from monitors.market import MarketMonitor
 from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
-from monitors.well import WellMonitor
+from monitors.well import WellsMonitor
 
 class Channel(Enum):
     PEG = 0
@@ -97,12 +97,12 @@ class DiscordClient(discord.ext.commands.Bot):
         )
         self.sunrise_monitor.start()
 
-        self.well_monitor = WellMonitor(
+        self.well_monitor = WellsMonitor(
             self.send_msg_pool, BEAN_ETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor.start()
         
-        self.well_monitor_2 = WellMonitor(
+        self.well_monitor_2 = WellsMonitor(
             self.send_msg_pool, BEAN_WSTETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_2.start()

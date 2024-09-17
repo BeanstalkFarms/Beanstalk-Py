@@ -14,7 +14,7 @@ from data_access.contracts.eth_events import EventClientType
 
 from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
-from monitors.well import WellMonitor
+from monitors.well import WellsMonitor
 from monitors.beanstalk import BeanstalkMonitor
 from monitors.market import MarketMonitor
 from monitors.barn import BarnRaiseMonitor
@@ -37,12 +37,12 @@ class TelegramBot(object):
         self.sunrise_monitor = SeasonsMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.sunrise_monitor.start()
 
-        self.well_monitor = WellMonitor(
+        self.well_monitor = WellsMonitor(
             self.send_msg, BEAN_ETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor.start()
 
-        self.well_monitor_2 = WellMonitor(
+        self.well_monitor_2 = WellsMonitor(
             self.send_msg, BEAN_WSTETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
         )
         self.well_monitor_2.start()
