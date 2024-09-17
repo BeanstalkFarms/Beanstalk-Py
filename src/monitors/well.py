@@ -12,7 +12,7 @@ from constants.config import *
 # Monitors all wells except those in the ignorelist
 class OtherWellsMonitor(Monitor):
     def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=None):
-        super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        super().__init__("wells", message_function, WELL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._ignorelist = ignorelist
         self._discord = discord
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
@@ -76,7 +76,7 @@ class WellsMonitor(Monitor):
     """
 
     def __init__(self, message_function, addresses, bean_reporting=False, prod=False, dry_run=None):
-        super().__init__(f"specific well", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        super().__init__(f"specific well", message_function, WELL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.pool_type = EventClientType.WELL
         self.pool_addresses = addresses
         self._eth_event_client = EthEventsClient(self.pool_type, self.pool_addresses)

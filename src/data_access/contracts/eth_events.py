@@ -289,18 +289,6 @@ class EthEventsClient:
             # Retrieve the full txn and txn receipt.
             receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
 
-            # If any removeDeposit events from Silo V2, ignore the entire txn. It is likely a migration.
-            # This is a bit hacky, but none of this infrastructure was designed to manage implementations of
-            # same event at same address.
-            silo_v2_contract = get_beanstalk_v2_contract(self._web3)
-            decoded_type_logs = silo_v2_contract.events["RemoveDeposit"]().processReceipt(
-                receipt, errors=DISCARD
-            )
-            if len(decoded_type_logs) > 0:
-                logging.warning("Skipping txn with Silo v2 RemoveDeposit")
-                txn_hash_set.add(txn_hash)
-                continue
-
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:

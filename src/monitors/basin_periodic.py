@@ -13,7 +13,7 @@ class BasinPeriodicMonitor(Monitor):
     """Periodically summarized and report Basin status."""
 
     def __init__(self, message_function, prod=False, dry_run=None):
-        super().__init__(f"basin", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        super().__init__(f"basin", message_function, WELL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.update_period = 60 * 60 * 24
         self.update_ref_time = int(
             # 9:05am PST/12:05pm EST. Subgraph takes daily snapshot in tandem with the sunrise,

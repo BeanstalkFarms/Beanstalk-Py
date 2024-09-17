@@ -24,24 +24,19 @@ BEAN_GRAPH_ENDPOINT = "https://graph.bean.money/bean"
 BASIN_GRAPH_ENDPOINT = "https://graph.bean.money/basin"
 SNAPSHOT_GRAPH_ENDPOINT = "https://hub.snapshot.org/graphql"
 
-# The duration of a season. Assumes that seasons align with Unix epoch.
-SEASON_DURATION = 3600  # seconds
-# How long to wait between discord preview bot updates.
-PREVIEW_CHECK_PERIOD = 5  # seconds
-# Rate at which to check for events on the Beanstalk contract.
-BEANSTALK_CHECK_RATE = 5  # seconds
-# How long to wait between peg checks.
-PEG_CHECK_PERIOD = 5  # seconds
-# How long to wait between checks for a sunrise when we expect a new season to begin.
-SUNRISE_CHECK_PERIOD = 5  # seconds
-# Rate at which to check chain for new Well interactions.
-POOL_CHECK_RATE = 5  # seconds
-# How long to wait between checks for fert purchases.
-BARN_RAISE_CHECK_RATE = 10  # seconds
+# The following time values are all provided in seconds.
+SEASON_DURATION = 3600
+PREVIEW_CHECK_PERIOD = 5
+BEANSTALK_CHECK_RATE = 5
+PEG_CHECK_PERIOD = 5
+SUNRISE_CHECK_PERIOD = 5
+WELL_CHECK_RATE = 5
+BARN_RAISE_CHECK_RATE = 10
+# Initial time to wait before reseting dead monitor.
+RESET_MONITOR_DELAY_INIT = 15
+
 # Bytes in 100 megabytes.
 ONE_HUNDRED_MEGABYTES = 100 * 1000000
-# Initial time to wait before reseting dead monitor.
-RESET_MONITOR_DELAY_INIT = 15  # seconds
 # Timestamp for deployment of Basin.
 BASIN_DEPLOY_EPOCH = 1692814103
 

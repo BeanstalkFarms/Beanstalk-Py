@@ -29,10 +29,6 @@ with open(
 ) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
 with open(
-    os.path.join(os.path.dirname(__file__), "../../constants/abi/beanstalk_abi_silo_v2.json")
-) as beanstalk_abi_file_silo_v2:
-    beanstalk_v2_abi = json.load(beanstalk_abi_file_silo_v2)
-with open(
     os.path.join(os.path.dirname(__file__), "../../constants/abi/bean_price_abi.json")
 ) as bean_price_abi_file:
     bean_price_abi = json.load(bean_price_abi_file)
@@ -86,11 +82,6 @@ def get_unripe_lp_contract(web3):
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
     return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_abi)
-
-
-def get_beanstalk_v2_contract(web3):
-    """Get a web.eth.contract object for the Beanstalk contract ft Silo v2. Contract is not thread safe."""
-    return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_v2_abi)
 
 
 def get_bean_price_contract(web3):
