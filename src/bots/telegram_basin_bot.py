@@ -29,20 +29,15 @@ class TelegramBasinBot(object):
         self.period_monitor = BasinPeriodicMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.period_monitor.start()
 
-        self.well_monitor_bean_eth = WellsMonitor(
-            self.send_msg, BEAN_ETH_ADDR, prod=prod, dry_run=dry_run
+        self.wells_monitor = WellsMonitor(
+            self.send_msg, WHITELISTED_WELLS, prod=prod, dry_run=dry_run
         )
-        self.well_monitor_bean_eth.start()
-        
-        self.well_monitor_bean_wsteth = WellsMonitor(
-            self.send_msg, BEAN_WSTETH_ADDR, prod=prod, dry_run=dry_run
-        )
-        self.well_monitor_bean_wsteth.start()
+        self.wells_monitor.start()
 
-        self.well_monitor_all = OtherWellsMonitor(
-            self.send_msg, [BEAN_ETH_ADDR, BEAN_WSTETH_ADDR], discord=False, prod=prod, dry_run=dry_run
+        self.wells_monitor_all = OtherWellsMonitor(
+            self.send_msg, WHITELISTED_WELLS, discord=False, prod=prod, dry_run=dry_run
         )
-        self.well_monitor_all.start()
+        self.wells_monitor_all.start()
 
     def send_msg(self, msg):
         # Ignore empty messages.
@@ -56,9 +51,8 @@ class TelegramBasinBot(object):
 
     def stop(self):
         self.period_monitor.stop()
-        self.well_monitor_bean_eth.stop()
-        self.well_monitor_bean_wsteth.stop()
-        self.well_monitor_all.stop()
+        self.wells_monitor.stop()
+        self.wells_monitor_all.stop()
 
 
 if __name__ == "__main__":

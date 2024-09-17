@@ -97,15 +97,10 @@ class DiscordClient(discord.ext.commands.Bot):
         )
         self.sunrise_monitor.start()
 
-        self.well_monitor = WellsMonitor(
-            self.send_msg_pool, BEAN_ETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
+        self.well_monitor_whitelisted = WellsMonitor(
+            self.send_msg_pool, WHITELISTED_WELLS, bean_reporting=True, prod=prod, dry_run=dry_run
         )
-        self.well_monitor.start()
-        
-        self.well_monitor_2 = WellsMonitor(
-            self.send_msg_pool, BEAN_WSTETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
-        )
-        self.well_monitor_2.start()
+        self.well_monitor_whitelisted.start()
 
         self.beanstalk_monitor = BeanstalkMonitor(
             self.send_msg_beanstalk, prod=prod, dry_run=dry_run
@@ -139,8 +134,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
-        self.well_monitor.stop()
-        self.well_monitor_2.stop()
+        self.well_monitor_whitelisted.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
         self.barn_raise_monitor.stop()

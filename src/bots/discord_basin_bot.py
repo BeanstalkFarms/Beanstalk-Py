@@ -20,9 +20,8 @@ from monitors.well import WellsMonitor, OtherWellsMonitor
 class Channel(Enum):
     REPORT = 0
     DAILY = 1
-    BEAN_ETH = 2
-    BEAN_WSTETH = 3,
-    WELLS_OTHER = 4
+    WHITELISTED = 2
+    WELLS_OTHER = 3
 
 
 class DiscordClient(discord.ext.commands.Bot):
@@ -33,15 +32,13 @@ class DiscordClient(discord.ext.commands.Bot):
         if prod:
             self._chat_id_report = DEX_DISCORD_CHANNEL_ID_TEST
             self._chat_id_daily = DEX_DISCORD_CHANNEL_ID_DAILY
-            self._chat_id_bean_eth = DEX_DISCORD_CHANNEL_ID_BEAN_ETH
-            self._chat_id_bean_wsteth = DEX_DISCORD_CHANNEL_ID_BEAN_WSTETH
+            self._chat_id_whitelisted_wells = DEX_DISCORD_CHANNEL_ID_WHITELISTED
             self._chat_id_other_wells = DEX_DISCORD_CHANNEL_ID_WELLS_OTHER
             logging.info("Configured as a production instance.")
         else:
             self._chat_id_report = DEX_DISCORD_CHANNEL_ID_TEST
             self._chat_id_daily = DEX_DISCORD_CHANNEL_ID_TEST
-            self._chat_id_bean_eth = DEX_DISCORD_CHANNEL_ID_TEST
-            self._chat_id_bean_wsteth = DEX_DISCORD_CHANNEL_ID_TEST
+            self._chat_id_whitelisted_wells = DEX_DISCORD_CHANNEL_ID_TEST
             self._chat_id_other_wells = DEX_DISCORD_CHANNEL_ID_TEST
             logging.info("Configured as a staging instance.")
 
@@ -58,20 +55,15 @@ class DiscordClient(discord.ext.commands.Bot):
         )
         self.period_monitor.start()
 
-        self.well_monitor_bean_eth = WellsMonitor(
-            self.send_msg_bean_eth, BEAN_ETH_ADDR, prod=prod, dry_run=dry_run
+        self.well_monitor_whitelisted = WellsMonitor(
+            self.send_msg_whitelisted, WHITELISTED_WELLS, prod=prod, dry_run=dry_run
         )
-        self.well_monitor_bean_eth.start()
-        
-        self.well_monitor_bean_wsteth = WellsMonitor(
-            self.send_msg_bean_wsteth, BEAN_WSTETH_ADDR, prod=prod, dry_run=dry_run
-        )
-        self.well_monitor_bean_wsteth.start()
+        self.well_monitor_whitelisted.start()
 
-        self.well_monitor_all = OtherWellsMonitor(
-            self.send_msg_wells_other, [BEAN_ETH_ADDR, BEAN_WSTETH_ADDR], discord=True, prod=prod, dry_run=dry_run
+        self.well_monitor_other = OtherWellsMonitor(
+            self.send_msg_wells_other, WHITELISTED_WELLS, discord=True, prod=prod, dry_run=dry_run
         )
-        self.well_monitor_all.start()
+        self.well_monitor_other.start()
 
         # Ignore exceptions of this type and retry. Note that no logs will be generated.
         # Ignore base class, because we always want to reconnect.
@@ -86,9 +78,8 @@ class DiscordClient(discord.ext.commands.Bot):
 
     def stop(self):
         self.period_monitor.stop()
-        self.well_monitor_bean_eth.stop()
-        self.well_monitor_bean_wsteth.stop()
-        self.well_monitor_all.stop()
+        self.well_monitor_whitelisted.stop()
+        self.well_monitor_other.stop()
 
     def send_msg_report(self, text):
         """Send a message through the Discord bot in the report/test channel."""
@@ -98,13 +89,9 @@ class DiscordClient(discord.ext.commands.Bot):
         """Send a message through the Discord bot in the daily update channel."""
         self.msg_queue.append((Channel.DAILY, text))
 
-    def send_msg_bean_eth(self, text):
-        """Send a message through the Discord bot in the bean eth well channel."""
-        self.msg_queue.append((Channel.BEAN_ETH, text))
-
-    def send_msg_bean_wsteth(self, text):
-        """Send a message through the Discord bot in the bean wsteth well channel."""
-        self.msg_queue.append((Channel.BEAN_WSTETH, text))
+    def send_msg_whitelisted(self, text):
+        """Send a message through the Discord bot in the beanstalk whitelisted wells channel."""
+        self.msg_queue.append((Channel.WHITELISTED, text))
 
     def send_msg_wells_other(self, text):
         """Send a message through the Discord bot in the other wells channel."""
@@ -113,12 +100,11 @@ class DiscordClient(discord.ext.commands.Bot):
     async def on_ready(self):
         self._channel_report = self.get_channel(self._chat_id_report)
         self._channel_daily = self.get_channel(self._chat_id_daily)
-        self._channel_bean_eth = self.get_channel(self._chat_id_bean_eth)
-        self._channel_bean_wsteth = self.get_channel(self._chat_id_bean_wsteth)
+        self._channel_whitelisted = self.get_channel(self._chat_id_whitelisted_wells)
         self._channel_wells_other = self.get_channel(self._chat_id_other_wells)
 
         logging.info(
-            f"Discord channels are {self._channel_report}, {self._channel_daily}, {self._channel_bean_eth}, {self._channel_bean_wsteth}, {self._chat_id_other_wells}"
+            f"Discord channels are {self._channel_report}, {self._channel_daily}, {self._channel_whitelisted}, {self._chat_id_other_wells}"
         )
 
         # Guild IDs for all servers this bot is in.
@@ -153,10 +139,8 @@ class DiscordClient(discord.ext.commands.Bot):
                     await self._channel_report.send(msg)
                 elif channel is Channel.DAILY:
                     await self._channel_daily.send(msg)
-                elif channel is Channel.BEAN_ETH:
-                    await self._channel_bean_eth.send(msg)
-                elif channel is Channel.BEAN_WSTETH:
-                    await self._channel_bean_wsteth.send(msg)
+                elif channel is Channel.WHITELISTED:
+                    await self._channel_whitelisted.send(msg)
                 elif channel is Channel.WELLS_OTHER:
                     await self._channel_wells_other.send(msg)
                 else:

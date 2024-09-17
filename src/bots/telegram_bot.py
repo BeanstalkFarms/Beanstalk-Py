@@ -10,7 +10,6 @@ from bots import util
 from constants.config import *
 from constants.channels import *
 from constants.addresses import *
-from data_access.contracts.eth_events import EventClientType
 
 from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
@@ -37,15 +36,10 @@ class TelegramBot(object):
         self.sunrise_monitor = SeasonsMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.sunrise_monitor.start()
 
-        self.well_monitor = WellsMonitor(
-            self.send_msg, BEAN_ETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
+        self.wells_monitor = WellsMonitor(
+            self.send_msg, WHITELISTED_WELLS, bean_reporting=True, prod=prod, dry_run=dry_run
         )
-        self.well_monitor.start()
-
-        self.well_monitor_2 = WellsMonitor(
-            self.send_msg, BEAN_WSTETH_ADDR, bean_reporting=True, prod=prod, dry_run=dry_run
-        )
-        self.well_monitor_2.start()
+        self.wells_monitor.start()
 
         self.beanstalk_monitor = BeanstalkMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.beanstalk_monitor.start()
@@ -76,8 +70,7 @@ class TelegramBot(object):
     def stop(self):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
-        self.well_monitor.stop()
-        self.well_monitor_2.stop()
+        self.wells_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
         self.barn_raise_monitor.stop()
