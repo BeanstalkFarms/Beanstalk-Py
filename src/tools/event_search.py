@@ -31,7 +31,7 @@ if __name__ == "__main__":
         "-a",
         "--address",
         type=str,
-        default="0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5",
+        default="0xD1A0060ba708BC4BCD3DA6C37EFa8deDF015FB70",
         help="the contract to check events at (default: Beanstalk addr)",
     )
     parser.add_argument(

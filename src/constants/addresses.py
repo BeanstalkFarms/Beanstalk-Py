@@ -1,6 +1,6 @@
 # Arbitrum addresses
 BEANSTALK_ADDR = "0xD1A0060ba708BC4BCD3DA6C37EFa8deDF015FB70"
-### TODO: these may need to be updated
+### TODO: these may need to be updated (update fert in test entries too)
 BEANSTALK_PRICE_ADDR = "0xEfE94bE746681ed73DfD15F932f9a8e8ffDdEE56"
 FERTILIZER_ADDR = "0x82a17bdeC3368f549A7BfE6734D6E2Aba82be455"
 ###
