@@ -30,8 +30,6 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     # NOTE ERROR logging here silently breaks all logging. very cool python feature.
     # logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
 
-# TODO: need to update signatures here
-
 AQUIFER_EVENT_MAP = {}
 AQUIFER_SIGNATURES_LIST = []
 # IERC20 types will just be addresses.
@@ -62,10 +60,10 @@ add_event_to_dict("Sync(uint256[],uint256,address)", WELL_EVENT_MAP, WELL_SIGNAT
 BEANSTALK_EVENT_MAP = {}
 BEANSTALK_SIGNATURES_LIST = []
 add_event_to_dict(
-    "Sow(address,uint256,uint256,uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
+    "Sow(address,uint256,uint256,uint256,uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
 add_event_to_dict(
-    "Harvest(address,uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
+    "Harvest(address,uint256,uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
 add_event_to_dict(
     "AddDeposit(address,address,int96,uint256,uint256)",
@@ -73,7 +71,7 @@ add_event_to_dict(
     BEANSTALK_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "RemoveDeposit(address,address,int96,uint256,uint256)",  # SILO v3
+    "RemoveDeposit(address,address,int96,uint256,uint256)",
     BEANSTALK_EVENT_MAP,
     BEANSTALK_SIGNATURES_LIST,
 )
@@ -110,23 +108,23 @@ add_event_to_dict(
 MARKET_EVENT_MAP = {}
 MARKET_SIGNATURES_LIST = []
 add_event_to_dict(
-    "PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,uint256,bytes,uint8,uint8)",
+    "PodListingCreated(address,uint256,uint256,uint256,uint256,uint24,uint256,uint256,uint8)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "PodListingFilled(address,address,uint256,uint256,uint256,uint256)",
+    "PodListingFilled(address,address,uint256,uint256,uint256,uint256,uint256)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
-add_event_to_dict("PodListingCancelled(address,uint256)", MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
+add_event_to_dict("PodListingCancelled(address,uint256,uint256)", MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 add_event_to_dict(
-    "PodOrderCreated(address,bytes32,uint256,uint24,uint256,uint256,bytes,uint8)",
+    "PodOrderCreated(address,bytes32,uint256,uint256,uint24,uint256,uint256)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "PodOrderFilled(address,address,bytes32,uint256,uint256,uint256,uint256)",
+    "PodOrderFilled(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
