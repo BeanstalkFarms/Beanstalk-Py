@@ -158,7 +158,7 @@ class BeanstalkGraphClient(object):
         if siloHourlySnapshots:
             query_str += f"""
                 siloHourlySnapshots(
-                    where: {{silo: "0xd1a0060ba708bc4bcd3da6c37efa8dedf015fb70"}}
+                    where: {{silo: "{BEANSTALK_ADDR.lower()}"}}
                     orderBy: season
                     orderDirection: desc
                     first: {num_seasons}
@@ -172,7 +172,7 @@ class BeanstalkGraphClient(object):
                     orderDirection: desc
                     first: {num_seasons * len(SILO_TOKENS_MAP)}
                     where: {{depositedAmount_gt: "0",
-                             siloAsset_: {{silo: "0xd1a0060ba708bc4bcd3da6c37efa8dedf015fb70"}}
+                             siloAsset_: {{silo: "{BEANSTALK_ADDR.lower()}"}}
                            }}
                 ) {{
                     depositedAmount
@@ -186,7 +186,7 @@ class BeanstalkGraphClient(object):
         if fieldHourlySnapshots:
             query_str += f"""
                 fieldHourlySnapshots(
-                    where: {{field: "0xd1a0060ba708bc4bcd3da6c37efa8dedf015fb70"}}
+                    where: {{field: "{BEANSTALK_ADDR.lower()}"}}
                     orderBy: season
                     orderDirection: desc
                     first: {num_seasons}
@@ -217,7 +217,7 @@ class BeanstalkGraphClient(object):
         NOTE(funderberker): UNTESTED
         """
         query_str = """
-            silo(id: "0xd1a0060ba708bc4bcd3da6c37efa8dedf015fb70") {
+            silo(id: "{BEANSTALK_ADDR.lower()}") {
                 assets(first: 100, where: {depositedAmount_gt: "0"}) {
                     token
                     depositedAmount

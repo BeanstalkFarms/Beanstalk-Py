@@ -8,6 +8,7 @@ python3 -m tools.event_search EVENT_DEFINITION
 import argparse
 import logging
 import os
+from constants.addresses import BEANSTALK_ADDR
 from web3 import Web3, WebsocketProvider
 
 
@@ -31,7 +32,7 @@ if __name__ == "__main__":
         "-a",
         "--address",
         type=str,
-        default="0xD1A0060ba708BC4BCD3DA6C37EFa8deDF015FB70",
+        default=BEANSTALK_ADDR,
         help="the contract to check events at (default: Beanstalk addr)",
     )
     parser.add_argument(
