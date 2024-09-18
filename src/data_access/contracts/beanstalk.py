@@ -51,7 +51,7 @@ class BeanstalkClient(ChainClient):
         """Returns the current amount of Seeds awarded for depositing `token` in the silo."""
         token = Web3.to_checksum_address(token)
         token_settings = call_contract_function_with_retry(self.contract.functions.tokenSettings(token), block_number=block_number)
-        return (token_settings[1] * 10000) / 10 ** STALK_DECIMALS
+        return token_settings[1] / 10 ** 6
 
     def get_bdv(self, erc20_info, block_number='latest'):
         """Returns the current bdv `token`."""
