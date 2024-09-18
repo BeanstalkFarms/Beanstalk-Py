@@ -166,7 +166,7 @@ class TxnPair:
         self.logs = logs
 
 class EthEventsClient:
-    def __init__(self, event_client_type, addresses):
+    def __init__(self, event_client_type, addresses=None):
         # Track recently seen txns to avoid processing same txn multiple times.
         self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
