@@ -157,7 +157,7 @@ class BeanstalkMonitor(Monitor):
         # Chop event.
         elif event_log.event in ["Chop"]:
             token = event_log.args.get("token")
-            underlying = self.beanstalk_client.get_underlying_token(token)
+            underlying = UNRIPE_UNDERLYING_MAP[token]
             _, _, chopped_symbol, chopped_decimals = get_erc20_info(token, self._web3).parse()
             chopped_amount = token_to_float(event_log.args.get("amount"), chopped_decimals)
             _, _, underlying_symbol, underlying_decimals = get_erc20_info(
@@ -222,15 +222,13 @@ class BeanstalkMonitor(Monitor):
                 remove_float = token_to_float(event_log.args.get("fromAmount"), remove_decimals)
                 add_float = token_to_float(event_log.args.get("toAmount"), add_decimals)
 
-        # TODO: generalize convert
+        # If both tokens are lp, use the to token (add_token)
+        # Otherwise use whichever one is an lp token
         pool_token = BEAN_ADDR
-        if remove_token_addr == BEAN_ETH_ADDR or add_token_addr == BEAN_ETH_ADDR:
-            pool_token = BEAN_ETH_ADDR
-        elif remove_token_addr in [BEAN_WSTETH_ADDR, UNRIPE_LP_ADDR] or add_token_addr in [
-            BEAN_WSTETH_ADDR,
-            UNRIPE_LP_ADDR,
-        ]:
-            pool_token = BEAN_WSTETH_ADDR
+        if add_token_addr in WHITELISTED_WELLS:
+            pool_token = underlying_if_unripe(remove_token_addr)
+        elif remove_token_addr in WHITELISTED_WELLS:
+            pool_token = underlying_if_unripe(add_token_addr)
 
         if remove_token_symbol.startswith("ur") and not add_token_symbol.startswith("ur"):
             # Chop convert

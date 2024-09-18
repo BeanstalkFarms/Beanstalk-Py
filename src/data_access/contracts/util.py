@@ -69,16 +69,6 @@ def get_bean_contract(web3):
     return web3.eth.contract(address=BEAN_ADDR, abi=erc20_abi)
 
 
-def get_unripe_contract(web3):
-    """Get a web.eth.contract object for the unripe bean token. Contract is not thread safe."""
-    return get_erc20_contract(web3, UNRIPE_ADDR)
-
-
-def get_unripe_lp_contract(web3):
-    """Get a web.eth.contract object for the unripe LP token. Contract is not thread safe."""
-    return get_erc20_contract(web3, UNRIPE_LP_ADDR)
-
-
 def get_beanstalk_contract(web3):
     """Get a web.eth.contract object for the Beanstalk contract. Contract is not thread safe."""
     return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_abi)
@@ -206,22 +196,6 @@ def is_valid_wallet_address(address):
     return True
 
 
-# NOTE(funderberker): What an atrocious name I have chosen. I apologize to readers.
-def is_6_not_18_decimal_token_amount(amount):
-    """Attempt to determine if the amount belongs to Bean (6 decimal) or an 18 decimal token."""
-    amount = int(amount)
-    # If at least 16 digits present assume it is an 18 decimal token (1 billion Bean).
-    if amount > 1000000000000000:
-        return False
-    else:
-        return True
-
-
-def txn_topic_combo_id(entry):
-    """Return a unique string identifying this transaction and topic combo."""
-    return entry["transactionHash"].hex() + entry["topics"][0].hex()
-
-
 def call_contract_function_with_retry(function, max_tries=10, block_number='latest'):
     """Try to call a web3 contract object function and retry with exponential backoff."""
     try_count = 1
@@ -295,6 +269,11 @@ def seeds_to_float(seeds_long):
 
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
+
+def underlying_if_unripe(token):
+    if token.startswith(UNRIPE_TOKEN_PREFIX):
+        return UNRIPE_UNDERLYING_MAP[token]
+    return token
 
 
 def get_test_entries(dry_run=None):

@@ -37,12 +37,6 @@ class BeanstalkClient(ChainClient):
             decimals,
         )
 
-    def get_underlying_token(self, unripe_token):
-        """Return the address of the token that will be redeemed for a given unripe token."""
-        return call_contract_function_with_retry(
-            self.contract.functions.getUnderlyingToken(unripe_token)
-        )
-
     def get_recap_funded_percent(self):
         """Return the % of target funds that have already been funded via fertilizer sales."""
         # Note that % recap is same for all unripe tokens.
