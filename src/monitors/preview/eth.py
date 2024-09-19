@@ -19,7 +19,7 @@ class EthPreviewMonitor(PreviewMonitor):
     def _monitor_method(self):
         while self._thread_active:
             self.wait_for_next_cycle()
-            gas_base_fee = get_gas_base_fee(Chain.ETH)
+            gas_base_fee = get_gas_base_fee(Chain.ARB)
             eth_price = self.eth_price()
             self.name_function(f"{holiday_emoji()}{round_num(gas_base_fee, 1)} Gwei")
             self.status_function(f"ETH: ${round_num(eth_price)}")

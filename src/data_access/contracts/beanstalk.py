@@ -91,6 +91,7 @@ if __name__ == "__main__":
     """Quick test and demonstrate functionality."""
     logging.basicConfig(level=logging.INFO)
     bs = BeanstalkClient()
+    logging.info(f"season {bs.get_season()}")
     logging.info(f"bean seeds {bs.get_seeds(BEAN_ADDR)}")
     logging.info(f"season block {bs.get_season_block()}")
     client = EthEventsClient(EventClientType.SEASON)
