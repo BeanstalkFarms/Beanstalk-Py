@@ -134,6 +134,11 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
     is_lpish = False
 
     if event_log.event == "AddLiquidity":
+        if tokenAmountsIn[0] == 0 and tokenAmountsIn[1] == 0:
+            # When we initialize a new Well, 2 transactions have to occur for the multi flow pump
+            # to begin working, so usually we do this via an add liquidity with an amount of 0.
+            return ""
+
         is_lpish = True
         event_str += f"📥 LP added - "
         for i in range(len(tokens)):

@@ -27,7 +27,8 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     sig_dict[event_name] = event_signature_hash
     sig_dict[event_signature_hash] = event_name
     sig_list.append(event_signature_hash)
-    # NOTE ERROR logging here silently breaks all logging. very cool python feature.
+    # NOTE Must config prior to logs otherwise all logging breaks
+    # logging.basicConfig(level=logging.INFO)
     # logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
 
 AQUIFER_EVENT_MAP = {}
@@ -383,3 +384,15 @@ def safe_create_filter(web3, address, topics, from_block, to_block):
             time.sleep(2)
             try_count += 1
     raise Exception("Failed to safely create filter")
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    filter = safe_create_filter(
+        get_web3_instance(),
+        address=BEANSTALK_ADDR,
+        topics=[BEANSTALK_SIGNATURES_LIST],
+        from_block="256715188",
+        to_block="256715781",
+    )
+    entries = filter.get_new_entries()
+    logging.info(f"found {len(entries)} entries")
