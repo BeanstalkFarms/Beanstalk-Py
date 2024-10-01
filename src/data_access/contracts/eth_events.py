@@ -95,6 +95,12 @@ add_event_to_dict("Pick(address,address,uint256)", BEANSTALK_EVENT_MAP, BEANSTAL
 add_event_to_dict(
     "ClaimFertilizer(uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
+# Needed to identify cases where AddDeposit should be ignored
+add_event_to_dict(
+    "L1DepositsMigrated(address,address,uint256[],uint256[],uint256[])",
+    BEANSTALK_EVENT_MAP,
+    BEANSTALK_SIGNATURES_LIST,
+)
 
 # Season/sunrise events
 SEASON_EVENT_MAP = {}

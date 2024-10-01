@@ -36,11 +36,12 @@ class BeanstalkMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
-        # logging.warning(f'handling {txn_hash} logs...')
-        # Prune *plant* deposit logs. They are uninteresting clutter.
-        # Prune *pick* deposit logs. They are uninteresting clutter.
+
+        if event_in_logs("L1DepositsMigrated", event_logs):
+            # Ignore AddDeposit as a result of contract migrating silo
+            remove_events_from_logs_by_name("AddDeposit", event_logs)
+
         # For each earn (plant/pick) event log remove a corresponding AddDeposit log.
-        # for earn_event_log in get_logs_by_names(['Plant'], event_logs):
         for earn_event_log in get_logs_by_names(["Plant", "Pick"], event_logs):
             for deposit_event_log in get_logs_by_names("AddDeposit", event_logs):
                 if deposit_event_log.args.get("token") == (
