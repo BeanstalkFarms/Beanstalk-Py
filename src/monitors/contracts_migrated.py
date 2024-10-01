@@ -32,6 +32,8 @@ class ContractsMigrated(Monitor):
         Note that Event Log Object is not the same as Event object.
         """
 
+        event_str = ""
+
         for event_log in event_logs:
 
             owner = event_log.args.get("owner")
