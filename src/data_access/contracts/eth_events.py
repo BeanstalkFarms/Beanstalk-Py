@@ -137,7 +137,6 @@ add_event_to_dict(
 )
 add_event_to_dict("PodOrderCancelled(address,bytes32)", MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 
-
 # Barn Raise events.
 FERTILIZER_EVENT_MAP = {}
 FERTILIZER_SIGNATURES_LIST = []
@@ -152,6 +151,39 @@ add_event_to_dict(
     FERTILIZER_SIGNATURES_LIST,
 )
 
+CONTRACTS_MIGRATED_EVENT_MAP = {}
+CONTRACTS_MIGRATED_SIGNATURES_LIST = []
+add_event_to_dict(
+    "L1BeansMigrated(address,uint256,uint8)",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1DepositsMigrated(address,address,uint256[],uint256[],uint256[])",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1PlotsMigrated(address,address,uint256[],uint256[])",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1InternalBalancesMigrated(address,address,address[],uint256[])",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1FertilizerMigrated(address,address,uint256[],uint128[],uint128)",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "ReceiverApproved(address,address)",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+
 class EventClientType(IntEnum):
     BEANSTALK = 0
     SEASON = 1
@@ -159,6 +191,7 @@ class EventClientType(IntEnum):
     BARN_RAISE = 3
     WELL = 4
     AQUIFER = 5
+    CONTRACT_MIGRATED = 6
 
 class TxnPair:
     """The logs, in order, associated with a transaction."""
@@ -209,6 +242,11 @@ class EthEventsClient:
             self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
+        elif self._event_client_type == EventClientType.CONTRACT_MIGRATED:
+            self._contract_addresses = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
+            self._events_dict = CONTRACTS_MIGRATED_EVENT_MAP
+            self._signature_list = CONTRACTS_MIGRATED_SIGNATURES_LIST
         else:
             raise ValueError("Unsupported event client type.")
         self._set_filters()
