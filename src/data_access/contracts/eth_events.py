@@ -243,7 +243,7 @@ class EthEventsClient:
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.CONTRACT_MIGRATED:
-            self._contract_addresses = [get_beanstalk_contract(self._web3)]
+            self._contracts = [get_beanstalk_contract(self._web3)]
             self._contract_addresses = [BEANSTALK_ADDR]
             self._events_dict = CONTRACTS_MIGRATED_EVENT_MAP
             self._signature_list = CONTRACTS_MIGRATED_SIGNATURES_LIST

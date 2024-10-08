@@ -17,7 +17,7 @@ class OtherWellsMonitor(Monitor):
         self._discord = discord
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
         # All addresses
-        self._eth_all_wells = EthEventsClient(EventClientType.WELL, address=None)
+        self._eth_all_wells = EthEventsClient(EventClientType.WELL)
         self.basin_graph_client = BasinGraphClient()
         self.bean_client = BeanClient()
     
