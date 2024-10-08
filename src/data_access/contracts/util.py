@@ -25,17 +25,9 @@ with open(
 ) as well_abi_file:
     well_abi = json.load(well_abi_file)
 with open(
-    os.path.join(os.path.dirname(__file__), "../../constants/abi/curve_pool_abi.json")
-) as curve_pool_abi_file:
-    curve_pool_abi = json.load(curve_pool_abi_file)
-with open(
     os.path.join(os.path.dirname(__file__), "../../constants/abi/beanstalk_abi.json")
 ) as beanstalk_abi_file:
     beanstalk_abi = json.load(beanstalk_abi_file)
-with open(
-    os.path.join(os.path.dirname(__file__), "../../constants/abi/beanstalk_abi_silo_v2.json")
-) as beanstalk_abi_file_silo_v2:
-    beanstalk_v2_abi = json.load(beanstalk_abi_file_silo_v2)
 with open(
     os.path.join(os.path.dirname(__file__), "../../constants/abi/bean_price_abi.json")
 ) as bean_price_abi_file:
@@ -44,10 +36,6 @@ with open(
     os.path.join(os.path.dirname(__file__), "../../constants/abi/fertilizer_abi.json")
 ) as fertilizer_abi_file:
     fertilizer_abi = json.load(fertilizer_abi_file)
-with open(
-    os.path.join(os.path.dirname(__file__), "../../constants/abi/eth_usd_oracle_abi.json")
-) as eth_usd_oracle_abi_file:
-    eth_usd_oracle_abi = json.load(eth_usd_oracle_abi_file)
 
 class ChainClient:
     """Base class for clients of Eth chain data."""
@@ -76,29 +64,9 @@ def get_aquifer_contract(web3):
     return web3.eth.contract(address=AQUIFER_ADDR, abi=aquifer_abi)
 
 
-def get_bean_3crv_pool_contract(web3):
-    """Get a web.eth.contract object for the curve BEAN:3CRV pool. Contract is not thread safe."""
-    return web3.eth.contract(address=CURVE_BEAN_3CRV_ADDR, abi=curve_pool_abi)
-
-
-def get_curve_3pool_contract(web3):
-    """Get a web.eth.contract object for a curve 3pool contract. Contract is not thread safe."""
-    return web3.eth.contract(address=POOL_3POOL_ADDR, abi=curve_pool_abi)
-
-
 def get_bean_contract(web3):
     """Get a web.eth.contract object for the Bean token contract. Contract is not thread safe."""
     return web3.eth.contract(address=BEAN_ADDR, abi=erc20_abi)
-
-
-def get_unripe_contract(web3):
-    """Get a web.eth.contract object for the unripe bean token. Contract is not thread safe."""
-    return get_erc20_contract(web3, UNRIPE_ADDR)
-
-
-def get_unripe_lp_contract(web3):
-    """Get a web.eth.contract object for the unripe LP token. Contract is not thread safe."""
-    return get_erc20_contract(web3, UNRIPE_LP_ADDR)
 
 
 def get_beanstalk_contract(web3):
@@ -106,24 +74,14 @@ def get_beanstalk_contract(web3):
     return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_abi)
 
 
-def get_beanstalk_v2_contract(web3):
-    """Get a web.eth.contract object for the Beanstalk contract ft Silo v2. Contract is not thread safe."""
-    return web3.eth.contract(address=BEANSTALK_ADDR, abi=beanstalk_v2_abi)
-
-
 def get_bean_price_contract(web3):
-    """Get a web.eth.contract object for the Bean price oracle contract. Contract is not thread safe."""
-    return web3.eth.contract(address=BEAN_PRICE_ORACLE_ADDR, abi=bean_price_abi)
+    """Get a web.eth.contract object for the Bean price contract. Contract is not thread safe."""
+    return web3.eth.contract(address=BEANSTALK_PRICE_ADDR, abi=bean_price_abi)
 
 
 def get_fertilizer_contract(web3):
     """Get a web.eth.contract object for the Barn Raise Fertilizer contract. Contract is not thread safe."""
     return web3.eth.contract(address=FERTILIZER_ADDR, abi=fertilizer_abi)
-
-
-def get_eth_usd_oracle_contract(web3):
-    """Get a web.eth.contract object for in-house eth usd price feed. Contract is not thread safe."""
-    return web3.eth.contract(address=ETH_USD_ORACLE_ADDR, abi=eth_usd_oracle_abi)
 
 
 def get_erc20_contract(web3, address):
@@ -208,7 +166,7 @@ def get_erc20_info(addr, web3=None):
         contract = get_erc20_contract(web3, address=addr)
         name = call_contract_function_with_retry(contract.functions.name())
         # Use custom in-house Beanstalk Symbol name, if set, otherwise default to on-chain symbol.
-        symbol = TOKEN_SYMBOL_MAP.get(addr) or call_contract_function_with_retry(
+        symbol = SILO_TOKENS_MAP.get(addr) or call_contract_function_with_retry(
             contract.functions.symbol()
         )
         decimals = call_contract_function_with_retry(contract.functions.decimals())
@@ -236,22 +194,6 @@ def is_valid_wallet_address(address):
     if not Web3.isAddress(address):
         return False
     return True
-
-
-# NOTE(funderberker): What an atrocious name I have chosen. I apologize to readers.
-def is_6_not_18_decimal_token_amount(amount):
-    """Attempt to determine if the amount belongs to Bean (6 decimal) or an 18 decimal token."""
-    amount = int(amount)
-    # If at least 16 digits present assume it is an 18 decimal token (1 billion Bean).
-    if amount > 1000000000000000:
-        return False
-    else:
-        return True
-
-
-def txn_topic_combo_id(entry):
-    """Return a unique string identifying this transaction and topic combo."""
-    return entry["transactionHash"].hex() + entry["topics"][0].hex()
 
 
 def call_contract_function_with_retry(function, max_tries=10, block_number='latest'):
@@ -328,25 +270,10 @@ def seeds_to_float(seeds_long):
 def pods_to_float(pod_long):
     return token_to_float(pod_long, POD_DECIMALS)
 
-
-def dai_to_float(dai_long):
-    return token_to_float(dai_long, DAI_DECIMALS)
-
-
-def usdc_to_float(usdc_long):
-    return token_to_float(usdc_long, USDC_DECIMALS)
-
-
-def usdt_to_float(usdt_long):
-    return token_to_float(usdt_long, USDT_DECIMALS)
-
-
-def crv_to_float(crv_long):
-    return token_to_float(crv_long, CRV_DECIMALS)
-
-
-def lusd_to_float(lusd_long):
-    return token_to_float(lusd_long, LUSD_DECIMALS)
+def underlying_if_unripe(token):
+    if token.startswith(UNRIPE_TOKEN_PREFIX):
+        return UNRIPE_UNDERLYING_MAP[token]
+    return token
 
 
 def get_test_entries(dry_run=None):

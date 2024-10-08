@@ -134,8 +134,7 @@ class BeanstalkGraphClient(object):
         num_seasons=2,
         seasons=True,
         siloHourlySnapshots=True,
-        fieldHourlySnapshots=True,
-        incentives=True,
+        fieldHourlySnapshots=True
     ):
         """Get a standard set of data corresponding to current season.
 
@@ -159,7 +158,7 @@ class BeanstalkGraphClient(object):
         if siloHourlySnapshots:
             query_str += f"""
                 siloHourlySnapshots(
-                    where: {{silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
+                    where: {{silo: "{BEANSTALK_ADDR.lower()}"}}
                     orderBy: season
                     orderDirection: desc
                     first: {num_seasons}
@@ -171,9 +170,9 @@ class BeanstalkGraphClient(object):
                 siloAssetHourlySnapshots(
                     orderBy: season
                     orderDirection: desc
-                    first: {(num_seasons + 2) * MAX_ASSET_SNAPSHOTS_PER_SEASON}
+                    first: {num_seasons * len(SILO_TOKENS_MAP)}
                     where: {{depositedAmount_gt: "0",
-                             siloAsset_: {{silo: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
+                             siloAsset_: {{silo: "{BEANSTALK_ADDR.lower()}"}}
                            }}
                 ) {{
                     depositedAmount
@@ -187,7 +186,7 @@ class BeanstalkGraphClient(object):
         if fieldHourlySnapshots:
             query_str += f"""
                 fieldHourlySnapshots(
-                    where: {{field: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5"}}
+                    where: {{field: "{BEANSTALK_ADDR.lower()}"}}
                     orderBy: season
                     orderDirection: desc
                     first: {num_seasons}
@@ -218,7 +217,7 @@ class BeanstalkGraphClient(object):
         NOTE(funderberker): UNTESTED
         """
         query_str = """
-            silo(id: "0xc1e088fc1323b20bcbee9bd1b9fc9546db5624c5") {
+            silo(id: "{BEANSTALK_ADDR.lower()}") {
                 assets(first: 100, where: {depositedAmount_gt: "0"}) {
                     token
                     depositedAmount

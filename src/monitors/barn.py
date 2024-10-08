@@ -39,7 +39,7 @@ class BarnRaiseMonitor(Monitor):
 
         while self._thread_active:
             # Wait until check rate time has passed.
-            if time.time() < last_check_time + BARN_RAISE_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
@@ -74,7 +74,7 @@ class BarnRaiseMonitor(Monitor):
                     for event in all_events_in_time_range:
                         usdc_amount = int(event.args.value)
                         total_raised += usdc_amount
-                    msg_str = f"🚛 In the past {round_num(time_range/3600, 1)} hours ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns"
+                    msg_str = f"🚛 In the past {round_num(time_range/3600, 1)} hours, ${round_num(total_raised, 0)} was raised from {len(all_events_in_time_range)} txns"
                     remaining = self.barn_raise_client.remaining()
                     msg_str += f"\n🪴 {round_num(remaining, 0)} Fertilizer remaining"
                     msg_str += f"\n"
@@ -85,7 +85,7 @@ class BarnRaiseMonitor(Monitor):
                         except IndexError:
                             break
                         # msg_str += f'\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} ({event.args["to"]})' # {event.transactionHash.hex()}
-                        msg_str += f"\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} (https://etherscan.io/tx/{event.transactionHash.hex()})"
+                        msg_str += f"\n{self.EMOJI_RANKS[i]} ${round_num(event.args.value, 0)} (https://arbiscan.io/tx/{event.transactionHash.hex()})"
 
                     self.message_function(msg_str)
 
@@ -116,7 +116,7 @@ class BarnRaiseMonitor(Monitor):
                 get_tokens_sent(WSTETH, event_log.transactionHash, event_log.address, event_log.logIndex), 18
             )
 
-            event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(wsteth_amount, 3)} wstETH @ {round_num(self.barn_raise_client.get_humidity(), 1)}% Humidity"
+            event_str = f"🚛 Fertilizer Purchased - {round_num(amount, 0)} Fert for {round_num(wsteth_amount, 3)} wstETH @ 20% Humidity"
             total_bought = self.beanstalk_graph_client.get_fertilizer_bought()
 
             # The subgraph is slower to update, so may need to calculate total bought here.
@@ -132,7 +132,7 @@ class BarnRaiseMonitor(Monitor):
         else:
             return
 
-        event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_log.transactionHash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         self.message_function(event_str)

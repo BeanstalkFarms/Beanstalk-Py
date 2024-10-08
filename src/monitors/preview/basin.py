@@ -29,7 +29,7 @@ class BasinStatusPreviewMonitor(PreviewMonitor):
             wells = self.basin_graph_client.get_wells_stats()
 
             for well in wells:
-                if well["id"].lower() in [BEAN_ETH_WELL_ADDR.lower(), BEAN_WSTETH_WELL_ADDR.lower()]:
+                if well["id"] in {token.lower() for token in WHITELISTED_WELLS}:
                     liquidity += float(well["totalLiquidityUSD"])
                     volume += float(well["cumulativeTradeVolumeUSD"])
                     well_count += 1

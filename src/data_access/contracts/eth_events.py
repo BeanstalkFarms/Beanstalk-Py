@@ -27,9 +27,9 @@ def add_event_to_dict(signature, sig_dict, sig_list):
     sig_dict[event_name] = event_signature_hash
     sig_dict[event_signature_hash] = event_name
     sig_list.append(event_signature_hash)
-    # NOTE ERROR logging here silently breaks all logging. very cool python feature.
+    # NOTE Must config prior to logs otherwise all logging breaks
+    # logging.basicConfig(level=logging.INFO)
     # logging.info(f'event signature: {signature}  -  hash: {event_signature_hash}')
-
 
 AQUIFER_EVENT_MAP = {}
 AQUIFER_SIGNATURES_LIST = []
@@ -58,54 +58,21 @@ add_event_to_dict("Shift(uint256[],address,uint256,address)", WELL_EVENT_MAP, WE
 add_event_to_dict("Sync(uint256[],uint256,address)", WELL_EVENT_MAP, WELL_SIGNATURES_LIST)
 
 
-CURVE_POOL_EVENT_MAP = {}
-CURVE_POOL_SIGNATURES_LIST = []
-add_event_to_dict(
-    "TokenExchange(address,int128,uint256,int128,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "TokenExchangeUnderlying(address,int128,uint256,int128,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "AddLiquidity(address,uint256[2],uint256[2],uint256,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveLiquidity(address,uint256[2],uint256[2],uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveLiquidityOne(address,uint256,uint256,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveLiquidityImbalance(address,uint256[2],uint256[2],uint256,uint256)",
-    CURVE_POOL_EVENT_MAP,
-    CURVE_POOL_SIGNATURES_LIST,
-)
-
 BEANSTALK_EVENT_MAP = {}
 BEANSTALK_SIGNATURES_LIST = []
 add_event_to_dict(
-    "Sow(address,uint256,uint256,uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
+    "Sow(address,uint256,uint256,uint256,uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
 add_event_to_dict(
-    "Harvest(address,uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
+    "Harvest(address,uint256,uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
-# Depositing an asset => AddDeposit()
-# Withdrawing an asset => RemoveDeposit()
-# Claiming an asset => RemoveWithdrawal()
-# add_event_to_dict('RemoveDeposit(address,address,uint32,uint256)', # SILO V2
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict(
-    "RemoveDeposit(address,address,int96,uint256,uint256)",  # SILO v3
+    "AddDeposit(address,address,int96,uint256,uint256)",
+    BEANSTALK_EVENT_MAP,
+    BEANSTALK_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "RemoveDeposit(address,address,int96,uint256,uint256)",
     BEANSTALK_EVENT_MAP,
     BEANSTALK_SIGNATURES_LIST,
 )
@@ -115,27 +82,10 @@ add_event_to_dict(
     BEANSTALK_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "AddDeposit(address,address,int96,uint256,uint256)",
-    BEANSTALK_EVENT_MAP,
-    BEANSTALK_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveWithdrawal(address,address,uint32,uint256)",
-    BEANSTALK_EVENT_MAP,
-    BEANSTALK_SIGNATURES_LIST,
-)
-add_event_to_dict(
-    "RemoveWithdrawals(address,address,uint32[],uint256)",
-    BEANSTALK_EVENT_MAP,
-    BEANSTALK_SIGNATURES_LIST,
-)
-add_event_to_dict(
     "Convert(address,address,address,uint256,uint256)",
     BEANSTALK_EVENT_MAP,
     BEANSTALK_SIGNATURES_LIST,
 )
-# add_event_to_dict('StalkBalanceChanged(address,int256,int256)',
-#                   BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST)
 add_event_to_dict(
     "Chop(address,address,uint256,uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
 )
@@ -144,6 +94,12 @@ add_event_to_dict("Pick(address,address,uint256)", BEANSTALK_EVENT_MAP, BEANSTAL
 # On Fertilizer contract.
 add_event_to_dict(
     "ClaimFertilizer(uint256[],uint256)", BEANSTALK_EVENT_MAP, BEANSTALK_SIGNATURES_LIST
+)
+# Needed to identify cases where AddDeposit should be ignored
+add_event_to_dict(
+    "L1DepositsMigrated(address,address,uint256[],uint256[],uint256[])",
+    BEANSTALK_EVENT_MAP,
+    BEANSTALK_SIGNATURES_LIST,
 )
 
 # Season/sunrise events
@@ -159,28 +115,27 @@ add_event_to_dict(
 MARKET_EVENT_MAP = {}
 MARKET_SIGNATURES_LIST = []
 add_event_to_dict(
-    "PodListingCreated(address,uint256,uint256,uint256,uint24,uint256,uint256,bytes,uint8,uint8)",
+    "PodListingCreated(address,uint256,uint256,uint256,uint256,uint24,uint256,uint256,uint8)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "PodListingFilled(address,address,uint256,uint256,uint256,uint256)",
+    "PodListingFilled(address,address,uint256,uint256,uint256,uint256,uint256)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
-add_event_to_dict("PodListingCancelled(address,uint256)", MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
+add_event_to_dict("PodListingCancelled(address,uint256,uint256)", MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
 add_event_to_dict(
-    "PodOrderCreated(address,bytes32,uint256,uint24,uint256,uint256,bytes,uint8)",
+    "PodOrderCreated(address,bytes32,uint256,uint256,uint24,uint256,uint256)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
 add_event_to_dict(
-    "PodOrderFilled(address,address,bytes32,uint256,uint256,uint256,uint256)",
+    "PodOrderFilled(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
     MARKET_EVENT_MAP,
     MARKET_SIGNATURES_LIST,
 )
 add_event_to_dict("PodOrderCancelled(address,bytes32)", MARKET_EVENT_MAP, MARKET_SIGNATURES_LIST)
-
 
 # Barn Raise events.
 FERTILIZER_EVENT_MAP = {}
@@ -196,59 +151,47 @@ add_event_to_dict(
     FERTILIZER_SIGNATURES_LIST,
 )
 
-
-def generate_sig_hash_map(sig_str_list):
-    return {sig.split("(")[0]: Web3.keccak(text=sig).hex() for sig in sig_str_list}
-
-
-# Silo Convert signature.
-convert_function_sig_strs = ["convert(bytes,uint32[],uint256[])"]
-convert_sigs = generate_sig_hash_map(convert_function_sig_strs)
-
-# Method signatures. We handle some logs differently when derived from different methods.
-# Silo conversion signatures.
-silo_conversion_sig_strs = [
-    "convertDepositedLP(uint256,uint256,uint32[],uint256[])",
-    "convertDepositedBeans(uint256,uint256,uint32[],uint256[])",
-]
-silo_conversion_sigs = generate_sig_hash_map(silo_conversion_sig_strs)
-# Signatures of methods with the explicit bean deposit (most txns include embedded deposit).
-bean_deposit_sig_strs = [
-    "depositBeans(uint256)",
-    "buyAndDepositBeans(uint256,uint256)",
-    "claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))",
-    "claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256))",
-]
-bean_deposit_sigs = generate_sig_hash_map(bean_deposit_sig_strs)
-# Buy Fertilizer signature.
-buy_fert_function_sig_strs = [
-    "buyAndMint(uint256)",
-    "mint(uint256)",
-    "mintFertilizer(uint128,uint256,uint8)",
-    "farm(bytes[])",
-]
-buy_fert_sigs = generate_sig_hash_map(buy_fert_function_sig_strs)
-
-# Claim type signatures.
-# claim_sigs = ['claim', 'claimAndUnwrapBeans', 'claimConvertAddAndDepositLP', 'claimAndSowBeans', 'claimBuyAndSowBeans', 'claimAndCreatePodOrder', 'claimAndFillPodListing', 'claimBuyBeansAndCreatePodOrder', 'claimBuyBeansAndFillPodListing', 'claimAddAndDepositLP', 'claimAndDepositBeans', 'claimAndDepositLP', 'claimAndWithdrawBeans', 'claimAndWithdrawLP', 'claimBuyAndDepositBeans']
-claim_deposit_beans_sig_strs = [
-    "claimAndDepositBeans(uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool))",
-    "claimBuyAndDepositBeans(uint256,uint256,(uint32[],uint32[],uint256[],bool,bool,uint256,uint256,bool)))",
-]
-claim_deposit_beans_sigs = generate_sig_hash_map(claim_deposit_beans_sig_strs)
-
-# Signatures of methods of interest for testing.
-test_deposit_sig_strs = ["harvest(uint256[])", "updateSilo(address)"]
-test_deposit_sigs = generate_sig_hash_map(test_deposit_sig_strs)
+CONTRACTS_MIGRATED_EVENT_MAP = {}
+CONTRACTS_MIGRATED_SIGNATURES_LIST = []
+add_event_to_dict(
+    "L1BeansMigrated(address,uint256,uint8)",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1DepositsMigrated(address,address,uint256[],uint256[],uint256[])",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1PlotsMigrated(address,address,uint256[],uint256[])",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1InternalBalancesMigrated(address,address,address[],uint256[])",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "L1FertilizerMigrated(address,address,uint256[],uint128[],uint128)",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
+add_event_to_dict(
+    "ReceiverApproved(address,address)",
+    CONTRACTS_MIGRATED_EVENT_MAP,
+    CONTRACTS_MIGRATED_SIGNATURES_LIST,
+)
 
 class EventClientType(IntEnum):
     BEANSTALK = 0
     SEASON = 1
     MARKET = 2
     BARN_RAISE = 3
-    CURVE_BEAN_3CRV_POOL = 4
-    WELL = 5
-    AQUIFER = 6
+    WELL = 4
+    AQUIFER = 5
+    CONTRACT_MIGRATED = 6
 
 class TxnPair:
     """The logs, in order, associated with a transaction."""
@@ -261,7 +204,7 @@ class TxnPair:
         self.logs = logs
 
 class EthEventsClient:
-    def __init__(self, event_client_type, address=""):
+    def __init__(self, event_client_type, addresses=None):
         # Track recently seen txns to avoid processing same txn multiple times.
         self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
@@ -272,15 +215,10 @@ class EthEventsClient:
             self._events_dict = AQUIFER_EVENT_MAP
             self._signature_list = AQUIFER_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.WELL:
-            self._contracts = [get_well_contract(self._web3, address)]
-            self._contract_addresses = [address]
+            self._contracts = [get_well_contract(self._web3, None)]
+            self._contract_addresses = addresses
             self._events_dict = WELL_EVENT_MAP
             self._signature_list = WELL_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.CURVE_BEAN_3CRV_POOL:
-            self._contracts = [get_bean_3crv_pool_contract(self._web3)]
-            self._contract_addresses = [CURVE_BEAN_3CRV_ADDR]
-            self._events_dict = CURVE_POOL_EVENT_MAP
-            self._signature_list = CURVE_POOL_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.BEANSTALK:
             self._contracts = [
                 get_beanstalk_contract(self._web3),
@@ -304,6 +242,11 @@ class EthEventsClient:
             self._contract_addresses = [FERTILIZER_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
+        elif self._event_client_type == EventClientType.CONTRACT_MIGRATED:
+            self._contract_addresses = [get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [BEANSTALK_ADDR]
+            self._events_dict = CONTRACTS_MIGRATED_EVENT_MAP
+            self._signature_list = CONTRACTS_MIGRATED_SIGNATURES_LIST
         else:
             raise ValueError("Unsupported event client type.")
         self._set_filters()
@@ -317,8 +260,6 @@ class EthEventsClient:
                     self._web3,
                     address=address,
                     topics=[self._signature_list],
-                    # from_block=10581687, # Use this to search for old events. # Rinkeby
-                    # from_block=18722171,  # Use this to search for old events. # Mainnet
                     from_block="latest",
                     to_block="latest",
                 )
@@ -389,18 +330,6 @@ class EthEventsClient:
             # Retrieve the full txn and txn receipt.
             receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
 
-            # If any removeDeposit events from Silo V2, ignore the entire txn. It is likely a migration.
-            # This is a bit hacky, but none of this infrastructure was designed to manage implementations of
-            # same event at same address.
-            silo_v2_contract = get_beanstalk_v2_contract(self._web3)
-            decoded_type_logs = silo_v2_contract.events["RemoveDeposit"]().processReceipt(
-                receipt, errors=DISCARD
-            )
-            if len(decoded_type_logs) > 0:
-                logging.warning("Skipping txn with Silo v2 RemoveDeposit")
-                txn_hash_set.add(txn_hash)
-                continue
-
             # Get and decode all logs of interest from the txn. There may be many logs.
             decoded_logs = []
             for signature in self._signature_list:
@@ -412,21 +341,6 @@ class EthEventsClient:
                     except web3_exceptions.ABIEventFunctionNotFound:
                         continue
                     decoded_logs.extend(decoded_type_logs)
-
-            # Prune unrelated logs - logs that are of the same event types we watch, but are
-            # not related to Beanstalk (i.e. swaps of non-Bean tokens).
-            decoded_logs_copy = decoded_logs.copy()
-            decoded_logs.clear()
-            for log in decoded_logs_copy:
-                # if log.event == 'Swap':
-                #     # Only process uniswap swaps with the ETH:BEAN pool.
-                #     if log.address != UNI_V2_BEAN_ETH_ADDR:
-                #         continue
-                if log.event == "TokenExchangeUnderlying" or log.event == "TokenExchange":
-                    # Only process curve exchanges in supported BEAN pools.
-                    if log.address not in [CURVE_BEAN_3CRV_ADDR]:
-                        continue
-                decoded_logs.append(log)
 
             # Add all remaining txn logs to log map.
             txn_hash_set.add(txn_hash)
@@ -514,3 +428,15 @@ def safe_create_filter(web3, address, topics, from_block, to_block):
             time.sleep(2)
             try_count += 1
     raise Exception("Failed to safely create filter")
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    filter = safe_create_filter(
+        get_web3_instance(),
+        address=BEANSTALK_ADDR,
+        topics=[BEANSTALK_SIGNATURES_LIST],
+        from_block="256715188",
+        to_block="256715781",
+    )
+    entries = filter.get_new_entries()
+    logging.info(f"found {len(entries)} entries")

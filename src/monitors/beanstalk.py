@@ -24,7 +24,7 @@ class BeanstalkMonitor(Monitor):
     def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + BEANSTALK_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
@@ -36,11 +36,12 @@ class BeanstalkMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
-        # logging.warning(f'handling {txn_hash} logs...')
-        # Prune *plant* deposit logs. They are uninteresting clutter.
-        # Prune *pick* deposit logs. They are uninteresting clutter.
+
+        if event_in_logs("L1DepositsMigrated", event_logs):
+            # Ignore AddDeposit as a result of contract migrating silo
+            remove_events_from_logs_by_name("AddDeposit", event_logs)
+
         # For each earn (plant/pick) event log remove a corresponding AddDeposit log.
-        # for earn_event_log in get_logs_by_names(['Plant'], event_logs):
         for earn_event_log in get_logs_by_names(["Plant", "Pick"], event_logs):
             for deposit_event_log in get_logs_by_names("AddDeposit", event_logs):
                 if deposit_event_log.args.get("token") == (
@@ -118,7 +119,7 @@ class BeanstalkMonitor(Monitor):
             event_str += f" ({round_num(value, 0, avoid_zero=True, incl_dollar=True)})"
             event_str += f"\n{value_to_emojis(value)}"
 
-        event_str += f"\n<https://etherscan.io/tx/{txn_hash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{txn_hash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         return event_str
@@ -157,7 +158,7 @@ class BeanstalkMonitor(Monitor):
         # Chop event.
         elif event_log.event in ["Chop"]:
             token = event_log.args.get("token")
-            underlying = self.beanstalk_client.get_underlying_token(token)
+            underlying = UNRIPE_UNDERLYING_MAP[token]
             _, _, chopped_symbol, chopped_decimals = get_erc20_info(token, self._web3).parse()
             chopped_amount = token_to_float(event_log.args.get("amount"), chopped_decimals)
             _, _, underlying_symbol, underlying_decimals = get_erc20_info(
@@ -171,9 +172,7 @@ class BeanstalkMonitor(Monitor):
             # If underlying assets are Bean-based LP represented in price aggregator.
             # If not in aggregator, will return none and not display value.
             else:
-                underlying_token_value = self.bean_client.get_curve_lp_token_value(
-                    underlying, underlying_decimals
-                )
+                underlying_token_value = self.bean_client.get_lp_token_value(underlying, underlying_decimals)
             event_str += f"⚰️ {round_num(chopped_amount, 0)} {chopped_symbol} Chopped for {round_num(underlying_amount, 0, avoid_zero=True)} {underlying_symbol}"
             if underlying_token_value is not None:
                 underlying_value = underlying_amount * underlying_token_value
@@ -189,7 +188,7 @@ class BeanstalkMonitor(Monitor):
             )
             return ""
 
-        event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_log.transactionHash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         return event_str
@@ -224,16 +223,13 @@ class BeanstalkMonitor(Monitor):
                 remove_float = token_to_float(event_log.args.get("fromAmount"), remove_decimals)
                 add_float = token_to_float(event_log.args.get("toAmount"), add_decimals)
 
+        # If both tokens are lp, use the to token (add_token)
+        # Otherwise use whichever one is an lp token
         pool_token = BEAN_ADDR
-        if remove_token_addr == CURVE_BEAN_3CRV_ADDR or add_token_addr == CURVE_BEAN_3CRV_ADDR:
-            pool_token = CURVE_BEAN_3CRV_ADDR
-        elif remove_token_addr == BEAN_ETH_WELL_ADDR or add_token_addr == BEAN_ETH_WELL_ADDR:
-            pool_token = BEAN_ETH_WELL_ADDR
-        elif remove_token_addr in [BEAN_WSTETH_WELL_ADDR, UNRIPE_LP_ADDR] or add_token_addr in [
-            BEAN_WSTETH_WELL_ADDR,
-            UNRIPE_LP_ADDR,
-        ]:
-            pool_token = BEAN_WSTETH_WELL_ADDR
+        if add_token_addr in WHITELISTED_WELLS:
+            pool_token = underlying_if_unripe(remove_token_addr)
+        elif remove_token_addr in WHITELISTED_WELLS:
+            pool_token = underlying_if_unripe(add_token_addr)
 
         if remove_token_symbol.startswith("ur") and not add_token_symbol.startswith("ur"):
             # Chop convert
@@ -249,11 +245,10 @@ class BeanstalkMonitor(Monitor):
             )
         # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
         event_str += f"({round_num(bdv_float, 0)} BDV)"
-        pool_type_str = f""
         event_str += f"\n_{latest_pool_price_str(self.bean_client, pool_token)}_ "
         if not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX):
             event_str += f"\n{value_to_emojis(value)}"
-        event_str += f"\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
         # Empty line that does not get stripped.
         event_str += "\n_ _"
         return event_str
@@ -269,5 +264,5 @@ class BeanstalkMonitor(Monitor):
         bean_price = self.bean_client.avg_bean_price()
         event_str = f"💦 Sprouts Rinsed - {round_num(bean_amount,0)} Sprouts ({round_num(bean_amount * bean_price, 0, avoid_zero=True, incl_dollar=True)})"
         event_str += f"\n{value_to_emojis(bean_amount * bean_price)}"
-        event_str += f"\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+        event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
         return event_str

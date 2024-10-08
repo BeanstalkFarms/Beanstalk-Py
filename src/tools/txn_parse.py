@@ -37,8 +37,7 @@ if __name__ == "__main__":
         "-k",
         "--key",
         type=str,
-        help="alchemy key (default pulls env var ALCHEMY_ETH_API_KEY)",
-        default=os.environ["ALCHEMY_ETH_API_KEY"],
+        help="alchemy key"
     )
     args = parser.parse_args()
 

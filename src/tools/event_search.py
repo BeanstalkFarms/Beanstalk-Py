@@ -8,6 +8,7 @@ python3 -m tools.event_search EVENT_DEFINITION
 import argparse
 import logging
 import os
+from constants.addresses import BEANSTALK_ADDR
 from web3 import Web3, WebsocketProvider
 
 
@@ -31,7 +32,7 @@ if __name__ == "__main__":
         "-a",
         "--address",
         type=str,
-        default="0xC1E088fC1323b20BCBee9bd1B9fC9546db5624C5",
+        default=BEANSTALK_ADDR,
         help="the contract to check events at (default: Beanstalk addr)",
     )
     parser.add_argument(
@@ -45,8 +46,7 @@ if __name__ == "__main__":
         "-k",
         "--key",
         type=str,
-        help="alchemy key (default pulls env var ALCHEMY_ETH_API_KEY)",
-        default=os.environ["ALCHEMY_ETH_API_KEY"],
+        help="alchemy key"
     )
     args = parser.parse_args()
 

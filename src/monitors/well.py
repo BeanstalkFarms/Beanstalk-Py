@@ -9,9 +9,10 @@ from data_access.util import *
 from constants.addresses import *
 from constants.config import *
 
-class AllWellsMonitor(Monitor):
+# Monitors all wells except those in the ignorelist
+class OtherWellsMonitor(Monitor):
     def __init__(self, message_function, ignorelist, discord=False, prod=False, dry_run=None):
-        super().__init__("wells", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        super().__init__("wells", message_function, WELL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self._ignorelist = ignorelist
         self._discord = discord
         self._eth_aquifer = EthEventsClient(EventClientType.AQUIFER, AQUIFER_ADDR)
@@ -23,7 +24,7 @@ class AllWellsMonitor(Monitor):
     def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + POOL_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
@@ -49,7 +50,7 @@ class AllWellsMonitor(Monitor):
             erc20_info_1 = get_erc20_info(tokens[1])
 
             def erc20_linkstr(info):
-                result = f"[{info.symbol}](<https://etherscan.io/address/{info.addr.lower()}>)"
+                result = f"[{info.symbol}](<https://arbiscan.io/address/{info.addr.lower()}>)"
                 # Embellish with discord emojis
                 if self._discord:
                     if info.symbol == "BEAN":
@@ -63,11 +64,8 @@ class AllWellsMonitor(Monitor):
             event_str += "\n_ _"
             return event_str
 
-# Monitors a specific Well.
-# NOTE arguments for doing 1 monitor for all wells and 1 monitor per well. In first pass wells will each get their
-#      own discord channel, which will require human intervention in this code anyway, so going to go for 1 channel
-#      per well for now.
-class WellMonitor(Monitor):
+# Monitors a set of Wells that are output to the same channel
+class WellsMonitor(Monitor):
     """Monitor Wells for events.
 
     This provides events in Beanstalk exchange channel as well as Basin per-well channels.
@@ -77,11 +75,10 @@ class WellMonitor(Monitor):
     ^^ make this assumption less strict, instead only skip valuation if no BDV
     """
 
-    def __init__(self, message_function, address, bean_reporting=False, prod=False, dry_run=None):
-        super().__init__(f"specific well", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
-        self.pool_type = EventClientType.WELL
-        self.pool_address = address
-        self._eth_event_client = EthEventsClient(self.pool_type, self.pool_address)
+    def __init__(self, message_function, addresses, bean_reporting=False, prod=False, dry_run=None):
+        super().__init__(f"specific well", message_function, WELL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        self.pool_addresses = addresses
+        self._eth_event_client = EthEventsClient(EventClientType.WELL, self.pool_addresses)
         self.basin_graph_client = BasinGraphClient()
         self.bean_client = BeanClient()
         self.bean_reporting = bean_reporting
@@ -89,7 +86,7 @@ class WellMonitor(Monitor):
     def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + POOL_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
@@ -106,7 +103,7 @@ class WellMonitor(Monitor):
             return
 
         for event_log in event_logs:
-            if event_log.get("address") == self.pool_address:
+            if event_log.get("address") in self.pool_addresses:
                 event_str = well_event_str(event_log, self.bean_reporting, self.basin_graph_client, self.bean_client, web3=self._web3)
                 if event_str:
                     self.message_function(event_str)
@@ -137,6 +134,11 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
     is_lpish = False
 
     if event_log.event == "AddLiquidity":
+        if tokenAmountsIn[0] == 0 and tokenAmountsIn[1] == 0:
+            # When we initialize a new Well, 2 transactions have to occur for the multi flow pump
+            # to begin working, so usually we do this via an add liquidity with an amount of 0.
+            return ""
+
         is_lpish = True
         event_str += f"📥 LP added - "
         for i in range(len(tokens)):
@@ -257,7 +259,7 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
                 event_str += f"\n_{liqudity_usd}_ "
         event_str += f"\n{value_to_emojis(value)}"
 
-    event_str += f"\n<https://etherscan.io/tx/{event_log.transactionHash.hex()}>"
+    event_str += f"\n<https://arbiscan.io/tx/{event_log.transactionHash.hex()}>"
     # Empty line that does not get stripped.
     event_str += "\n_ _"
     return event_str

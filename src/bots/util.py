@@ -197,7 +197,7 @@ def round_num_auto(number, sig_fig_min=3, min_precision=2, abbreviate=False):
 
 
 def round_token(number, decimals, addr=''):
-    if addr.lower() in {token.lower() for token in {WRAPPED_ETH, WSTETH, WBTC}}:
+    if addr.lower() in {token.lower() for token in {WRAPPED_ETH, WSTETH, WEETH, WBTC}}:
         precision = 2
     else:
         precision = 0
@@ -223,8 +223,6 @@ def latest_pool_price_str(bean_client, addr):
     pool_info = bean_client.get_pool_info(addr)
     if addr == BEAN_ADDR:
         type_str = "Bean"
-    elif addr == CURVE_BEAN_3CRV_ADDR:
-        type_str = "Pool"
     else:
         type_str = "Well"
     price = token_to_float(pool_info["price"], BEAN_DECIMALS)

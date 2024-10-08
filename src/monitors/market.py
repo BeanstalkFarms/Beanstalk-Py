@@ -26,7 +26,7 @@ class MarketMonitor(Monitor):
     def _monitor_method(self):
         last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + BEANSTALK_CHECK_RATE:
+            if time.time() < last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
             last_check_time = time.time()
@@ -47,7 +47,7 @@ class MarketMonitor(Monitor):
             # Ignore second+ events for a single multi-event transaction.
             if not event_str:
                 continue
-            event_str += f"\n<https://etherscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+            event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
             # Empty line that does not get stripped.
             event_str += "\n_ _"
             self.message_function(event_str)
@@ -65,9 +65,9 @@ class MarketMonitor(Monitor):
         cost_in_beans = bean_to_float(event_log.args.get("costInBeans"))
 
         if cost_in_beans or event_log.event == "PodListingCreated":
-            pod_amount = pods_to_float(event_log.args.get("amount"))
+            pod_amount = pods_to_float(event_log.args.get("podAmount"))
         else:
-            bean_amount = bean_to_float(event_log.args.get("amount"))
+            bean_amount = bean_to_float(event_log.args.get("beanAmount"))
 
         price_per_pod = pods_to_float(event_log.args.get("pricePerPod"))
         if cost_in_beans:
@@ -94,7 +94,7 @@ class MarketMonitor(Monitor):
         start_index = plot_index + relative_start_index
         # Current index at start of pod line (number of pods ever harvested).
         pods_harvested = pods_to_float(
-            call_contract_function_with_retry(self.beanstalk_contract.functions.harvestableIndex())
+            call_contract_function_with_retry(self.beanstalk_contract.functions.harvestableIndex(0))
         )
         # Lowest place in line of a listing.
         start_place_in_line = start_index - pods_harvested
@@ -125,7 +125,7 @@ class MarketMonitor(Monitor):
         ):
             if event_log.event == "PodListingCancelled":
                 listing_graph_id = (
-                    event_log.args.get("account").lower() + "-" + str(event_log.args.get("index"))
+                    event_log.args.get("lister").lower() + "-" + str(event_log.args.get("index"))
                 )
                 pod_listing = self.beanstalk_graph_client.get_pod_listing(listing_graph_id)
                 # If this listing did not exist, ignore cancellation.

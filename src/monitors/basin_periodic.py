@@ -13,7 +13,7 @@ class BasinPeriodicMonitor(Monitor):
     """Periodically summarized and report Basin status."""
 
     def __init__(self, message_function, prod=False, dry_run=None):
-        super().__init__(f"basin", message_function, POOL_CHECK_RATE, prod=prod, dry_run=dry_run)
+        super().__init__(f"basin", message_function, WELL_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.update_period = 60 * 60 * 24
         self.update_ref_time = int(
             # 9:05am PST/12:05pm EST. Subgraph takes daily snapshot in tandem with the sunrise,
@@ -72,8 +72,8 @@ class BasinPeriodicMonitor(Monitor):
         whitelisted_wells_str = ""
         other_wells_liquidity = 0
         for well in wells:
-            if well["id"] in {token.lower() for token in {BEAN_ETH_WELL_ADDR, BEAN_WSTETH_WELL_ADDR}}:
-                whitelisted_wells_str += f'\n- 🌱 {TOKEN_SYMBOL_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
+            if well["id"] in {token.lower() for token in WHITELISTED_WELLS}:
+                whitelisted_wells_str += f'\n- 🌱 {SILO_TOKENS_MAP.get(well["id"])} Liquidity: ${round_num_auto(float(well["dailySnapshots"][0]["totalLiquidityUSD"]), sig_fig_min=2, abbreviate=True)}'
             else:
                 other_wells_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"]);
             total_liquidity += float(well["dailySnapshots"][0]["totalLiquidityUSD"])

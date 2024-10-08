@@ -34,7 +34,7 @@ class PegCrossMonitor(Monitor):
             if not time.time() > min_update_time:
                 time.sleep(1)
                 continue
-            min_update_time = time.time() + PEG_CHECK_PERIOD
+            min_update_time = time.time() + self.query_rate
 
             try:
                 cross_types = self._check_for_peg_crosses()
@@ -57,12 +57,6 @@ class PegCrossMonitor(Monitor):
         # Get latest data from graph.
         last_cross = self.bean_graph_client.last_cross()
 
-        # # For testing.
-        # import random
-        # self.last_known_cross = {'timestamp': 1, 'id': int(last_cross['id']) - 2}
-        # logging.info(f'TESTING: Last cross was above? {last_cross["above"]}')
-        # price = random.uniform(0.5, 1.5)
-
         # If the last known cross has not been set yet, initialize it.
         if not self.last_known_cross:
             logging.info(
@@ -72,11 +66,7 @@ class PegCrossMonitor(Monitor):
             self.last_known_cross = last_cross
             return [PegCrossType.NO_CROSS]
 
-        # If the cross is not newer than the last known cross or id is not greater, return.
-        # These checks are necessary due to unpredictable variations in the graph.
-        if last_cross["timestamp"] <= self.last_known_cross["timestamp"] or int(
-            last_cross["id"]
-        ) <= int(self.last_known_cross["id"]):
+        if int(last_cross["id"]) <= int(self.last_known_cross["id"]):
             return [PegCrossType.NO_CROSS]
 
         # If multiple crosses have occurred since last known cross.
@@ -89,16 +79,6 @@ class PegCrossMonitor(Monitor):
             new_cross_list = self.bean_graph_client.get_last_crosses(n=number_of_new_crosses)
         else:
             new_cross_list = [last_cross]
-
-        # We cannot rely on very recent data of the subgraph to be accurate/consistent. So double
-        # check the id and try again later if it is wrong.
-        if int(new_cross_list[0]["id"]) != last_known_cross_id + number_of_new_crosses:
-            logging.warning(
-                f"Subgraph data discrepency on latest peg crosses. Latest cross id "
-                f'is {new_cross_list[0]["id"]} but expected id of {last_cross_id}. '
-                "Trying again later."
-            )
-            return [PegCrossType.NO_CROSS]
 
         # Set the last known cross to be the latest new cross.
         self.last_known_cross = last_cross

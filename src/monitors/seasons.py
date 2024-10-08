@@ -8,7 +8,6 @@ from data_access.contracts.bean import BeanClient
 from data_access.contracts.beanstalk import BeanstalkClient
 from data_access.subgraphs.beanstalk import BeanstalkGraphClient
 from data_access.util import *
-from data_access.contracts.eth_usd_oracle import *
 from constants.addresses import *
 from constants.config import *
 
@@ -50,15 +49,6 @@ class SeasonsMonitor(Monitor):
                     )
                 )
 
-            # if self.channel_to_wallets:
-            #     self.update_all_wallet_watchers()
-
-            # # For testing.
-            # # Note that this will not handle deltas correctly.
-            # current_season_stats, last_season_stats = self.beanstalk_graph_client.seasons_stats()
-            # self.message_function(self.season_summary_string(last_season_stats, current_season_stats, short_str=self.short_msgs))
-            # time.sleep(10)
-
     def _wait_until_expected_sunrise(self):
         """Wait until beanstalk is eligible for a sunrise call.
 
@@ -96,13 +86,14 @@ class SeasonsMonitor(Monitor):
                 self.current_season_id = current_season_stats.season
                 logging.info(f"New season detected with id {self.current_season_id}")
                 return current_season_stats, last_season_stats
-            time.sleep(SUNRISE_CHECK_PERIOD)
+            time.sleep(self.query_rate)
         return None, None
 
     def season_summary_string(self, last_season_stats, current_season_stats, short_str=False):
-        eth_price = get_twa_eth_price(self._web3, 3600)
-        wsteth_price = get_twa_wsteth_price(self._web3, 3600)
-        wsteth_eth_price = get_twa_wsteth_to_eth(self._web3, 3600)
+        eth_price = self.beanstalk_client.get_token_usd_twap(WRAPPED_ETH, 3600)
+        wsteth_price = self.beanstalk_client.get_token_usd_twap(WSTETH, 3600)
+        wsteth_eth_price = wsteth_price / eth_price
+
         # new_farmable_beans = float(current_season_stats.silo_hourly_bean_mints)
         reward_beans = current_season_stats.reward_beans
         incentive_beans = current_season_stats.incentive_beans
@@ -130,10 +121,13 @@ class SeasonsMonitor(Monitor):
         ret_string = f"⏱ Season {last_season_stats.season + 1} has started!"
         ret_string += f"\n💵 Bean price is ${round_num(price, 4)}"
 
-        # Pool info.
-        bean_wsteth_well_pi = self.bean_client.well_bean_wsteth_pool_info()
-        bean_eth_well_pi = self.bean_client.well_bean_eth_pool_info()
-        curve_pool_pi = self.bean_client.curve_bean_3crv_pool_info()
+        # Well info.
+        wells_info = []
+        for well_addr in WHITELISTED_WELLS:
+            wells_info.append(self.bean_client.get_pool_info(well_addr))
+
+        # Sort highest liquidity wells first
+        wells_info = sorted(wells_info, key=lambda x: x['liquidity'], reverse=True)
 
         ret_string += f'\n⚖️ {"+" if delta_b > 0 else ""}{round_num(delta_b, 0)} TWA deltaB'
 
@@ -150,21 +144,12 @@ class SeasonsMonitor(Monitor):
             # Liquidity stats.
             ret_string += f"\n\n**Liquidity**"
 
-            ret_string += f"\n🌊 BEANwstETH: ${round_num(token_to_float(bean_wsteth_well_pi['liquidity'], 6), 0)} - "
-            ret_string += (
-                f"_deltaB [{round_num(token_to_float(bean_wsteth_well_pi['delta_b'], 6), 0)}], "
-            )
-            ret_string += f"price [${round_num(token_to_float(bean_wsteth_well_pi['price'], 6), 4)}]_"
-            ret_string += f"\n🌊 BEANETH: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)} - "
-            ret_string += (
-                f"_deltaB [{round_num(token_to_float(bean_eth_well_pi['delta_b'], 6), 0)}], "
-            )
-            ret_string += f"price [${round_num(token_to_float(bean_eth_well_pi['price'], 6), 4)}]_"
-            ret_string += (
-                f"\n🔸 BEAN3CRV: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)} - "
-            )
-            ret_string += f"_deltaB [{round_num(token_to_float(curve_pool_pi['delta_b'], 6), 0)}], "
-            ret_string += f"price [${round_num(token_to_float(curve_pool_pi['price'], 6), 4)}]_"
+            for well_info in wells_info:
+                ret_string += f"\n🌊 {SILO_TOKENS_MAP[well_info.pool.lower()]}: ${round_num(token_to_float(well_info['liquidity'], 6), 0)} - "
+                ret_string += (
+                    f"_deltaB [{round_num(token_to_float(well_info['delta_b'], 6), 0)}], "
+                )
+                ret_string += f"price [${round_num(token_to_float(well_info['price'], 6), 4)}]_"
 
             # Silo balance stats.
             ret_string += f"\n\n**Silo**"
@@ -237,25 +222,24 @@ class SeasonsMonitor(Monitor):
 
             # Txn hash of sunrise/gm call.
             if hasattr(current_season_stats, 'sunrise_hash'):
-                ret_string += f"\n\n<https://etherscan.io/tx/{current_season_stats.sunrise_hash}>"
+                ret_string += f"\n\n<https://arbiscan.io/tx/{current_season_stats.sunrise_hash}>"
                 ret_string += "\n_ _"  # Empty line that does not get stripped.
 
         # Short string version (for Twitter).
         else:
-            ret_string += f"\n\n🌊 BEANETH liquidity: ${round_num(token_to_float(bean_eth_well_pi['liquidity'], 6), 0)}"
-            ret_string += f"\n🔸 BEAN3CRV liquidity: ${round_num(token_to_float(curve_pool_pi['liquidity'], 6), 0)}"
+            # Display total liquidity only
+            total_liquidity = 0
+            for well_info in wells_info:
+                total_liquidity += token_to_float(well_info['liquidity'], 6)
+            total_liquidity = round_num(total_liquidity, 0)
+            ret_string += f"\n\n🌊 Total Liquidity: ${total_liquidity}"
 
             ret_string += f"\n"
-            ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted"
-            # ret_string += f'\n🪴 ${round_num(fertilizer_bought, 0)} Fertilizer sold'
+            if reward_beans > 0:
+                ret_string += f"\n🌱 {round_num(reward_beans, 0, avoid_zero=True)} Beans Minted"
+            if sown_beans > 0:
+                ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods"
 
-            # silo_bdv = 0
-            # for asset in current_season_stats.pre_assets:
-            #     token = self._web3.toChecksumAddress(asset['token'])
-            #     _,_, token_symbol, decimals = get_erc20_info(token, web3=self._web3).parse()
-            #     silo_bdv += bean_to_float(asset['depositedBDV'])
-            # ret_string += f'\n{SeasonsMonitor.silo_balance_str("assets", bdv=silo_bdv)}'
-            ret_string += f"\n🚜 {round_num(sown_beans, 0, avoid_zero=True)} Beans Sown for {round_num(sown_beans * (1 + last_weather/100), 0, avoid_zero=True)} Pods"
             ret_string += f"\n🌡 {round_num(current_season_stats.temperature, 0)}% Temperature"
             ret_string += f"\n🧮 {round_num(pod_rate, 0)}% Pod Rate"
         return ret_string
