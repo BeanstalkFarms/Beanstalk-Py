@@ -33,6 +33,7 @@ class ContractsMigrated(Monitor):
         """
 
         event_str = ""
+        breakdown_str = ""
 
         for event_log in event_logs:
 
@@ -42,30 +43,34 @@ class ContractsMigrated(Monitor):
             if event_log.event == "L1BeansMigrated":
                 beans = round_num(token_to_float(event_log.args.get("amount"), 6))
                 destination = 'circulating' if event_log.args.get("toMode") == 0 else 'internal'
-                event_str += f"- Received {beans} Beans to {destination} balance"
+                breakdown_str += f"- Received {beans} Beans to {destination} balance"
             elif event_log.event == "L1DepositsMigrated":
                 all_bdv = event_log.args.get("bdvs")
-                event_str += f"- Received {round_num(sum(token_to_float(bdv, 6) for bdv in all_bdv))} bdv to the silo"
+                breakdown_str += f"- Received {round_num(sum(token_to_float(bdv, 6) for bdv in all_bdv))} bdv to the silo"
             elif event_log.event == "L1PlotsMigrated":
                 all_pods = event_log.args.get("pods")
-                event_str += f"- Received {round_num(sum(token_to_float(pods, 6) for pods in all_pods))} pods"
+                breakdown_str += f"- Received {round_num(sum(token_to_float(pods, 6) for pods in all_pods))} pods"
             elif event_log.event == "L1InternalBalancesMigrated":
                 tokens = event_log.args.get("tokens")
-                event_str += f"- Received balances of {len(tokens)} tokens to internal balance"
+                breakdown_str += f"- Received balances of {len(tokens)} tokens to internal balance"
             elif event_log.event == "L1FertilizerMigrated":
                 amounts = event_log.args.get("amounts")
-                event_str += f"- Received {sum(amounts)} fertilizer units across {len(amounts)} unique id(s)"
+                breakdown_str += f"- Received {sum(amounts)} fertilizer units across {len(amounts)} unique id(s)"
             elif event_log.event == "ReceiverApproved":
-                event_str += f"- Approved L2 receiver: {shorten_eth_address(receiver)}"
+                breakdown_str += f"- Approved L2 receiver: {shorten_eth_address(receiver)}"
             else:
                 continue
-            event_str += "\n_ _"
 
-        if not event_str:
+        if not breakdown_str:
             return
         
-        event_str = f"L1 Owner: {shorten_eth_address(owner)}\nL2 Receiver: {shorten_eth_address(receiver)}\n{event_str}"
+        if owner:
+            event_str += f"L1 Owner: {shorten_eth_address(owner)}\n"
+
+        event_str += f"L2 Receiver: {shorten_eth_address(receiver)}\n"
+        event_str += breakdown_str
         event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
+        event_str += "\n_ _"
         self.message_function(event_str)
 
 def shorten_eth_address(address: str) -> str:
