@@ -236,8 +236,11 @@ def well_event_str(event_log, bean_reporting, basin_graph_client, bean_client, w
         return ""
 
     if bdv is not None:
-        value = bdv * bean_client.avg_bean_price()
-
+        try:
+            value = bdv * bean_client.avg_bean_price()
+        except Exception as e:
+            logging.warning(f"Price contract failed to return a value. No value is assigned to this event")
+        
     if is_swapish:
         if bean_reporting and erc20_info_out.symbol == "BEAN":
             event_str += f"📗 {amount_out_str} {erc20_info_out.symbol} bought for {amount_in_str} {erc20_info_in.symbol} @ ${round_num(value/bean_to_float(amount_out), 4)} "
