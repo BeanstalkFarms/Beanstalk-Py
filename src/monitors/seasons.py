@@ -145,7 +145,7 @@ class SeasonsMonitor(Monitor):
             ret_string += f"\n\n**Liquidity**"
 
             for well_info in wells_info:
-                ret_string += f"\n🌊 {SILO_TOKENS_MAP[well_info.pool.lower()]}: ${round_num(token_to_float(well_info['liquidity'], 6), 0)} - "
+                ret_string += f"\n🌊 {SILO_TOKENS_MAP[well_info['pool'].lower()]}: ${round_num(token_to_float(well_info['liquidity'], 6), 0)} - "
                 ret_string += (
                     f"_deltaB [{round_num(token_to_float(well_info['delta_b'], 6), 0)}], "
                 )
