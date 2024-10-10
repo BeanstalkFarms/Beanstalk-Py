@@ -203,8 +203,8 @@ class DiscordClient(discord.ext.commands.Bot):
 
         logging.info(
             f"Discord channels are {self._channel_report}, {self._channel_peg}, {self._channel_seasons}, "
-            f"{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}, {self._channel_barn_raise},
-            {self._chat_id_contract_migrated}"
+            f"{self._channel_pool}, {self._channel_beanstalk}, {self._channel_market}, "
+            f"{self._channel_barn_raise}, {self._chat_id_contract_migrated}"
         )
 
         # Guild IDs for all servers this bot is in.
