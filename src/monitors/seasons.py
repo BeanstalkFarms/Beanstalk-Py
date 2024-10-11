@@ -156,6 +156,10 @@ class SeasonsMonitor(Monitor):
             ret_string += f"\n🏦 {round_num(current_silo_bdv, 0)} BDV in Silo"
 
             # Gets current and previous season seeds for each asset
+            """
+            TODO: Disabled this entire section until a fix for season block can be implemented
+            This is preferable so the seasons can log in the meantime
+
             season_block = self.beanstalk_client.get_season_block()
             parallelized = []
             for asset_changes in silo_assets_changes:
@@ -203,6 +207,7 @@ class SeasonsMonitor(Monitor):
 
                 # ret_string += f' — {token_symbol}  ({round_num(bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo)'
                 ret_string += f"\n\t📊 Totals: {round_num_auto(bean_to_float(current_bdv), sig_fig_min=2, abbreviate=True)} BDV, {round_num(seeds_now, 3)} Seeds, {round_num(bean_to_float(current_bdv)/current_silo_bdv*100, 1)}% of Silo"
+            """
 
             # Field.
             ret_string += f"\n\n**Field**"

@@ -16,7 +16,6 @@ from constants.config import *
 # subgraph. Will probably need to be increased someday. Would be better to find it
 # programmatically, but regularly checking the subgraph creates an inefficiency and I am tired
 # of compensating for subgraph implementation problems here.
-# SeeBeanstalkGraphClient.get_num_silo_assets().
 MAX_ASSET_SNAPSHOTS_PER_SEASON = 10
 
 class BeanstalkGraphClient(object):
@@ -208,28 +207,6 @@ class BeanstalkGraphClient(object):
         # Return list of SeasonStats class instances
         return [SeasonStats(result, i) for i in range(num_seasons)]
 
-    def get_num_silo_assets(self):
-        """
-        The Beanstalk graph silo entities contain a lot of irrelevant 'assets'. This function will
-        return the number of assets we are actually interested in, deduced programmatically from
-        the subgraph.
-
-        NOTE(funderberker): UNTESTED
-        """
-        query_str = """
-            silo(id: "{BEANSTALK_ADDR.lower()}") {
-                assets(first: 100, where: {depositedAmount_gt: "0"}) {
-                    token
-                    depositedAmount
-                }
-            }
-        """
-
-        # Create gql query and execute.
-        result = execute(self._client, query_str)
-
-        # Return number of assets matching filters.
-        return len(result["silo"]["assets"])
 
     # NOTE(funderberker): Hour to season conversion is imperfect. Unsure why.
     # Perhaps due to paused hours. Or subgraph data is different than expectations.
