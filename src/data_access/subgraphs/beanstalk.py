@@ -71,15 +71,18 @@ class BeanstalkGraphClient(object):
         return execute(self._client, query_str)["podOrder"]
 
     def get_fertilizer_bought(self):
+        # Include Fertilizer from L1 which has not migrated yet
         query_str = """
             query {
                 fertilizers {
                     supply
+                    unmigratedL1Supply
                 }
             }
         """
         # Create gql query and execute.
-        return float(execute(self._client, query_str)["fertilizers"][0]["supply"])
+        result = execute(self._client, query_str)
+        return float(result["fertilizers"][0]["supply"]) + float(result["fertilizers"][0]["unmigratedL1Supply"])
 
     def get_start_stalk_by_season(self, season):
         if season <= 1:
