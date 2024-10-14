@@ -114,13 +114,7 @@ class DiscordClient(discord.ext.commands.Bot):
         self.market_monitor = MarketMonitor(self.send_msg_market, prod=prod, dry_run=dry_run)
         self.market_monitor.start()
 
-        self.barn_raise_monitor = BarnRaiseMonitor(
-            self.send_msg_barn_raise,
-            report_events=True,
-            report_summaries=False,
-            prod=prod,
-            dry_run=dry_run,
-        )
+        self.barn_raise_monitor = BarnRaiseMonitor(self.send_msg_barn_raise, prod=prod, dry_run=dry_run)
         self.barn_raise_monitor.start()
 
         self.contract_migration_monitor = ContractsMigrated(
