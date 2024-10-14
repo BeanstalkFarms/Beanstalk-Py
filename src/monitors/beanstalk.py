@@ -136,7 +136,7 @@ class BeanstalkMonitor(Monitor):
         bean_price = self.bean_client.avg_bean_price()
 
         # Ignore these events
-        if event_log.event in ["RemoveWithdrawal", "RemoveWithdrawals" "Plant", "Pick"]:
+        if event_log.event in ["RemoveWithdrawal", "RemoveWithdrawals" "Plant", "Pick", "L1DepositsMigrated"]:
             return ""
         # Sow event.
         elif event_log.event in ["Sow", "Harvest"]:

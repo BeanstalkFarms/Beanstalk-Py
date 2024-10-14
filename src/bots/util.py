@@ -120,7 +120,7 @@ def event_in_logs(name, event_logs):
 
 
 def remove_events_from_logs_by_name(name, event_logs):
-    for event_log in event_logs:
+    for event_log in event_logs[:]:
         if event_log.event == name:
             event_logs.remove(event_log)
 

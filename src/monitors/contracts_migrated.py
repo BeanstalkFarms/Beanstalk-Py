@@ -43,21 +43,21 @@ class ContractsMigrated(Monitor):
             if event_log.event == "L1BeansMigrated":
                 beans = round_num(token_to_float(event_log.args.get("amount"), 6))
                 destination = 'circulating' if event_log.args.get("toMode") == 0 else 'internal'
-                breakdown_str += f"- Received {beans} Beans to {destination} balance"
+                breakdown_str += f"\n- Received {beans} Beans to {destination} balance"
             elif event_log.event == "L1DepositsMigrated":
                 all_bdv = event_log.args.get("bdvs")
-                breakdown_str += f"- Received {round_num(sum(token_to_float(bdv, 6) for bdv in all_bdv))} bdv to the silo"
+                breakdown_str += f"\n- Received {round_num(sum(token_to_float(bdv, 6) for bdv in all_bdv))} bdv to the silo"
             elif event_log.event == "L1PlotsMigrated":
                 all_pods = event_log.args.get("pods")
-                breakdown_str += f"- Received {round_num(sum(token_to_float(pods, 6) for pods in all_pods))} pods"
+                breakdown_str += f"\n- Received {round_num(sum(token_to_float(pods, 6) for pods in all_pods))} pods"
             elif event_log.event == "L1InternalBalancesMigrated":
                 tokens = event_log.args.get("tokens")
-                breakdown_str += f"- Received balances of {len(tokens)} tokens to internal balance"
+                breakdown_str += f"\n- Received balances of {len(tokens)} tokens to internal balance"
             elif event_log.event == "L1FertilizerMigrated":
                 amounts = event_log.args.get("amounts")
-                breakdown_str += f"- Received {sum(amounts)} fertilizer units across {len(amounts)} unique id(s)"
+                breakdown_str += f"\n- Received {sum(amounts)} fertilizer units across {len(amounts)} unique id(s)"
             elif event_log.event == "ReceiverApproved":
-                breakdown_str += f"- Approved L2 receiver: {shorten_eth_address(receiver)}"
+                breakdown_str += f"\n- Approved L2 receiver: {shorten_eth_address(receiver)}"
             else:
                 continue
 
@@ -65,9 +65,9 @@ class ContractsMigrated(Monitor):
             return
         
         if owner:
-            event_str += f"L1 Owner: {shorten_eth_address(owner)}\n"
+            event_str += f"L1 Owner: {shorten_eth_address(owner)}"
 
-        event_str += f"L2 Receiver: {shorten_eth_address(receiver)}\n"
+        event_str += f"\nL2 Receiver: {shorten_eth_address(receiver)}"
         event_str += breakdown_str
         event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
         event_str += "\n_ _"

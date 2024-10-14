@@ -150,7 +150,14 @@ add_event_to_dict(
     FERTILIZER_EVENT_MAP,
     FERTILIZER_SIGNATURES_LIST,
 )
+# Needed to identify when fert mints should be ignored
+add_event_to_dict(
+    "L1FertilizerMigrated(address,address,uint256[],uint128[],uint128)",
+    FERTILIZER_EVENT_MAP,
+    FERTILIZER_SIGNATURES_LIST,
+)
 
+# L2 Migration events
 CONTRACTS_MIGRATED_EVENT_MAP = {}
 CONTRACTS_MIGRATED_SIGNATURES_LIST = []
 add_event_to_dict(
@@ -238,8 +245,8 @@ class EthEventsClient:
             self._events_dict = MARKET_EVENT_MAP
             self._signature_list = MARKET_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.BARN_RAISE:
-            self._contracts = [get_fertilizer_contract(self._web3)]
-            self._contract_addresses = [FERTILIZER_ADDR]
+            self._contracts = [get_fertilizer_contract(self._web3), get_beanstalk_contract(self._web3)]
+            self._contract_addresses = [FERTILIZER_ADDR, BEANSTALK_ADDR]
             self._events_dict = FERTILIZER_EVENT_MAP
             self._signature_list = FERTILIZER_SIGNATURES_LIST
         elif self._event_client_type == EventClientType.CONTRACT_MIGRATED:
