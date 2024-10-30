@@ -15,3 +15,7 @@ Create an `.env.dev` file using the provided example and place your varaibles th
 To test a specific transaction, use `./dev.sh bots.discord_bot <txn hashes here>` with a list of comma separated hashes.
 
 Bots can also be run in a docker container. See the docker directory for further information.
+
+## License
+
+[MIT](https://github.com/BeanstalkFarms/Beanstalk/blob/master/LICENSE.txt)
