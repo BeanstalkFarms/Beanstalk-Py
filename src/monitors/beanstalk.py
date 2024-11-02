@@ -243,9 +243,9 @@ class BeanstalkMonitor(Monitor):
                 f"🔄 {round_num_auto(remove_float, min_precision=0)} {remove_token_symbol} "
                 f"Converted to {round_num_auto(add_float, min_precision=0)} {add_token_symbol} "
             )
-        # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
-        event_str += f"({round_num(bdv_float, 0)} BDV)"
-        event_str += f"\n_{latest_pool_price_str(self.bean_client, pool_token)}_ "
+            # if (not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX)):
+            event_str += f"({round_num(bdv_float, 0)} BDV)"
+            event_str += f"\n_{latest_pool_price_str(self.bean_client, pool_token)}_ "
         if not remove_token_addr.startswith(UNRIPE_TOKEN_PREFIX):
             event_str += f"\n{value_to_emojis(value)}"
         event_str += f"\n<https://arbiscan.io/tx/{event_logs[0].transactionHash.hex()}>"
