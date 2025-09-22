@@ -7,7 +7,7 @@ ETHERSCAN_API_URL = (
     "https://api.etherscan.io/api?module={module}&action={action}&{payload}&apikey={key}"
 )
 ARBISCAN_API_URL = (
-    "https://api.arbiscan.io/api?module={module}&action={action}&{payload}&apikey={key}"
+    "https://api.etherscan.io/v2/api?chainid=42161&module={module}&action={action}&{payload}&apikey={key}"
 )
 
 def get_gas_base_fee(chain):
@@ -22,7 +22,7 @@ def get_gas_base_fee(chain):
         return float(result["result"]["suggestBaseFee"])
     elif chain == Chain.ARB:
         request_url = ARBISCAN_API_URL.format(
-            module="proxy", action="eth_gasPrice", payload="", key=os.environ["ARBISCAN_TOKEN"]
+            module="proxy", action="eth_gasPrice", payload="", key=os.environ["ETHERSCAN_TOKEN"]
         )
         result = get_with_retries(request_url, max_tries=4, timeout=10)
         return float(int(result["result"], 16)) / 10 ** 9
