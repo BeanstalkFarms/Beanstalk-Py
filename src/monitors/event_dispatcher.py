@@ -32,7 +32,7 @@ class EventDispatcher(Monitor):
     """Poll one shared event client and route decoded transaction logs to monitors."""
 
     def __init__(self, routes, well_addresses, prod=False, dry_run=None):
-        super().__init__("EventDispatcher", lambda _: None, BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run)
+        super().__init__("EventDispatcher", lambda _: None, EVENT_DISPATCHER_CHECK_RATE, prod=prod, dry_run=dry_run)
         self.routes = routes
         self._eth_event_client = EthEventsClient(
             [
