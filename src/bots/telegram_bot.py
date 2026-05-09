@@ -17,6 +17,7 @@ from monitors.well import WellsMonitor
 from monitors.beanstalk import BeanstalkMonitor
 from monitors.market import MarketMonitor
 from monitors.barn import BarnRaiseMonitor
+from monitors.event_dispatcher import EventDispatcher, main_event_routes
 
 class TelegramBot(object):
     def __init__(self, token, prod=False, dry_run=None):
@@ -37,15 +38,39 @@ class TelegramBot(object):
         self.sunrise_monitor.start()
 
         self.wells_monitor = WellsMonitor(
-            self.send_msg, WHITELISTED_WELLS, bean_reporting=True, prod=prod, dry_run=dry_run
+            self.send_msg,
+            WHITELISTED_WELLS,
+            bean_reporting=True,
+            prod=prod,
+            dry_run=dry_run,
+            shared_event_dispatcher=True,
         )
-        self.wells_monitor.start()
 
-        self.beanstalk_monitor = BeanstalkMonitor(self.send_msg, prod=prod, dry_run=dry_run)
-        self.beanstalk_monitor.start()
+        self.beanstalk_monitor = BeanstalkMonitor(
+            self.send_msg,
+            prod=prod,
+            dry_run=dry_run,
+            shared_event_dispatcher=True,
+        )
 
-        self.market_monitor = MarketMonitor(self.send_msg, prod=prod, dry_run=dry_run)
-        self.market_monitor.start()
+        self.market_monitor = MarketMonitor(
+            self.send_msg,
+            prod=prod,
+            dry_run=dry_run,
+            shared_event_dispatcher=True,
+        )
+
+        self.event_dispatcher = EventDispatcher(
+            main_event_routes(
+                self.wells_monitor,
+                self.beanstalk_monitor,
+                self.market_monitor,
+            ),
+            self.wells_monitor.pool_addresses,
+            prod=prod,
+            dry_run=dry_run,
+        )
+        self.event_dispatcher.start()
 
         self.barn_raise_monitor = BarnRaiseMonitor(self.send_msg, prod=prod, dry_run=dry_run)
         self.barn_raise_monitor.start()
@@ -68,6 +93,7 @@ class TelegramBot(object):
     def stop(self):
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
+        self.event_dispatcher.stop()
         self.wells_monitor.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()

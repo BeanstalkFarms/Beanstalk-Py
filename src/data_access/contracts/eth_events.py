@@ -1,10 +1,12 @@
 import asyncio
+import os
 from collections import OrderedDict
 from enum import IntEnum
 
 from web3 import Web3
 from web3 import exceptions as web3_exceptions
 from web3.logs import DISCARD
+from web3.datastructures import AttributeDict
 
 from data_access.contracts.util import *
 
@@ -211,79 +213,171 @@ class TxnPair:
         self.logs = logs
 
 class EthEventsClient:
-    def __init__(self, event_client_type, addresses=[]):
+    def __init__(self, client_types, addresses=None, combine_filters=False, install_filters=True):
+        if isinstance(client_types, EventClientType):
+            client_types = [client_types]
+        if not client_types:
+            raise ValueError("Must specify at least one client type")
+        if addresses is None:
+            addresses = []
+        elif isinstance(addresses, str):
+            addresses = [addresses]
+
         # Track recently seen txns to avoid processing same txn multiple times.
         self._recent_processed_txns = OrderedDict()
         self._web3 = get_web3_instance()
-        self._event_client_type = event_client_type
-        if self._event_client_type == EventClientType.AQUIFER:
-            self._contracts = [get_aquifer_contract(self._web3)]
-            self._contract_addresses = [AQUIFER_ADDR]
-            self._events_dict = AQUIFER_EVENT_MAP
-            self._signature_list = AQUIFER_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.WELL:
-            self._contracts = [get_well_contract(self._web3, None)]
-            self._contract_addresses = addresses
-            self._events_dict = WELL_EVENT_MAP
-            self._signature_list = WELL_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.BEANSTALK:
-            self._contracts = [
-                get_beanstalk_contract(self._web3),
-                get_fertilizer_contract(self._web3),
-            ]
-            self._contract_addresses = [BEANSTALK_ADDR, FERTILIZER_ADDR]
-            self._events_dict = BEANSTALK_EVENT_MAP
-            self._signature_list = BEANSTALK_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.SEASON:
-            self._contracts = [get_beanstalk_contract(self._web3)]
-            self._contract_addresses = [BEANSTALK_ADDR]
-            self._events_dict = SEASON_EVENT_MAP
-            self._signature_list = SEASON_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.MARKET:
-            self._contracts = [get_beanstalk_contract(self._web3)]
-            self._contract_addresses = [BEANSTALK_ADDR]
-            self._events_dict = MARKET_EVENT_MAP
-            self._signature_list = MARKET_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.BARN_RAISE:
-            self._contracts = [get_fertilizer_contract(self._web3), get_beanstalk_contract(self._web3)]
-            self._contract_addresses = [FERTILIZER_ADDR, BEANSTALK_ADDR]
-            self._events_dict = FERTILIZER_EVENT_MAP
-            self._signature_list = FERTILIZER_SIGNATURES_LIST
-        elif self._event_client_type == EventClientType.CONTRACT_MIGRATED:
-            self._contracts = [get_beanstalk_contract(self._web3)]
-            self._contract_addresses = [BEANSTALK_ADDR]
-            self._events_dict = CONTRACTS_MIGRATED_EVENT_MAP
-            self._signature_list = CONTRACTS_MIGRATED_SIGNATURES_LIST
-        else:
-            raise ValueError("Unsupported event client type.")
-        self._set_filters()
+        self._client_types = client_types
+        self._combine_filters = combine_filters
 
-    def _set_filters(self):
-        """This is located in a method so it can be reset on the fly."""
-        self._event_filters = []
-        for address in self._contract_addresses:
-            self._event_filters.append(
-                safe_create_filter(
-                    self._web3,
-                    address=address,
-                    topics=[self._signature_list],
-                    from_block="latest",
-                    to_block="latest",
-                )
+        self._contracts = []
+        self._contracts_by_key = {}
+        self._contract_keys = set()
+        self._contract_event_sources = OrderedDict()
+        self._contract_addresses = []
+        self._signature_list = []
+        self._events_dict = {}
+        self._filter_specs = []
+
+        for client_type in client_types:
+            if client_type == EventClientType.AQUIFER:
+                contract = self._add_contract("aquifer", get_aquifer_contract(self._web3))
+                self._add_contract_event_names("aquifer", contract, AQUIFER_EVENT_MAP)
+                self._add_filter_spec(client_type, [AQUIFER_ADDR], AQUIFER_SIGNATURES_LIST)
+                self._signature_list.extend(AQUIFER_SIGNATURES_LIST)
+                self._events_dict.update(AQUIFER_EVENT_MAP)
+            elif client_type == EventClientType.WELL:
+                contract = self._add_contract("well", get_well_contract(self._web3, None))
+                self._add_contract_event_names("well", contract, WELL_EVENT_MAP)
+                self._add_filter_spec(client_type, addresses, WELL_SIGNATURES_LIST)
+                self._signature_list.extend(WELL_SIGNATURES_LIST)
+                self._events_dict.update(WELL_EVENT_MAP)
+            elif client_type == EventClientType.BEANSTALK:
+                beanstalk_contract = self._add_contract("beanstalk", get_beanstalk_contract(self._web3))
+                fertilizer_contract = self._add_contract("fertilizer", get_fertilizer_contract(self._web3))
+                self._add_contract_event_names("beanstalk", beanstalk_contract, BEANSTALK_EVENT_MAP)
+                self._add_contract_event_names("fertilizer", fertilizer_contract, BEANSTALK_EVENT_MAP)
+                self._add_filter_spec(client_type, [BEANSTALK_ADDR, FERTILIZER_ADDR], BEANSTALK_SIGNATURES_LIST)
+                self._signature_list.extend(BEANSTALK_SIGNATURES_LIST)
+                self._events_dict.update(BEANSTALK_EVENT_MAP)
+            elif client_type == EventClientType.SEASON:
+                contract = self._add_contract("beanstalk", get_beanstalk_contract(self._web3))
+                self._add_contract_event_names("beanstalk", contract, SEASON_EVENT_MAP)
+                self._add_filter_spec(client_type, [BEANSTALK_ADDR], SEASON_SIGNATURES_LIST)
+                self._signature_list.extend(SEASON_SIGNATURES_LIST)
+                self._events_dict.update(SEASON_EVENT_MAP)
+            elif client_type == EventClientType.MARKET:
+                contract = self._add_contract("beanstalk", get_beanstalk_contract(self._web3))
+                self._add_contract_event_names("beanstalk", contract, MARKET_EVENT_MAP)
+                self._add_filter_spec(client_type, [BEANSTALK_ADDR], MARKET_SIGNATURES_LIST)
+                self._signature_list.extend(MARKET_SIGNATURES_LIST)
+                self._events_dict.update(MARKET_EVENT_MAP)
+            elif client_type == EventClientType.BARN_RAISE:
+                fertilizer_contract = self._add_contract("fertilizer", get_fertilizer_contract(self._web3))
+                beanstalk_contract = self._add_contract("beanstalk", get_beanstalk_contract(self._web3))
+                self._add_contract_event_names("fertilizer", fertilizer_contract, FERTILIZER_EVENT_MAP)
+                self._add_contract_event_names("beanstalk", beanstalk_contract, FERTILIZER_EVENT_MAP)
+                self._add_filter_spec(client_type, [FERTILIZER_ADDR, BEANSTALK_ADDR], FERTILIZER_SIGNATURES_LIST)
+                self._signature_list.extend(FERTILIZER_SIGNATURES_LIST)
+                self._events_dict.update(FERTILIZER_EVENT_MAP)
+            elif client_type == EventClientType.CONTRACT_MIGRATED:
+                contract = self._add_contract("beanstalk", get_beanstalk_contract(self._web3))
+                self._add_contract_event_names("beanstalk", contract, CONTRACTS_MIGRATED_EVENT_MAP)
+                self._add_filter_spec(client_type, [BEANSTALK_ADDR], CONTRACTS_MIGRATED_SIGNATURES_LIST)
+                self._signature_list.extend(CONTRACTS_MIGRATED_SIGNATURES_LIST)
+                self._events_dict.update(CONTRACTS_MIGRATED_EVENT_MAP)
+            else:
+                raise ValueError("Unsupported event client type.")
+
+        if install_filters:
+            self._set_filters()
+        else:
+            self._event_filters = []
+            logging.info(
+                f"{', '.join(ct.name for ct in self._client_types)} EthEventsClient "
+                "initialized without realtime filters"
             )
 
-    def get_log_range(self, from_block, to_block="latest"):
+    def _add_contract(self, key, contract):
+        if key in self._contract_keys:
+            return self._contracts_by_key[key]
+        self._contracts.append(contract)
+        self._contracts_by_key[key] = contract
+        self._contract_keys.add(key)
+        return contract
+
+    def _add_contract_event_names(self, contract_key, contract, event_map):
+        for event_name in self._event_names_from_map(event_map):
+            self._contract_event_sources[(contract_key, event_name)] = contract
+
+    def _event_names_from_map(self, event_map):
+        return [key for key in event_map if isinstance(key, str) and not key.startswith("0x")]
+
+    def _add_filter_spec(self, client_type, addresses, signatures):
+        addresses = list(OrderedDict.fromkeys(addresses))
+        self._contract_addresses.extend(addresses)
+        self._filter_specs.append(
+            {
+                "client_type": client_type,
+                "addresses": addresses,
+                "signatures": signatures,
+            }
+        )
+
+    def _filter_address_param(self, addresses):
+        if len(addresses) == 0:
+            return None
+        if len(addresses) == 1:
+            return addresses[0]
+        return addresses
+
+    def _create_filters(self, from_block, to_block):
+        if self._combine_filters:
+            addresses = []
+            signatures = []
+            for spec in self._filter_specs:
+                addresses.extend(spec["addresses"])
+                signatures.extend(spec["signatures"])
+            addresses = list(OrderedDict.fromkeys(addresses))
+            signatures = list(OrderedDict.fromkeys(signatures))
+            if not signatures:
+                return []
+            return [
+                safe_create_filter(
+                    self._web3,
+                    address=self._filter_address_param(addresses),
+                    topics=[signatures],
+                    from_block=from_block,
+                    to_block=to_block,
+                )
+            ]
+
         filters = []
-        for address in self._contract_addresses:
+        for spec in self._filter_specs:
             filters.append(
                 safe_create_filter(
                     self._web3,
-                    address=address,
-                    topics=[self._signature_list],
+                    address=self._filter_address_param(spec["addresses"]),
+                    topics=[spec["signatures"]],
                     from_block=from_block,
                     to_block=to_block,
                 )
             )
+        return filters
+
+    def _set_filters(self):
+        """This is located in a method so it can be reset on the fly."""
+        self._event_filters = self._create_filters(
+            from_block=os.environ.get("DRY_RUN_FROM_BLOCK", "latest"),
+            to_block=os.environ.get("DRY_RUN_TO_BLOCK", "latest"),
+        )
+        logging.info(
+            f"{', '.join(ct.name for ct in self._client_types)} EthEventsClient "
+            f"configured {len(self._event_filters)} filter(s) across "
+            f"{sum(len(spec['addresses']) or 1 for spec in self._filter_specs)} address group(s)"
+        )
+
+    def get_log_range(self, from_block, to_block="latest"):
+        filters = self._create_filters(from_block=from_block, to_block=to_block)
         return self.get_new_logs(filters=filters, get_all=True)
 
     def get_new_logs(self, dry_run=None, filters=None, get_all=False):
@@ -297,7 +391,8 @@ class EthEventsClient:
         Note that there may be multiple unique entries with the same topic. Though we assume
         each entry indicates one log of interest.
         """
-        if filters is None:
+        self_filters = filters is None
+        if self_filters:
             filters = self._event_filters
         # All decoded logs of interest from each txn.
         txn_hash_set = set()
@@ -305,8 +400,25 @@ class EthEventsClient:
 
         if not dry_run:
             new_entries = []
-            for filter in filters:
-                new_entries.extend(self.safe_get_new_entries(filter, get_all=get_all))
+            for i in range(len(filters)):
+                try_count = 0
+                while try_count < 3:
+                    try_count += 1
+                    try:
+                        new_entries.extend(self.safe_get_new_entries(filters[i], get_all=get_all))
+                        break
+                    except (
+                        ValueError,
+                        asyncio.TimeoutError,
+                        websockets.exceptions.ConnectionClosedError,
+                        Exception,
+                    ) as e:
+                        logging.warning(e, exc_info=True)
+                        logging.warning("filter.safe_get_new_entries() failed or timed out. Retrying...")
+                        time.sleep(1)
+                        if self_filters:
+                            self._set_filters()
+                            filters = self._event_filters
         else:
             new_entries = get_test_entries(dry_run)
             time.sleep(3)
@@ -320,43 +432,30 @@ class EthEventsClient:
                 if topic_hash not in self._events_dict:
                     logging.warning(
                         f"Unexpected topic ({topic_hash}) seen in "
-                        f"{self._event_client_type.name} EthEventsClient"
+                        f"{', '.join(ct.name for ct in self._client_types)} EthEventsClient"
                     )
                     continue
-
-            # Print out entry.
-            # logging.info(f"{self._event_client_type.name} entry:\n{str(entry)}\n")
 
             # Do not process the same txn multiple times.
             txn_hash = entry["transactionHash"]
             if txn_hash in txn_hash_set:
                 continue
 
-            # logging.info(f"{self._event_client_type.name} processing {txn_hash.hex()} logs.")
-
-            # Retrieve the full txn and txn receipt.
+            # Retrieve and decode all logs of interest from the txn. There may be many logs.
             receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
-
-            # Get and decode all logs of interest from the txn. There may be many logs.
-            decoded_logs = []
-            for signature in self._signature_list:
-                for contract in self._contracts:
-                    try:
-                        decoded_type_logs = contract.events[
-                            self._events_dict[signature]
-                        ]().processReceipt(receipt, errors=DISCARD)
-                    except web3_exceptions.ABIEventFunctionNotFound:
-                        continue
-                    decoded_logs.extend(decoded_type_logs)
+            decoded_logs = self.logs_from_receipt(receipt)
+            decoded_logs.sort(key=lambda log: getattr(log, "logIndex", float("inf")))
 
             # Add all remaining txn logs to log map.
             txn_hash_set.add(txn_hash)
             txn_logs_list.append(TxnPair(txn_hash, decoded_logs))
-            # logging.info(
-            #     f"Transaction: {txn_hash}\nAll txn logs of interest:\n"
-            #     f"{NEWLINE_CHAR.join([str(l) for l in decoded_logs])}"
-            # )
 
+        txn_logs_list.sort(
+            key=lambda entry: (
+                entry.logs[0].receipt.blockNumber if entry.logs else float("inf"),
+                entry.logs[0].logIndex if entry.logs else float("inf"),
+            )
+        )
         return txn_logs_list
 
     def safe_get_new_entries(self, filter, get_all=False):
@@ -366,54 +465,42 @@ class EthEventsClient:
         of interest this will return multiple entries.
         Catch any exceptions that may arise when attempting to connect to Infura.
         """
-        logging.info(f"Checking for new {self._event_client_type.name} entries with " f"{filter}.")
-        try_count = 0
-        while try_count < 5:
-            try_count += 1
+        if get_all or "DRY_RUN_FROM_BLOCK" in os.environ:
+            return filter.get_all_entries()
+
+        # We must verify new_entries because get_new_entries() will occasionally pull
+        # entries that are not actually new. May be a bug with web3 or may just be a relic
+        # of the way block confirmations work.
+        new_entries = filter.get_new_entries()
+        new_unique_entries = []
+        # Remove entries w txn hashes that already processed on past get_new_entries calls.
+        for i in range(len(new_entries)):
+            entry = new_entries[i]
+            # If we have not already processed this txn hash.
+            if entry.transactionHash not in self._recent_processed_txns:
+                new_unique_entries.append(entry)
+
+        # Add all new txn hashes to recent processed set/dict.
+        for entry in new_unique_entries:
+            # Arbitrary value. Using this as a set.
+            self._recent_processed_txns[entry.transactionHash] = True
+        # Keep the recent txn queue size within limit.
+        for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
+            self._recent_processed_txns.popitem(last=False)
+        return new_unique_entries
+
+    def logs_from_receipt(self, receipt):
+        """Decode and return all logs of interest from the given receipt."""
+        decoded_logs = []
+        for (_, event_name), contract in self._contract_event_sources.items():
             try:
-                if get_all:
-                    return filter.get_all_entries()
-                # We must verify new_entries because get_new_entries() will occasionally pull
-                # entries that are not actually new. May be a bug with web3 or may just be a relic
-                # of the way block confirmations work.
-                new_entries = filter.get_new_entries()
-                new_unique_entries = []
-                # Remove entries w txn hashes that already processed on past get_new_entries calls.
-                for i in range(len(new_entries)):
-                    entry = new_entries[i]
-                    # If we have not already processed this txn hash.
-                    if entry.transactionHash not in self._recent_processed_txns:
-                        new_unique_entries.append(entry)
-                    else:
-                        logging.warning(
-                            f"Ignoring txn that has already been processed ({entry.transactionHash})"
-                        )
-                # Add all new txn hashes to recent processed set/dict.
-                for entry in new_unique_entries:
-                    # Arbitrary value. Using this as a set.
-                    self._recent_processed_txns[entry.transactionHash] = True
-                # Keep the recent txn queue size within limit.
-                for _ in range(max(0, len(self._recent_processed_txns) - TXN_MEMORY_SIZE_LIMIT)):
-                    self._recent_processed_txns.popitem(last=False)
-                return new_unique_entries
-                # return filter.get_all_entries() # Use this to search for old events.
-            except (
-                ValueError,
-                asyncio.TimeoutError,
-                websockets.exceptions.ConnectionClosedError,
-                Exception,
-            ) as e:
-                logging.warning(e, exc_info=True)
-                logging.warning(
-                    "filter.get_new_entries() (or .get_all_entries()) failed or timed out. Retrying..."
-                )
-                time.sleep(1)
-                # Filters rely on server state and may be arbitrarily uninstalled by server.
-                # https://github.com/ethereum/web3.py/issues/551
-                # If we are failing too much recreate the filter.
-                self._set_filters()
-        logging.error("Failed to get new event entries. Passing.")
-        return []
+                decoded_type_logs = contract.events[event_name]().processReceipt(receipt, errors=DISCARD)
+            except web3_exceptions.ABIEventFunctionNotFound:
+                continue
+            for log in decoded_type_logs:
+                # Attach the full receipt so downstream monitors do not fetch it again.
+                decoded_logs.append(AttributeDict({**dict(log), "receipt": receipt}))
+        return decoded_logs
 
 def safe_create_filter(web3, address, topics, from_block, to_block):
     """Create a filter but handle connection exceptions that web3 cannot manage."""

@@ -25,6 +25,7 @@ from monitors.peg_cross import PegCrossMonitor
 from monitors.seasons import SeasonsMonitor
 from monitors.well import WellsMonitor
 from monitors.contracts_migrated import ContractsMigrated
+from monitors.event_dispatcher import EventDispatcher, main_event_routes
 
 class Channel(Enum):
     PEG = 0
@@ -102,17 +103,39 @@ class DiscordClient(discord.ext.commands.Bot):
         self.sunrise_monitor.start()
 
         self.well_monitor_whitelisted = WellsMonitor(
-            self.send_msg_pool, WHITELISTED_WELLS, bean_reporting=True, prod=prod, dry_run=dry_run
+            self.send_msg_pool,
+            WHITELISTED_WELLS,
+            bean_reporting=True,
+            prod=prod,
+            dry_run=dry_run,
+            shared_event_dispatcher=True,
         )
-        self.well_monitor_whitelisted.start()
 
         self.beanstalk_monitor = BeanstalkMonitor(
-            self.send_msg_beanstalk, prod=prod, dry_run=dry_run
+            self.send_msg_beanstalk,
+            prod=prod,
+            dry_run=dry_run,
+            shared_event_dispatcher=True,
         )
-        self.beanstalk_monitor.start()
 
-        self.market_monitor = MarketMonitor(self.send_msg_market, prod=prod, dry_run=dry_run)
-        self.market_monitor.start()
+        self.market_monitor = MarketMonitor(
+            self.send_msg_market,
+            prod=prod,
+            dry_run=dry_run,
+            shared_event_dispatcher=True,
+        )
+
+        self.event_dispatcher = EventDispatcher(
+            main_event_routes(
+                self.well_monitor_whitelisted,
+                self.beanstalk_monitor,
+                self.market_monitor,
+            ),
+            self.well_monitor_whitelisted.pool_addresses,
+            prod=prod,
+            dry_run=dry_run,
+        )
+        self.event_dispatcher.start()
 
         self.barn_raise_monitor = BarnRaiseMonitor(self.send_msg_barn_raise, prod=prod, dry_run=dry_run)
         self.barn_raise_monitor.start()
@@ -139,6 +162,7 @@ class DiscordClient(discord.ext.commands.Bot):
         # self.upload_channel_to_wallets()
         self.peg_cross_monitor.stop()
         self.sunrise_monitor.stop()
+        self.event_dispatcher.stop()
         self.well_monitor_whitelisted.stop()
         self.beanstalk_monitor.stop()
         self.market_monitor.stop()
