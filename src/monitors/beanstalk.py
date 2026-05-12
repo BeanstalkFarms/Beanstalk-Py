@@ -13,21 +13,26 @@ from collections import defaultdict
 class BeanstalkMonitor(Monitor):
     """Monitor the Beanstalk contract for events."""
 
-    def __init__(self, message_function, prod=False, dry_run=None):
+    def __init__(self, message_function, prod=False, dry_run=None, shared_event_dispatcher=False):
         super().__init__(
             "Beanstalk", message_function, BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run
         )
-        self._eth_event_client = EthEventsClient(EventClientType.BEANSTALK)
+        self._eth_event_client = None if shared_event_dispatcher else EthEventsClient(EventClientType.BEANSTALK)
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()
 
     def _monitor_method(self):
-        last_check_time = 0
+        if self._eth_event_client is None:
+            while self._thread_active:
+                time.sleep(1)
+            return
+
+        self.last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + self.query_rate:
+            if time.time() < self.last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
-            last_check_time = time.time()
+            self.last_check_time = time.time()
             for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
                 self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 

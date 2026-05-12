@@ -22,7 +22,7 @@ class SeasonsMonitor(Monitor):
         self.short_msgs = short_msgs
         # Read-only access to self.channel_to_wallets, which may be modified by other threads.
         self.channel_to_wallets = channel_to_wallets
-        self._eth_event_client = EthEventsClient(EventClientType.SEASON)
+        self._eth_event_client = EthEventsClient(EventClientType.SEASON, install_filters=False)
         self.beanstalk_graph_client = BeanstalkGraphClient()
         self.bean_client = BeanClient()
         self.beanstalk_client = BeanstalkClient()

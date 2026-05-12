@@ -18,6 +18,7 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
         self.nickname = ""
         self.last_nickname = ""
         self.status_text = ""
+        self.last_status_text = ""
 
         # Try to avoid hitting Discord API rate limit when all bots starting together.
         time.sleep(1.1)
@@ -40,10 +41,14 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
 
     def set_nickname(self, text):
         """Set bot server nickname."""
+        if text == self.last_nickname and not self.nickname:
+            return
         self.nickname = text
 
     def set_status(self, text):
         """Set bot custom status text."""
+        if text == self.last_status_text and not self.status_text:
+            return
         self.status_text = text
 
     async def on_ready(self):
@@ -58,13 +63,17 @@ class DiscordSidebarClient(discord.ext.commands.Bot):
     @tasks.loop(seconds=1, reconnect=True)
     async def _update_naming(self):
         if self.nickname:
-            await update_discord_bot_name(self.nickname, self)
+            next_nickname = self.nickname
+            await update_discord_bot_name(next_nickname, self)
+            self.last_nickname = next_nickname
         self.nickname = ""
         if self.status_text:
+            next_status_text = self.status_text
             await self.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.watching, name=self.status_text)
+                activity=discord.Activity(type=discord.ActivityType.watching, name=next_status_text)
             )
-            logging.info(f"Bot status changed to {self.status_text}")
+            self.last_status_text = next_status_text
+            # logging.info(f"Bot status changed to {self.status_text}")
             self.status_text = ""
 
     @_update_naming.before_loop
@@ -85,7 +94,7 @@ async def update_discord_bot_name(name, bot):
     for guild in bot.current_guilds:
         # logging.info(f"Attempting to set nickname in guild with id {guild.id}")
         await guild.me.edit(nick=next_name)
-        logging.info(f"Bot nickname changed to {next_name} in guild with id {guild.id}")
+        # logging.info(f"Bot nickname changed to {next_name} in guild with id {guild.id}")
     return next_name
 
 class MsgHandler(logging.Handler):
@@ -130,6 +139,11 @@ def event_sig_in_txn(event_sig, txn_hash, web3=None):
     if not web3:
         web3 = get_web3_instance()
     receipt = tools.util.get_txn_receipt_or_wait(web3, txn_hash)
+    return event_sig_in_receipt(event_sig, receipt)
+
+
+def event_sig_in_receipt(event_sig, receipt):
+    """Return True if an event signature appears in any raw logs from a receipt."""
     for log in receipt.logs:
         try:
             if log.topics[0].hex() == event_sig:

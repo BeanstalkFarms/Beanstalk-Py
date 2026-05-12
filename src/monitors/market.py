@@ -13,23 +13,28 @@ from constants.config import *
 class MarketMonitor(Monitor):
     """Monitor the Beanstalk contract for market events."""
 
-    def __init__(self, message_function, prod=False, dry_run=None):
+    def __init__(self, message_function, prod=False, dry_run=None, shared_event_dispatcher=False):
         super().__init__(
             "Market", message_function, BEANSTALK_CHECK_RATE, prod=prod, dry_run=dry_run
         )
-        self._eth_event_client = EthEventsClient(EventClientType.MARKET)
+        self._eth_event_client = None if shared_event_dispatcher else EthEventsClient(EventClientType.MARKET)
         self.bean_client = BeanClient(self._web3)
         self.bean_contract = get_bean_contract(self._web3)
         self.beanstalk_contract = get_beanstalk_contract(self._web3)
         self.beanstalk_graph_client = BeanstalkGraphClient()
 
     def _monitor_method(self):
-        last_check_time = 0
+        if self._eth_event_client is None:
+            while self._thread_active:
+                time.sleep(1)
+            return
+
+        self.last_check_time = 0
         while self._thread_active:
-            if time.time() < last_check_time + self.query_rate:
+            if time.time() < self.last_check_time + self.query_rate:
                 time.sleep(0.5)
                 continue
-            last_check_time = time.time()
+            self.last_check_time = time.time()
             for txn_pair in self._eth_event_client.get_new_logs(dry_run=self._dry_run):
                 self._handle_txn_logs(txn_pair.txn_hash, txn_pair.logs)
 
@@ -38,8 +43,13 @@ class MarketMonitor(Monitor):
 
         Note that Event Log Object is not the same as Event object.
         """
+        if not event_logs:
+            return
+
         # Match the txn invoked method. Matching is done on the first 10 characters of the hash.
-        transaction_receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
+        transaction_receipt = getattr(event_logs[0], "receipt", None)
+        if transaction_receipt is None:
+            transaction_receipt = tools.util.get_txn_receipt_or_wait(self._web3, txn_hash)
 
         # Handle txn logs individually using default strings.
         for event_log in event_logs:
